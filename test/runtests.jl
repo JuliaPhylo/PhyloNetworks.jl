@@ -4,20 +4,21 @@
 # the include(...) or the using PhyloNetworks part
 # Claudia May 2016
 
-using Base.Test
-using StaticArrays # for rate substitution matrices
-using StatsBase # for aic etc., stderr
+using Test
+using PhyloNetworks
 using CSV # for reading files
-using Missings
+using DataFrames
+using Distributed # parallel in test_correctLik.jl and test_bootstrap.jl
+using GLM # for coef, nobs, residuals etc.
+using LinearAlgebra: norm, diag, logdet, PosDefException # LinearAlgebra.rotate! not brought into scope
+using Random
+using StaticArrays # for rate substitution matrices
+using Statistics
+using StatsBase # for aic etc., stderr
+using BioSymbols
 
-if !isdefined(:localtests) localtests = false; end
 
-
-if(!localtests)
-    using PhyloNetworks
-    using DataFrames
-    using GLM # for trait evolution
-    PhyloNetworks.setCHECKNET(true)
+PhyloNetworks.setCHECKNET(true)
 
     ## readTopology
     getIndexEdge = PhyloNetworks.getIndexEdge
@@ -63,43 +64,49 @@ if(!localtests)
     RootMismatch = PhyloNetworks.RootMismatch
     fuseedgesat! = PhyloNetworks.fuseedgesat!
     ## compareNetworks
-    deleteHybridEdge! = PhyloNetworks.deleteHybridEdge!
+    deletehybridedge! = PhyloNetworks.deletehybridedge!
     displayedNetworks! = PhyloNetworks.displayedNetworks!
     ## perfect data
     writeExpCF = PhyloNetworks.writeExpCF
     optBL! = PhyloNetworks.optBL!
-else
-    const CHECKNET = true #for debugging only
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
+    ## traitLikDiscrete
+    P = PhyloNetworks.P
+    P! = PhyloNetworks.P!
 
-tests = ["test_5taxon_readTopology.jl", "test_calculateExpCF.jl", "test_calculateExpCF2.jl", "test_hasEdge.jl", "test_parameters.jl","test_correctLik.jl",
-         "test_partition.jl", "test_partition2.jl","test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
-         "test_manipulateNet.jl", "test_compareNetworks.jl",
-         "test_badDiamII.jl",
-         "test_multipleAlleles.jl",
-         "test_bootstrap.jl",
-         "test_perfectData.jl", # "test_readme.jl"
-         "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl",
-         "test_parsimony.jl",
-         "test_calibratePairwise.jl", "test_relaxed_reading.jl",
-         "test_isMajor.jl", "test_interop.jl",
-         "test_traitLikDiscrete.jl",
-         "test_ticr.jl",
-         "test_readInputData.jl"]
+tests = [
+    "test_auxillary.jl",
+    "test_generatetopology.jl",
+    "test_addHybrid.jl",
+    "test_5taxon_readTopology.jl",
+    "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
+    "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
+    "test_partition.jl", "test_partition2.jl", "test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
+    "test_graph_components.jl",
+    "test_manipulateNet.jl", "test_compareNetworks.jl",
+    "test_badDiamII.jl",
+    "test_multipleAlleles.jl",
+    "test_bootstrap.jl",
+    "test_perfectData.jl",
+    "test_moves_semidirected.jl",
+    "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl", "test_simulate_mbd.jl",
+    "test_lm_withinspecies.jl",
+    "test_parsimony.jl",
+    "test_calibratePairwise.jl", "test_relaxed_reading.jl",
+    "test_isMajor.jl", "test_interop.jl",
+    "test_traitLikDiscrete.jl",
+    "test_phyLiNCoptimization.jl",
+    "test_readInputData.jl",
+    "test_nj.jl",
+]
 
-if isdefined(:PhyloNetworks)
-    @show PhyloNetworks.CHECKNET
-else
-    @show CHECKNET
-end
+@show PhyloNetworks.CHECKNET
 
 anyerrors = false
 
 for t in tests
+    global anyerrors
     try
-        info("starting $t")
+        @info "starting $t"
         include(t)
         println("\033[1m\033[32mPASSED\033[0m: $t")
     catch

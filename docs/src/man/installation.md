@@ -26,6 +26,7 @@ faster. Trying out toy examples for the first calls is a good idea.
 
 To install the package, type inside Julia:
 ```julia
+using Pkg
 Pkg.add("PhyloNetworks")
 ```
 The first step can take a few minutes, be patient. If you already installed the package and want
@@ -33,7 +34,7 @@ the latest registered version, just do this (which will update all of your packa
 ```julia
 Pkg.update()
 ```
-WARNING: It is important to update the package regularly as it is
+Warning: It is important to update the package regularly as it is
 undergoing constant development. Join the google group for updates
 [here]
 (https://groups.google.com/forum/#!forum/phylonetworks-users/new).
@@ -41,19 +42,22 @@ undergoing constant development. Join the google group for updates
 `Pkg.update()` will install the latest registered version, but there
 could be other improvements in the `master` branch of the
 repository. If you want to update to the latest unregistered version
-of the package, you can do `Pkg.checkout("PhyloNetworks")` just beware
-that the latest changes could be not as robust. If you want to go back to the registered package, you can do `Pkg.free("PhyloNetworks")`.
+of the package, you can do
+`Pkg.add(PackageSpec(name="PhyloNetworks", rev="master"))`
+just beware that the latest changes could be not as robust.
+If you want to go back to the registered package, you can do
+`Pkg.free("PhyloNetworks")`.
 
 Similarly, you can pin a version of the package
 `Pkg.pin("PhyloNetworks")` so that `Pkg.update()` will not modify
 it. You can always free a pinned package with
-`Pkg.free("PhyloNetworks")`. More on checked and pinned packages [here]
-(http://docs.julialang.org/en/stable/manual/packages/).
+`Pkg.free("PhyloNetworks")`. More on package management
+[here](https://docs.julialang.org/en/v1/stdlib/Pkg/).
 
 The PhyloNetworks package has dependencies like
 [NLopt](https://github.com/JuliaOpt/NLopt.jl) and
 [DataFrames](http://juliadata.github.io/DataFrames.jl/stable/)
-(see the REQUIRE file for the full list), but everything is installed automatically.
+(see the `Project.toml` file for the full list), but everything is installed automatically.
 
 The companion package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl)
 has utilities to visualize networks, and for interoperability,
@@ -61,11 +65,12 @@ such as to export networks to R (which can then be plotted via R).
 To install:
 
 ```julia
+using Pkg
 Pkg.add("PhyloPlots")
 ```
 
 PhyloPlots depends on PhyloNetworks, and has further dependencies
-like [Gadfly](http://gadflyjl.org/stable/) and
+like
 [RCall](https://github.com/JuliaInterop/RCall.jl)
 
 ## Test example
@@ -86,7 +91,7 @@ tipLabels(net)
 
 You can see a list of all the functions with
 ```julia
-whos(PhyloNetworks)
+varinfo(PhyloNetworks)
 ```
 and press `?` inside Julia to switch to help mode,
 followed by the name of a function (or type) to get more details about it.
@@ -100,11 +105,11 @@ For example, let's take an object `raxmlCF` created from reading in some data
 (see [Input for SNaQ](@ref)):
 
 ```@repl install
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre");
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre");
 raxmlCF = readTrees2CF(raxmltrees);
 ```
 
-Typing `whos()` will provide a list of objects and packages in memory,
+Typing `varinfo()` will provide a list of objects and packages in memory,
 including `raxmlCF` that we just created.
 If we want to know the type of a particular object, we do:
 ```@repl install
@@ -116,7 +121,7 @@ followed by `DataCF` for a description.
 We can also ask for a list of all its attributes with
 
 ```@repl install
-fieldnames(raxmlCF)
+fieldnames(typeof(raxmlCF))
 ```
 For example, we see that one attribute is `numQuartets`: its the number of 4-taxon subsets
 in the data. To see what this number is:

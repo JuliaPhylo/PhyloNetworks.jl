@@ -1,24 +1,22 @@
-### Tests functions
-All in runtests.jl
+# Tests functions
+
+- all in `runtests.jl`, which calls other test files
+- to see deprecation warnings when running things locally, start julia with
+  ```shell
+  julia --depwarn=yes
+  ```
+  and possibly other options (like --project).
+- generally, code in file `src/x.jl` is tested by `test/test_x.jl`,
+  but see below for what older test files do (related to SNaQ).  
+  checkout PhyloNetworks v0.9.1 or older to see those older files.
 
 #### add hybridization
-(deprecated)
-tests_5taxon.jl runs all the tests for the eight 5taxon networks of
-starting with tree_example.jl and adding one hybridization
-It calls add_hybrid_caseC,D,E,F,G,H,I,J.jl
-aux functions: print_add.jl and test_functions_5taxon.jl
 
-test_add2hyb.jl add a second hybrid which is a bad triangle, and the
+test_add2hyb.jl add a first hybrid, then a second hybrid that
+makes a bad triangle, and the
 functions should identify it
 
 #### delete hybridization
-(deprecated)
-tests_5taxon_delete.jl runs all the tests for the eight 5taxon
-networks of starting with tree_example.jl and adding one
-hybridization, and then deleting it and comparing to the original tree
-example
-It calls delete_hybrid_caseC,D,E,F,G,H,I,J.jl
-aux functions: test_functions_5taxon.jl
 
 test_deleteHybridizationUpdate.jl checks that all attributes are correctly updated after deleting a hybridization (1 and 2 hybrids)
 
@@ -58,18 +56,3 @@ test_correctLik.jl computes the pseudolik for a tree and a network with 1 hybrid
 #### partition
 
 test_partition.jl (1 hybrid) and test_partition2.jl (2 hybrids) check if the attribute of partition is correctly set
-
-#### network manipulations, comparisons, and plots
-
-test_orderings_plot.jl tests functions in manipulateNet.jl and plotsGadfly.jl
-- directEdges! rootatnode! rootonedge!
-- preorder! cladewiseorder!
-- plot rotate!
-
-test_compareNetworks.jl tests:
- - deleteHybridEdge!
- - functions to extract displayed trees/subnetworks,
- - hardwiredClusterDistance (which uses functions above)
-
-both run a few examplar tests by default (used by runtests.jl)
-but can run more tests if one first defines doalltests = true

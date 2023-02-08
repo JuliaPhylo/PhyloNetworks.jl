@@ -2,8 +2,9 @@
 # Claudia January 2015
 # Also, tests for net.ht, net.numht, qnet.indexht
 
-println("----- Case G ------")
+#println("----- Case G ------")
 include("../examples/case_g_example.jl");
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_g_example.jl"))
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
@@ -40,12 +41,13 @@ try
     q5.qnet.index == [7,3,6] ? nothing : error("q5.qnet.index not correct")
 catch
     println("---- error in case G -----")
-    error1 = true
+    global error1 = true
 end
 
 
-println("----- Case F: bad diamond ------")
+#println("----- Case F: bad diamond ------")
 include("../examples/case_f_example.jl");
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_f_example.jl"))
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
 q2 = Quartet(2,["6","7","10","8"],[0.5,0.4,0.1]);
@@ -82,10 +84,10 @@ try
     q5.qnet.index == [1,3] ? nothing : error("q5.qnet.index not correct")
 catch
     println("---- error in case F -----")
-    error1 = true
+    global error1 = true
 end
 
-println("----- Case I: bad diamondII ------")
+#println("----- Case I: bad diamondII ------")
 include("../examples/case_i_example.jl");
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -123,13 +125,10 @@ try
 
 catch
     println("---- error in case I -----")
-    error1 = true
+    global error1 = true
 end
 
-
-if(!error1)
-    #println("------- NO ERRORS!! -----")
-else
+if error1
     throw("errors in has edge")
 end
 

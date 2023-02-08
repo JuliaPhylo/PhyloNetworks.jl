@@ -2,6 +2,7 @@
 # Claudia November 2015
 
 global repeatAlleleSuffix = "__2"
+repeatAlleleSuffix_re = Regex("$repeatAlleleSuffix\$")
 
 
 """
@@ -16,9 +17,9 @@ Optional arguments:
 - file name to write/save resulting CF table. If not specified, then the output
   data frame is not saved to a file.
 - column numbers for the taxon names. 1-4 by default.
-- any keyword arguments that `CSV.read` would accept.
+- any keyword arguments that `CSV.File` would accept.
   For example, delim=',' by default: columns are delimited by commas.
-  Unless specified otherwise by the user, `categorical`=false
+  Unless specified otherwise by the user, `pool`=false
   (to read taxon names as Strings, not levels of a categorical factor,
   for combining the 4 columns with taxon names more easily).
   The same CSV arguments are used to read both input file (mapping file and quartet file)
@@ -27,22 +28,23 @@ See also [`mapAllelesCFtable!`](@ref) to input DataFrames instead of file names.
 
 If a `filename` is specified, such as "quartetCF_speciesNames.csv"
 in the example below, this file is best read later with the option
-`categorical=false`. example:
+`pool=false`. example:
 
 ```julia
 mapAllelesCFtable("allele-species-map.csv", "allele-quartet-CF.csv";
                   filename = "quartetCF_speciesNames.csv")
-df_sp = CSV.read("quartetCF_speciesNames.csv", categorical=false); # DataFrame object
-dataCF_specieslevel = readTableCF!(df_sp); # DataCF object
+df_sp = CSV.read("quartetCF_speciesNames.csv", DataFrame); # DataFrame object
+dataCF_specieslevel = readTableCF!(df_sp, mergerows=true); # DataCF object
 ```
 """
 function mapAllelesCFtable(alleleDF::AbstractString, cfDF::AbstractString;
         filename=""::AbstractString, columns=Int[]::Vector{Int}, CSVargs...)
-    # force categorical=false unless the user wants otherwise
-    i = findfirst([pair[1] for pair in CSVargs], :categorical)
-    if i == 0 CSVargs = (CSVargs..., (:categorical, false)); end
-    d = CSV.read(alleleDF; CSVargs...)
-    d2 = CSV.read(cfDF; CSVargs...)
+    # force pool=false unless the user wants otherwise
+    if :pool ∉ [pair[1] for pair in CSVargs]
+        CSVargs = (CSVargs..., :pool=>false)
+    end
+    d = DataFrame(CSV.File(alleleDF; CSVargs...); copycols=false)
+    d2 = DataFrame(CSV.File(cfDF; CSVargs...); copycols=false)
     mapAllelesCFtable!(d2,d, columns, filename != "", filename)
 end
 
@@ -63,13 +65,13 @@ as its first argument.
 function mapAllelesCFtable!(cfDF::DataFrame, alleleDF::DataFrame, co::Vector{Int},write::Bool,filename::AbstractString)
     size(cfDF,2) >= 7 || error("CF DataFrame should have 7+ columns: 4taxa, 3CF, and possibly ngenes")
     if length(co)==0 co=[1,2,3,4]; end
-    compareTaxaNames(alleleDF,cfDF,co)
+    allelecol, speciescol = compareTaxaNames(alleleDF,cfDF,co)
     for j in 1:4
         for ia in 1:size(alleleDF,1) # for all alleles
-            cfDF[co[j]] = map(x->replace(string(x),
-                                         Regex("^$(string(alleleDF[ia,:allele]))\$"),
-                                         alleleDF[ia,:species]),
-                              cfDF[co[j]])
+            cfDF[!,co[j]] = map(x->replace(string(x),
+                                         Regex("^$(string(alleleDF[ia,allelecol]))\$") =>
+                                         alleleDF[ia,speciescol]),
+                                cfDF[!,co[j]])
         end
     end
     if write
@@ -80,102 +82,53 @@ function mapAllelesCFtable!(cfDF::DataFrame, alleleDF::DataFrame, co::Vector{Int
 end
 
 # function to clean a df after changing allele names to species names
-# inside mapAllelesCFtable
+# inside readTableCF!
 # by deleting rows that are not informative like sp1 sp1 sp1 sp2
 # keepOne=true: we only keep one allele per species
-function cleanAlleleDF!(newdf::DataFrame, cols::Vector{Int};keepOne=false::Bool)
-    global DEBUG
-    withngenes = (length(cols)==8)
+function cleanAlleleDF!(newdf::DataFrame, cols::Vector{<:Integer}; keepOne=false::Bool)
     delrows = Int[] # indices of rows to delete
-    repSpecies = String[]
+    repSpecies = Set{String}()
     if(isa(newdf[1,cols[1]],Integer)) #taxon names as integers: we need this to be able to add __2
-        newdf[cols[1]] = map(x->string(x),newdf[cols[1]])
-        newdf[cols[2]] = map(x->string(x),newdf[cols[2]])
-        newdf[cols[3]] = map(x->string(x),newdf[cols[3]])
-        newdf[cols[4]] = map(x->string(x),newdf[cols[4]])
+        for j in 1:4
+            newdf[!,cols[j]] .= map(string, newdf[!,cols[j]])
+        end
     end
-    row = Vector{String}(4)
-    for i in 1:size(newdf,1) #check all rows
-        DEBUG && println("row number: $i")
-        # fixit: check for no missing value, or error below
+    row = Vector{String}(undef, 4)
+    for i in 1:nrow(newdf)
         map!(j -> newdf[i,cols[j]], row, 1:4)
-        DEBUG && println("row $(row)")
         uniq = unique(row)
-        DEBUG && println("unique $(uniq)")
 
-        keep = false # default: used if 1 unique name, or 2 in some cases
         if(length(uniq) == 4)
-            keep = true
-        else
-            if(!keepOne)
-                if(length(uniq) == 3) #sp1 sp1 sp2 sp3
+            continue
+        end
+        # by now, at least 1 species is repeated
+        if !keepOne # then we may choose to keep this row
+            # 3 options: sp1 sp1 sp2 sp3; or sp1 sp1 sp2 sp2 (keep)
+            #         or sp1 sp1 sp1 sp2; or sp1 sp1 sp1 sp1 (do not keep)
+            keep = false
+            for u in uniq
+                ind = row .== u # indices of taxon names matching u
+                if sum(ind) == 2
                     keep = true
-                    for u in uniq
-                        DEBUG && println("u $(u), typeof $(typeof(u))")
-                        ind = row .== u #taxon names matching u
-                        DEBUG && println("taxon names matching u $(ind)")
-                        if(sum(ind) == 2)
-                            push!(repSpecies,string(u))
-                            found = false
-                            for k in 1:4
-                                if(ind[k])
-                                    if(found)
-                                        DEBUG && println("found the second one in k $(k), will change newdf[i,cols[k]] $(newdf[i,cols[k]]), typeof $(typeof(newdf[i,cols[k]]))")
-                                        newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
-                                        break
-                                    else
-                                        found = true
-                                    end
-                                end
-                            end
-                            break
-                        end
-                    end
-                elseif(length(uniq) == 2)
-                    # keep was initialized to false
-                    for u in uniq
-                        DEBUG && println("length uniq is 2, u $(u)")
-                        ind = row .== u
-                        if(sum(ind) == 1 || sum(ind) == 3)
-                            DEBUG && println("ind $(ind) is 1 or 3, should not keep")
-                            break
-                        elseif(sum(ind) == 2)
-                            DEBUG && println("ind $(ind) is 2, should keep")
-                            keep = true
-                            found = false
-                            push!(repSpecies,string(u))
-                            for k in 1:4
-                                if(ind[k])
-                                    if(found)
-                                        newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
-                                        break
-                                    else
-                                        found = true
-                                    end
-                                end
-                            end
-                        end
-                    end
+                    push!(repSpecies, string(u))
+                    # change the second instance of a repeated taxon name with suffix
+                    k = findlast(ind)
+                    newdf[i,cols[k]] = string(u, repeatAlleleSuffix)
                 end
-                DEBUG && println("after if, keep is $(keep)")
             end
         end
         keep || push!(delrows, i)
-        DEBUG && (@show keep)
     end
-    DEBUG && (@show delrows)
-    DEBUG && (@show repSpecies)
     nrows = size(newdf,1)
     nkeep = nrows - length(delrows)
     if nkeep < nrows
         print("""found $(length(delrows)) 4-taxon sets uninformative about between-species relationships, out of $(nrows).
               These 4-taxon sets will be deleted from the data frame. $nkeep informative 4-taxon sets will be used.
               """)
-        nkeep > 0 || warn("All 4-taxon subsets are uninformative, so the dataframe will be left empty")
-        deleterows!(newdf, delrows)
+        nkeep > 0 || @warn "All 4-taxon subsets are uninformative, so the dataframe will be left empty"
+        deleteat!(newdf, delrows) # deleteat! requires DataFrames 1.3
     end
-    # @show size(newdf)
-    return unique(repSpecies)
+    return collect(repSpecies)
 end
 
 
@@ -183,9 +136,11 @@ end
 # (if info on number of genes is provided) or simple average
 function mergeRows(df::DataFrame, cols::Vector{Int})
     sorttaxa!(df, cols) # sort taxa alphabetically within each row
-    colnam = names(df)[cols[5:end]]
-    df = aggregate(df, names(df)[cols[1:4]], mean);
-    rename!(df, Dict((Symbol(n, "_mean"), n) for n in colnam) )
+    colnamtax = DataFrames.propertynames(df)[cols[1:4]]
+    colnam = DataFrames.propertynames(df)[cols[5:end]]
+    df = combine(groupby(df, colnamtax, sort=false, skipmissing=false),
+                 colnam .=> mean .=> colnam)
+    # rename!(df, Dict((Symbol(n, "_mean"), n) for n in colnam) )
     n4tax = size(df,1) # total number of 4-taxon sets
     print("$n4tax unique 4-taxon sets were found. CF values of repeated 4-taxon sets will be averaged")
     println((length(cols)>7 ? " (ngenes too)." : "."))
@@ -237,43 +192,45 @@ end
 # function to compare the taxon names in the allele-species matching table
 # and the CF table
 function compareTaxaNames(alleleDF::DataFrame, cfDF::DataFrame, co::Vector{Int})
-    checkMapDF(alleleDF)
-    #println("found $(length(alleleDF[1])) allele-species matches")
-    CFtaxa = convert(Array, unique(stack(cfDF[co[1:4]], 1:4)[:value]))
-    CFtaxa = map(x->string(x),CFtaxa) #treat as string
-    alleleTaxa = map(x->string(x),alleleDF[:allele]) #treat as string
+    allelecol, speciescol = checkMapDF(alleleDF)
+    CFtaxa = string.(mapreduce(x -> unique(skipmissing(x)), union, eachcol(cfDF[!,co[1:4]])))
+    alleleTaxa = map(string, alleleDF[!,allelecol]) # as string, too
     sizeCF = length(CFtaxa)
     sizeAllele = length(alleleTaxa)
     if sizeAllele > sizeCF
-        warn("some alleles in the mapping file do not occur in the quartet CF data. Extra allele names will be ignored")
+        @warn "some alleles in the mapping file do not occur in the quartet CF data. Extra allele names will be ignored"
         alleleTaxa = intersect(alleleTaxa,CFtaxa)
     end
     unchanged = setdiff(CFtaxa,alleleTaxa)
     if length(unchanged) == length(CFtaxa)
-        warn("None of the taxon names in CF table match with allele names in the mapping file")
+        @warn "None of the taxon names in CF table match with allele names in the mapping file"
     end
     if !isempty(unchanged)
-        warn("not all alleles were mapped")
-        print("alleles not mapped to a species name:")
-        for n in unchanged print(" $n"); end; println()
+        warnmsg = "not all alleles were mapped\n"
+        warnmsg *= "alleles not mapped to a species name:"
+        for n in unchanged warnmsg *= " $n"; end
+        @warn warnmsg
     end
-    return nothing
+    return allelecol, speciescol
 end
 
-# function to check that the allele df has one column labelled alleles and one column labelled species
+"""
+    checkMapDF(mapping_allele2species::DataFrame)
+
+Check that the data frame has one column named "allele" or "individual",
+and one column named "species". Output: indices of these column.
+"""
 function checkMapDF(alleleDF::DataFrame)
-    size(alleleDF,2) <= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
-    size(alleleDF,2) >= 2 || warn("allele mapping file contains more than two columns: will ignore all columns not labelled allele or species")
-    try
-        alleleDF[:allele]
-    catch
-        error("In allele mapping file there is no column named allele")
+    size(alleleDF,2) >= 2 || error("Allele-Species matching Dataframe should have at least 2 columns")
+    colnames = DataFrames.propertynames(alleleDF)
+    allelecol = findfirst(x -> x == :allele, colnames)
+    if isnothing(allelecol)
+        allelecol = findfirst(x -> x == :individual, colnames)
     end
-    try
-        alleleDF[:species]
-    catch
-        error("In allele mapping file there is no column named species")
-    end
+    isnothing(allelecol) && error("In allele mapping file there is no column named 'allele' or 'individual'")
+    speciescol = findfirst(x -> x == :species, colnames)
+    isnothing(speciescol) && error("In allele mapping file there is no column named species")
+    return allelecol, speciescol
 end
 
 
@@ -283,14 +240,14 @@ end
 ## returns false if the network is not ok
 function checkTop4multAllele(net::HybridNetwork)
     for n in net.leaf
-        if(endswith(n.name, repeatAlleleSuffix))
+        if occursin(repeatAlleleSuffix_re, n.name)
             n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
             length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
             par = getOtherNode(n.edge[1],n)
             if(par.hybrid) ## there is gene flow into n
                 return false
             end
-            nameOther = replace(n.name,repeatAlleleSuffix,"")
+            nameOther = replace(n.name, repeatAlleleSuffix_re => "")
             foundOther = false
             for i in 1:3
                 other = getOtherNode(par.edge[i],par)
@@ -310,13 +267,13 @@ end
 function mergeLeaves!(net::HybridNetwork)
     leaves = copy(net.leaf) # bc we change this list
     for n in leaves
-        if(endswith(n.name, repeatAlleleSuffix))
+        if occursin(repeatAlleleSuffix_re, n.name)
             n.leaf || error("weird node $(n.number) not leaf in net.leaf list")
             length(n.edge) == 1 || error("weird leaf with $(length(n.edge)) edges")
             par = getOtherNode(n.edge[1],n)
             foundOther = false
             other = Node()
-            nameOther = replace(n.name,repeatAlleleSuffix,"")
+            nameOther = replace(n.name, repeatAlleleSuffix_re => "")
             for i in 1:3
                 other = getOtherNode(par.edge[i],par)
                 if(other.leaf && other.name == nameOther)

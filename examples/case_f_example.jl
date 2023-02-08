@@ -4,15 +4,6 @@
 #
 # in julia: include("case_f_example.jl")
 
-if !isdefined(:individualtest) individualtest = false; end
-
-if(individualtest)
-    include("../src/types.jl")
-    include("../src/functions.jl")
-end
-
-using Base.Collections # for updateInCycle with priority queue
-
 ed1=Edge(1,0.6,true,0.7);
 ed2=Edge(2,0.7,true,0.3);
 ed3=Edge(3,0.9);
@@ -56,6 +47,8 @@ setNode!(ed10,[n9,n10]);
 
 net=HybridNetwork([n1,n2,n3,n4,n5,n6,n7,n8,n9,n10],[ed1,ed2,ed3,ed4,ed5,ed6,ed7,ed8,ed9,ed10]);
 node=searchHybridNode(net);
+n2.name = "H1"; n4.name = "4"; n6.name = "6"; n7.name = "7";
+n8.name = "8"; n10.name = "10"
 net.names=["1","2","3","4","5","6","7","8","9","10"]
 
 flag, nocycle,edges, nodes = updateInCycle!(net,node[1]);

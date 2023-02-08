@@ -1,34 +1,33 @@
-# changed node numbering on 5/28 when readSubTree will start internal
-# node numbers at -2 to avoid error in undirectedOtherNetworks
+if !(@isdefined doalltests) doalltests = false; end
 
-if !isdefined(:doalltests) doalltests = false; end
+@testset "manipulateNet" begin
 
 @testset "test: auxiliary" begin
+global net
 net = readTopology("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.123456789)S1,(#H1,A_coolname)S2)S3)S4);")
-# using PhyloPlots; plot(net, :R, showEdgeNumber=true, showNodeNumber=true);
 s = IOBuffer()
-@test_nowarn printEdges(s, net)
-@test String(s) == """
+@test_logs printEdges(s, net)
+@test String(take!(s)) == """
 edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable
-1    2      1      102.346 false  true    1       true        -1      false
+1    2      1      102.346 false  true    1       false       -1      false
 2    3      2              true   true            false       -1      true 
-3    10     3              true   true    0.8765  false       -1      true 
+3    10     3              true   true    0.8765  true        -1      true 
 4    6      4      0.001   false  true    1       true        -1      false
 5    6      5              false  true    1       true        -1      false
-6    6      3              true   false   0.1235  false       -1      true 
+6    6      3              true   false   0.1235  true        -1      true 
 7    9      6              false  true    1       true        -1      true 
-8    8      2              true   false           false       -1      true 
+8    8      2              true   false           true        -1      true 
 9    8      7              false  true    1       true        -1      false
 10   9      8              false  true    1       true        -1      true 
 11   10     9              false  true    1       true        -1      true 
 """
 close(s); s = IOBuffer()
-@test_nowarn printNodes(s, net)
-@test String(s) == """
+@test_logs printNodes(s, net)
+@test String(take!(s)) == """
 node leaf  hybrid hasHybEdge name       inCycle edges'numbers
 1    true  false  false      B          -1      1   
-2    false true   true       #H1        -1      1    2    8   
-3    false true   true       #H2        -1      2    3    6   
+2    false true   true       H1         -1      1    2    8   
+3    false true   true       H2         -1      2    3    6   
 4    true  false  false      D          -1      4   
 5    true  false  false      C          -1      5   
 6    false false  true       S1         -1      4    5    6    7   
@@ -37,29 +36,55 @@ node leaf  hybrid hasHybEdge name       inCycle edges'numbers
 9    false false  false      S3         -1      7    10   11  
 10   false false  true       S4         -1      3    11  
 """
-@test_throws ErrorException PhyloNetworks.getMinorParent(net.node[1])
-@test PhyloNetworks.getMajorParent(net.node[1]).number == 2
-@test PhyloNetworks.getMinorParent(net.node[3]).number == 6
-@test PhyloNetworks.getMajorParent(net.node[3]).number == 10
-@test PhyloNetworks.getMajorParentEdge(net.node[6]).number == 7
-@test_throws ErrorException PhyloNetworks.getMinorParentEdge(net.node[6])
-@test PhyloNetworks.getMajorParentEdge(net.node[2]).number == 2
-@test PhyloNetworks.getMinorParentEdge(net.node[2]).number == 8
-@test [n.number for n in PhyloNetworks.getChildren(net.node[4])] == [] # leaf
-@test [n.number for n in PhyloNetworks.getChildren(net.node[2])] == [1] # hybrid node
-@test [n.number for n in PhyloNetworks.getChildren(net.node[9])] == [6,8] # tree node
-@test [n.number for n in PhyloNetworks.getChildren(net.node[10])] == [3,9] # at root
-@test [n.number for n in PhyloNetworks.getChildren(net.node[6])] == [4,5,3] # polytomy
-@test PhyloNetworks.getParent(net.edge[8]).number == 8
-@test [n.number for n in PhyloNetworks.getParents(net.node[3])] == [10, 6]
-@test [n.number for n in PhyloNetworks.getParents(net.node[6])] == [9]
+close(s);
+originalstdout = stdout
+redirect_stdout(devnull)
+printEdges(net) # method without io argument
+printNodes(net)
+redirect_stdout(originalstdout)
+
+@test_throws ErrorException getparent(net.node[net.root])
+@test_throws ErrorException getparentedge(net.node[net.root])
+@test_throws ErrorException getparentedgeminor(net.node[net.root])
+@test_throws ErrorException getparentminor(net.node[1])
+@test getparent(net.node[1]).number == 2
+@test getparentminor(net.node[3]).number == 6
+@test getparent(net.node[3]).number == 10
+@test getparentedge(net.node[6]).number == 7
+@test_throws ErrorException getparentedgeminor(net.node[6])
+@test getparentedge(net.node[2]).number == 2
+@test getparentedgeminor(net.node[2]).number == 8
+@test [n.number for n in getchildren(net.node[4])] == [] # leaf
+@test [n.number for n in getchildren(net.node[2])] == [1] # hybrid node
+@test [n.number for n in getchildren(net.node[9])] == [6,8] # tree node
+@test [n.number for n in getchildren(net.node[10])] == [3,9] # at root
+@test [n.number for n in getchildren(net.node[6])] == [4,5,3] # polytomy
+@test getparent(net.edge[8]).number == 8
+@test [n.number for n in getparents(net.node[3])] == [10, 6]
+@test [n.number for n in getparents(net.node[6])] == [9]
 @test_throws ErrorException deleteleaf!(net, net.node[9])
 n = deepcopy(net)
-@test_nowarn deleteleaf!(n, n.node[7])
+@test_logs deleteleaf!(n, n.node[7])
 @test n.numNodes == 8; @test n.numEdges == 9;
-@test_nowarn deleteleaf!(net, net.node[7], simplify=false)
+@test_logs deleteleaf!(net, net.node[7], simplify=false)
 deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 @test net.numNodes == 5; @test net.numEdges == 6;
+
+# below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.
+nwkstring = "((t7:0.23,#H19:0.29::0.47):0.15,(((#H23:0.02::0.34)#H19:0.15::0.53,(t9:0.06)#H23:0.02::0.66):0.09,t6:0.17):0.21);"
+net = readTopology(nwkstring)
+@test_throws Exception deleteleaf!(net, "t1") # no leaf named t1
+net.node[1].name = "t9"
+@test_throws Exception deleteleaf!(net, "t9") # 2+ leaves named t1
+@test_throws Exception deleteleaf!(net, 10, index=true) # <10 nodes
+net.node[1].name = "t7" # back to original name
+deleteleaf!(net, "t9", nofuse=true)
+@test writeTopology(net) == "((t7:0.23):0.15,(t6:0.17):0.21);"
+deleteleaf!(net, "t7")
+@test writeTopology(net) == "(t6:0.17);"
+@test_logs (:warn, r"^Only 1 node") deleteleaf!(net, "t6")
+@test isempty(net.edge)
+@test isempty(net.node)
 end
 
 @testset "testing directEdges! and re-rootings" begin
@@ -82,31 +107,31 @@ tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 rootatnode!(tre, -9); ## clau: previously -8
 end
 
+global net
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -7 (clau: previously -6).
 net.root = 5
-@test_nowarn directEdges!(net);
+@test_logs directEdges!(net);
 @test !net.edge[12].isChild1 # or: directEdges! didn't correct the direction of 12th edge
 @test !net.edge[23].isChild1 # or: directEdges! didn't correct the direction of 23th edge"
 @test [!net.edge[i].containRoot for i in [8;collect(13:17)]] == [true for i in 1:6]
 # or: "directEdges! didn't correct containRoot below a hyb node, $(i)th edge."
 @test [net.edge[i].containRoot for i in [9,5,18,2]] == [true for i in 1:4]
 # or: "directEdges! didn't correct containRoot of hyb edges."
-# plot(net, showNodeNumber=true, showEdgeLength=false, showEdgeNumber=true)
-@test_nowarn rootatnode!(net, -10); # or: rootatnode! complained, node -10
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M"; verbose=false);
+@test_logs rootatnode!(net, -10); # or: rootatnode! complained, node -10
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M");
 # println("the rootmismatch about node 5 is good and expected.")
-@test_nowarn rootonedge!(net, 9); # or: rootonedge! complained, edge 9
-@test_nowarn PhyloNetworks.fuseedgesat!(27, net);
-# @test_warn """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup."""
-@test_nowarn rootatnode!(net, "Ag"); # need for new node
-# @test_warn """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup."""
-@test_nowarn rootatnode!(net, "Ag"); # no need this time
+@test_logs rootonedge!(net, 9); # or: rootonedge! complained, edge 9
+@test_logs PhyloNetworks.fuseedgesat!(27, net);
+# earlier warning: """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup."""
+@test_logs rootatnode!(net, "Ag"); # need for new node
+# earlier: """node 1 is a leaf. Will create a new node if needed, to set taxon "Ag" as outgroup."""
+@test_logs rootatnode!(net, "Ag"); # no need this time
 @test length(net.node) == 27 # or: wrong # of nodes after rootatnode! twice on same outgroup
-# @test_warn """node 10 is a leaf. Will create a new node if needed, to set taxon "Ap" as outgroup."""
-@test_nowarn rootatnode!(net, "Ap");
+# earlier: """node 10 is a leaf. Will create a new node if needed, to set taxon "Ap" as outgroup."""
+@test_logs rootatnode!(net, "Ap");
 @test length(net.node) == 27 # or: wrong # of nodes, after 3rd rooting with outgroup
-@test_nowarn rootonedge!(net, 5);
+@test_logs rootonedge!(net, 5);
 
 # example with one hybridization below another
 
@@ -116,7 +141,7 @@ net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10))
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids")
 sum([!e.containRoot for e in net.edge]) == 16 ||
  error("directEdges! wrong on net with 2 stacked hybrids");
-plot(net, showEdgeNumber=true, showEdgeLength=false, showNodeNumber=true);
+plot(net, showedgenumber=true, showedgelength=false, shownodenumber=true);
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=19; # node number -13 (clau: previously -12)
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids");
@@ -125,20 +150,20 @@ end
 net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=15; # node number -5 (clau: previously -4)
 @test_throws PhyloNetworks.RootMismatch directEdges!(net);
-# ismatch(r"non-leaf node 9 had 0 children",e.msg))
-@test_nowarn rootatnode!(net, -13); # or: rootatnode complained...
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5); # verbose = true this time
-# ismatch(r"non-leaf node 9 had 0 children", e.msg))
-@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"#H2"; verbose=false); #try rethrow();
-# ismatch(r"hybrid edge 17 conflicts", e.msg))
-# @test_warn """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup."""
-@test_nowarn rootatnode!(net,"10");
+# occursin(r"non-leaf node 9 had 0 children",e.msg))
+@test_logs rootatnode!(net, -13); # or: rootatnode complained...
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5);
+# occursin(r"non-leaf node 9 had 0 children", e.msg))
+@test_throws PhyloNetworks.RootMismatch rootatnode!(net,"H2"); #try rethrow();
+# occursin(r"hybrid edge 17 conflicts", e.msg))
+# earlier: """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup."""
+@test_logs rootatnode!(net,"10");
 
 end # of testset for directEdges! and re-rootings
 
 @testset "testing preorder!" begin
 # on a tree, then on a network with h=2
-
+global net
 tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 
@@ -152,7 +177,7 @@ for i=1:length(tre.node)
 end
 end
 
-@test_nowarn preorder!(net)
+@test_logs preorder!(net)
 ## clau previously: [-1,14,-14,13,12,-2,-9,11,-10,10,-3,-4,-5,-6,-7,5,6,4,3,2,-12,9,-13,8,7,1];
 nodeN = [-2,14,-15,13,12,-3,-10,11,-11,10,-4,-5,-6,-7,-8,5,6,4,3,2,-13,9,-14,8,7,1];
 @test [n.number for n in net.nodes_changed] == nodeN
@@ -160,7 +185,7 @@ nodeN = [-2,14,-15,13,12,-3,-10,11,-11,10,-4,-5,-6,-7,-8,5,6,4,3,2,-13,9,-14,8,7
 cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
 net3  = readTopology(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
-deleteleaf!(net3,"Xmayae", simplify=false);
+deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
 # now: net3 has a 2-cycle
 directEdges!(net3)
 preorder!(net3)
@@ -180,7 +205,7 @@ for i=1:length(tre.node)
 end
 end
 
-@test_nowarn cladewiseorder!(net)
+@test_logs cladewiseorder!(net)
 nodeN = collect(26:-1:1);
 @test net.cladewiseorder_nodeIndex == nodeN
 end # of testset for cladewiseorder!
@@ -195,8 +220,45 @@ rotate!(net, -5) ## clau: previously -4
 plot(net); # just to check no error.
 end
 
+global net
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
-@test_nowarn rotate!(net, -2, orderedEdgeNum=[1,12,9])
+@test_logs rotate!(net, -2, orderedEdgeNum=[1,12,9])
 @test [e.number for e in net.node[12].edge] == [1,12,9] # or: rotate didn't work at node -2
 
 end # of testset for rotate
+
+@testset "other in manipulateNet" begin
+
+net0 = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
+removedegree2nodes!(net0, true) # true: to keep the root of degree-2
+@test writeTopology(net0, round=true) == "((C:1.1,A:2.0):1.4,B:3.4);"
+
+#--- delete above least stable ancestor ---#
+# 3 blobs above LSA: cut edge + level-2 blob + cut edge.
+net = readTopology("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
+PhyloNetworks.deleteaboveLSA!(net)
+@test writeTopology(net) == "(t2:0.1,t1);"
+# 2 separate non-trivial clades + root edge
+net = readTopology("((((t1,t2):0.1,(t3:0.3,t4)):0.4));")
+PhyloNetworks.deleteaboveLSA!(net)
+@test writeTopology(net) == "((t1,t2):0.1,(t3:0.3,t4));"
+# 1 tip + 2-cycle above it, no extra root edge above, hybrid LSA
+net = readTopology("((t1)#H22:::0.8,#H22);")
+PhyloNetworks.deleteaboveLSA!(net)
+@test writeTopology(net) == "(t1)H22;"
+@test isempty(net.hybrid)
+@test [n.name for n in net.nodes_changed] == ["H22","t1"]
+
+# deleteleaf! and removedegree2nodes! when the root starts a 2-cycle
+net = readTopology("((a,(((b)#H1,#H1))#H2),(#H2));")
+deleteleaf!(net, "a")
+@test writeTopology(net) == "((#H2),(((b)#H1,#H1))#H2);"
+removedegree2nodes!(net)
+@test writeTopology(net) == "((((b)#H1,#H1))#H2,#H2);"
+net = readTopology("((a,(((b)#H1,#H1))#H2),#H2);") # no degree-2 node adjacent to root this time
+deleteleaf!(net, "a", unroot=true)
+@test writeTopology(net) == "(b)H1;"
+
+end # of testset for other functions in manipulateNet
+
+end # of overall testset for this file

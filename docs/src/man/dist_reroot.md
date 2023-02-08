@@ -1,12 +1,12 @@
 ```@setup dist_reroot
 using PhyloNetworks
 mkpath("../assets/figures")
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
-raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
-astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre")
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
+raxmlCF = readTableCF(writeTableCF(countquartetsintrees(readMultiTopology(raxmltrees), showprogressbar=false)...))
+astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
-net0 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net0.out"))
-net1 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.out"))
+net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
+net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 net0.loglik = 53.53150526187732
 net1.loglik = 28.31506721890958
 ```
@@ -45,8 +45,8 @@ hardwiredClusterDistance(astraltree, net0, true)
 using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
 R"svg(name('net0_O.svg'), width=4, height=4)" 
-R"par(mar = c(0, 0, 0, 0))" 
-plot(net0, :R);
+R"par"(mar=[0,0,0,0])
+plot(net0);
 R"dev.off()" 
 nothing # hide
 ```
@@ -81,11 +81,12 @@ network below. We plotted the edge numbers, because we will want to use them
 later to place the root.
 
 ```@example dist_reroot
-net7taxa = readTopology("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(B,((A1,A2))#H7:::0.804):10.0):10.0);")
+net7taxa = readTopology("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(((A1,A2))#H7:::0.804,B):10.0):10.0);")
 R"svg(name('reroot_net7taxa_1.svg'), width=4, height=4)" # hide
-R"par(mar = c(0,0,0,0))" # hide
-plot(net7taxa, :R, showGamma=true, showEdgeNumber=true, tipOffset=0.2);
+R"par"(mar=[0,0,0,0]) # hide
+plot(net7taxa, showgamma=true, showedgenumber=true, tipoffset=0.2);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![reroot net7taxa 1](../assets/figures/reroot_net7taxa_1.svg)
 
@@ -97,7 +98,7 @@ or with the A clade (on edge 11), will fail with a `RootMismatch` error:
 ```julia
 rootatnode!(net7taxa, "A1"); # ERROR: RootMismatch: non-leaf node 5 had 0 children. ...
 rootatnode!(net7taxa, "A2"); # ERROR: RootMismatch (again)
-rootonedge!(net7taxa, 11);   # ERROR: RootMismatch (again)
+rootonedge!(net7taxa, 10);   # ERROR: RootMismatch (again)
 ```
 
 In this case, however, it is possible to root the network on either parent edge
@@ -107,14 +108,16 @@ We get these 2 rooted versions of the network:
 ```@example dist_reroot
 R"svg(name('reroot_net7taxa_2.svg'), width=7, height=4)"; # hide
 R"layout(matrix(1:2,1,2))";
-R"par(mar = c(0,0,0.5,0))"; # hide
-rootonedge!(net7taxa, 12);
-plot(net7taxa, :R, showGamma=true, tipOffset=0.2);
-R"mtext('rooted on hybrid edge 12 (major)', line=-1)"
+R"par"(mar=[0,0,0.5,0]); # hide
+rootonedge!(net7taxa, 11);
+rotate!(net7taxa, -5)
+plot(net7taxa, showgamma=true, tipoffset=0.2, shownodenumber=true);
+R"mtext"("rooted on hybrid edge 11 (major)", line=-1)
 rootonedge!(net7taxa, 5);
-plot(net7taxa, :R, showGamma=true, tipOffset=0.2);
-R"mtext('rooted on hybrid edge 5 (minor)', line=-1)"
+plot(net7taxa, showgamma=true, tipoffset=0.2);
+R"mtext"("rooted on hybrid edge 5 (minor)", line=-1);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![reroot net7taxa 2](../assets/figures/reroot_net7taxa_2.svg)
 
@@ -128,10 +131,11 @@ net7taxa.edge[5] # just to check that it's one of the 2 hybrid edges of interest
 setGamma!(net7taxa.edge[5], 0.501) # switch major/minor edges
 R"svg(name('reroot_net7taxa_3.svg'), width=4, height=4)"; # hide
 R"layout(matrix(1,1,1))"; # hide
-R"par(mar = c(0,0,0,0))"; # hide
-plot(net7taxa, :R, tipOffset=0.2); # not showing gamma values, because we changed them artificially
-R"mtext('rooted on hybrid edge 5 (considered major)', line=-1)"
+R"par"(mar=[0,0,0,0]); # hide
+plot(net7taxa, tipoffset=0.2); # not showing gamma values, because we changed them artificially
+R"mtext"("rooted on hybrid edge 5 (considered major)", line=-1);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![reroot net7taxa 3](../assets/figures/reroot_net7taxa_3.svg)
 
@@ -159,8 +163,8 @@ hardwiredClusterDistance(net0, net1, true)
 ```
 ```@example dist_reroot
 R"svg(name('net1_O.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
-plot(net1, :R, showGamma=true);
+R"par"(mar=[0,0,0,0]) # hide
+plot(net1, showgamma=true);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -198,13 +202,13 @@ truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.
 hardwiredClusterDistance(net1, truenet, true)
 ```
 ```@example dist_reroot
-R"svg(name('truenet.svg'), width=4, height=4)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
-plot(truenet, :R, useEdgeLength=true, showGamma=true);
+R"svg(name('truenet_sim.svg'), width=4, height=4)" # hide
+R"par"(mar=[0,0,0,0]) # hide
+plot(truenet, useedgelength=true, showgamma=true);
 R"dev.off()" # hide
 nothing # hide
 ```
-![truenet](../assets/figures/truenet.svg)
+![truenet](../assets/figures/truenet_sim.svg)
 
 Our estimated network is not the same as the true network:
 - the underlying tree is correctly estimated

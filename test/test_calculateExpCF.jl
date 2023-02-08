@@ -3,9 +3,9 @@
 
 # Case G -----------------
 
-println("------ Case G ----------")
+#println("------ Case G ----------")
 include("../examples/case_g_example.jl")
-#net.names
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_g_example.jl"))
 error1 = false
 ind = 0
 
@@ -26,14 +26,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 1")
-    error1 |= true
-    ind = 1
+    global error1 |= true
+    global ind = 1
 end
 
 
@@ -44,7 +44,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should have 1 hybrid nodes") : nothing
@@ -54,14 +54,14 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1-2/3*exp(-0.1))+0.1*1/3*exp(-1.0), 0.9*(1/3*exp(-0.1))+0.1*(1-2/3*exp(-1.0)), 0.9*(1/3*exp(-0.1))+0.1*(1/3*exp(-1.0))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 2")
-    error1 |= true
-    ind = 2
+    global error1 |= true
+    global ind = 2
 end
 
 q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
@@ -71,7 +71,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should have 1 hybrid nodes") : nothing
@@ -81,14 +81,14 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1/3*exp(-0.1))+0.1*1/3*exp(-1.0), 0.9*(1/3*exp(-0.1))+0.1*(1-2/3*exp(-1.0)), 0.9*(1-2/3*exp(-0.1))+0.1*(1/3*exp(-1.0))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 3")
-    error1 |= true
-    ind = 3
+    global error1 |= true
+    global ind = 3
 end
 
 q4 = Quartet(4,["6","10","4","8"],[0.5,0.4,0.1]);
@@ -105,14 +105,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 4")
-    error1 |= true
-    ind = 4
+    global error1 |= true
+    global ind = 4
 end
 
 
@@ -133,19 +133,17 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 5")
-    error1 |= true
-    ind = 5
+    global error1 |= true
+    global ind = 5
 end
 
-if(!error1)
-    #println("----- NO ERRORS! -------")
-else
+if error1
     throw("error Case G in quartet $(ind)")
 end
 
@@ -153,9 +151,9 @@ end
 
 # Case F Bad Diamond I -----------------
 
-println("------ Case F Bad diamond I ----------")
+#println("------ Case F Bad diamond I ----------")
 include("../examples/case_f_example.jl");
-#net.names
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_f_example.jl"))
 error1 = false
 ind = 0
 parameters!(net)
@@ -167,7 +165,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -177,14 +175,14 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [(1-(0.7*(1-exp(-0.2)))-(0.3*(1-exp(-0.1))))/3, (1+2*(0.7*(1-exp(-0.2)))-(0.3*(1-exp(-0.1))))/3,(1-(0.7*(1-exp(-0.2)))+2*(0.3*(1-exp(-0.1))))/3] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 1")
-    error1 |= true
-    ind = 1
+    global error1 |= true
+    global ind = 1
 end
 
 
@@ -202,14 +200,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1-2/3*(exp(-0.1)),1/3*(exp(-0.1)),1/3*(exp(-0.1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 2")
-    error1 |= true
-    ind = 2
+    global error1 |= true
+    global ind = 2
 end
 
 q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
@@ -226,14 +224,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 3")
-    error1 |= true
-    ind = 3
+    global error1 |= true
+    global ind = 3
 end
 
 
@@ -252,14 +250,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 4")
-    error1 |= true
-    ind = 4
+    global error1 |= true
+    global ind = 4
 end
 
 
@@ -270,7 +268,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -280,28 +278,26 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [(1-0.7*(1-exp(-0.2))-0.3*(1-exp(-0.1)))/3,(1+2*0.7*(1-exp(-0.2))-0.3*(1-exp(-0.1)))/3,(1-0.7*(1-exp(-0.2))+2*0.3*(1-exp(-0.1)))/3] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 5")
-    error1 |= true
-    ind = 5
+    global error1 |= true
+    global ind = 5
 end
 
-if(!error1)
-    #println("----- NO ERRORS! -------")
-else
+if error1
     throw("error Case F in quartet $(ind)")
 end
 
 
 # Case I Bad Diamond II -----------------
 
-println("------ Case I Bad diamond II ----------")
+#println("------ Case I Bad diamond II ----------")
 include("../examples/case_i_example.jl");
-#net.names
+# include(joinpath(dirname(pathof(PhyloNetworks)),  "..","examples","case_i_example.jl"))
 error1 = false
 ind = 0
 
@@ -312,7 +308,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -322,14 +318,14 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1/3*exp(-1))+0.1*(1-2/3*exp(-1)),0.9*(1-2/3*exp(-1))+0.1*1/3*exp(-1),0.9*(1/3*exp(-1))+0.1*(1/3*exp(-1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 1")
-    error1 |= true
-    ind = 1
+    global error1 |= true
+    global ind = 1
 end
 
 
@@ -350,14 +346,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [1,2,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1-2/3*(exp(-qnet.t1)),1/3*(exp(-qnet.t1)),1/3*(exp(-qnet.t1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 2")
-    error1 |= true
-    ind = 2
+    global error1 |= true
+    global ind = 2
 end
 
 q3 = Quartet(3,["10","7","4","8"],[0.5,0.4,0.1]);
@@ -377,14 +373,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,2,1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 3")
-    error1 |= true
-    ind = 3
+    global error1 |= true
+    global ind = 3
 end
 
 
@@ -406,14 +402,14 @@ try
     qnet.split != [1,1,2,2] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [2,1,2] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [1/3*exp(-qnet.t1),1-2/3*exp(-qnet.t1),1/3*exp(-qnet.t1)] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 4")
-    error1 |= true
-    ind = 4
+    global error1 |= true
+    global ind = 4
 end
 
 
@@ -424,7 +420,7 @@ try
     qnet.which != 2 ? error("qnet which not correctly assigned") : nothing
     qnet.hybrid[1].k != 4 ? error("qnet.hybrid[1].k not correctly assigned") : nothing
     qnet.hybrid[1].typeHyb != 5 ? error("qnet.hybrid[1].typeHyb not correctly assigned") : nothing
-    !isa(qnet.hybrid[1].prev,Void) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
+    !isa(qnet.hybrid[1].prev,Nothing) ? error("qnet.hybrid[1].prev not correctly assigned") : nothing
 
     eliminateHybridization!(qnet)
     size(qnet.hybrid,1) != 1 || qnet.numHybrids != 1 ? error("qnet should not have hybrid nodes anymore") : nothing
@@ -434,19 +430,17 @@ try
     qnet.split != [-1,-1,-1,-1] ? error("qnet.split not correctly assigned") : nothing
 
     updateFormula!(qnet)
-    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") :nothing
+    qnet.formula != [-1,-1,-1] ? error("qnet.formula not correctly assigned") : nothing
 
     calculateExpCF!(qnet)
     qnet.expCF != [0.9*(1/3*exp(-1))+0.1*(1-2/3*exp(-1)),0.9*(1-2/3*exp(-1))+0.1*1/3*exp(-1),0.9*(1/3*exp(-1))+0.1*(1/3*exp(-1))] ? error("qnet.expCF wrongly calculated") : nothing
 catch
     println("errors in quartet 5")
-    error1 |= true
-    ind = 5
+    global error1 |= true
+    global ind = 5
 end
 
-if(!error1)
-    #println("----- NO ERRORS! -------")
-else
+if error1
     throw("error Case I in quartet $(ind)")
 end
 

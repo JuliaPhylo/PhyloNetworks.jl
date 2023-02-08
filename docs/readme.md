@@ -1,22 +1,30 @@
 # notes to maintain documentation
 
 - built with [Documenter](https://juliadocs.github.io/Documenter.jl).
-- deployed [here](http://crsl4.github.io/PhyloNetworks.jl/)
-  (go to `latest/` or `stable/`)
+- deployed [here](https://crsl4.github.io/PhyloNetworks.jl/)
+  (go to `dev/` or `stable/`)
   using GitHub and files committed to the `gh-pages` branch.
 
 ## how it works: overview
 
-- `.travis.yml` asks to run `./docs/make.sh` after a successful test & build.
-- `./docs/make.sh` asks julia to install PhyloPlots & Documenter, then run `docs/make.jl`
-- the julia script `docs/make.jl` has 2 steps:
-  1. run `makedocs()` from `Documenter`: make the documentation.
+- `.github/workflows/ci.yml` asks to start the doc project
+  (installs R and dependencies like `PhyloPlots` & `Documenter`) and
+  run `./docs/make.jl` after a successful test & build.
+- the julia script `docs/make.jl` has these steps:
+  1. check out the master version of PhyloPlots
+  2. run `makedocs()` from `Documenter`: make the documentation.
      also runs all `jldoctest` blocks in the source files, to check that
      the output in the blocks matches the actual output.
      This steps also translate the "Documenter md" documentation files
-     into vanilla "GitHub md" (see below).
-  2. run `deploydocs(...)` also from Documenter. This step calls `mkdocs`,
-     which turns the markdown files in `docs/.../*.md` into html files.
+     into html files.
+  3. run `deploydocs(...)` also from Documenter:
+     to push the files on github, gh-pages branch.
+
+for now, docstrings are automatically used to build an entry for
+- each internal thing that has a docstring (e.g. not exported in `src/PhyloNetworks.jl`)
+- each public *type*
+Therefore: any public *function* needs to be manually listed in `docs/src/lib/public.md`,
+in a section to get a nice organization of all these manual entries.
 
 ## The "Documenter md" format
 
@@ -34,11 +42,9 @@ is run in its own anonymous Modules.
 
 Some of these blocs may contain plots, which are going to be drawn during the
 process, requiring the use of `PhyloPlots` along with `RCall`. Hence,
-before the doc is built, the script `.travis.yml` installs `R` on the server,
-and then calls the script `docs/make.sh`, that installs `PhyloPlots` before
+before the doc is built, `.github/workflows/ci.yml` installs `R` on the server,
+sets up the julia environment with dependencies like `PhyloPlots` before
 starting the build in itself.
-Note that, for an unknown reason, `R` must be installed *outside* of `make.sh`,
-in the main body of `.travis.sh`.
 
 ### Directory of the plots
 
@@ -67,7 +73,7 @@ master. The typical commands to save and display a plot should hence be:
 
     ```@example name
     R"svg(name('my_useful_name.svg'), width=4, height=4)" # hide
-    plot(net, :R);
+    plot(net);
     R"dev.off()" # hide
     nothing # hide
     ```
@@ -79,56 +85,38 @@ final version of the plot will be committed by git, with possible unintended
 consequences. Make sure to use different file names for plots that are supposed
 to look different (across the whole site).
 
-Note that [`Weave`](https://github.com/mpastell/Weave.jl) was used to format the
-documentation pages until v0.7.0
-(see [v0.7.0 doc](http://crsl4.github.io/PhyloNetworks.jl/v0.7.0/)),
-and the saving of the plots on the Git repository was handled with an
-extra Travis environment variable DRAW_FIG.
-Instructions about this previous previous setup can be found in this very
-[docs/readme file, in v0.7.0](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/readme.md).
-An extra step used file [make_weave.jl](https://github.com/crsl4/PhyloNetworks.jl/blob/v0.7.0/docs/src/man/src/make_weave.jl).
-
 ## to make a local version of the website
 
-```shell
-cd ~/.julia/v0.6/PhyloNetworks/docs
-julia --color=yes make.jl
-```
-
-first line: adapt to where the package lives.
-second line:
-- tests the `jldoctest` blocks of examples in the docstrings
-- creates or updates a `build/` directory with markdown files.
-- does *not* convert the markdown files into html files.
-
-To do this html conversion, use [MkDocs](http://www.mkdocs.org) directly,
-and the mkdocs-material package (for the "material" theme).
-First check/install MkDocs:
+generally: to see deprecation warnings, add the option `--depwarn=yes`.
 
 ```shell
-pip install --upgrade pip
-pip install --upgrade mkdocs
-pip install --upgrade mkdocs-material
-pip install --upgrade python-markdown-math
-```
-and check the installed versions:
-```shell
-python --version
-mkdocs --version
-pip show mkdocs-material
-pip show Pygments
-pip show pymdown-extensions
-pip show python-markdown-math
+julia --project=docs/ -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(path=pwd()))'
+julia --project=docs/ --color=yes docs/make.jl
 ```
 
-then use mkdocs to build the site.
-this step creates a `site/` directory with html files.
-they can be viewed at http://127.0.0.1:8000 (follow instructions)
+or interactively in `docs/`:
 
 ```shell
-mkdocs build
-mkdocs serve
+pkg> activate .
+pkg> status # just to check
+pkg> status --manifest
+pkg> instantiate # after deleting Manifest.toml and undoing changes to Project.toml
+pkg> # add RCall#master # in case some dependency causes an issue
+pkg> dev PhyloNetworks
+pkg> add PhyloPlots#master # to get the master branch: done by make.jl
+julia> include("make.jl")
 ```
+
+or, after project & manifest setup:
+```shell
+julia --project --color=yes -e 'include("make.jl")'
+```
+
+it will:
+- test the `jldoctest` blocks of examples in the docstrings
+- create or update a `build/` directory with html files.
+
+To see the result, just open `docs/build/index.html` in a browser and follow the links.
 
 ## references
 

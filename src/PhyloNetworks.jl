@@ -2,26 +2,40 @@ __precompile__()
 
 module PhyloNetworks
 
-    using DataStructures # for updateInCycle with priority queue
-    using DataFrames
-    using CSV
-    using StatsBase # sample, coef etc.
-    using StatsModels
-    using GLM # for the lm function
-    using NLopt # for branch lengths optimization
-    using Combinatorics.combinations
+    # stdlib (standard libraries)
+    using Dates
+    using Distributed
+    using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, rmul!,
+            Diagonal, cholesky, qr, BLAS
+    # alternative: drop support for julia v1.4, because LinearAlgebra.rotate! requires julia v1.5
+    # using LinearAlgebra # bring all of LinearAlgebra into scope
+    # import LinearAlgebra.rotate! # allow re-definition of rotate!
+    using Printf: @printf, @sprintf
+    using Random
+    using Statistics: mean, quantile, median
+
+    # other libraries, indicate compatible version in Project.toml
     using BioSequences
     using BioSymbols
+    using Combinatorics: combinations
+    using CSV
+    using DataFrames # innerjoin new in v0.21
+    using DataStructures # for updateInCycle with priority queue
+    using Distributions #for RateVariationAcrossSites
+    using FASTX
+    using Functors: fmap
+    using GLM # for the lm function
+    using NLopt # for branch lengths optimization
     using StaticArrays
-    using StatsFuns # for logsumexp
+    using StatsBase # sample, coef etc.
+    using StatsFuns # logsumexp, logaddexp, log2π, various cdf
+    using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
 
-    import Base.show
-    import GLM.ftest
+    import Base: show
+    import GLM: ftest
 
-    global DEBUG = false #for debugging only
-    const DEBUGC = false #more detailed prints
-    global CHECKNET = false #for debugging only
-    global REDIRECT = false # changed for debugging to a file
+    const DEBUGC = false # even more debug messages
+    global CHECKNET = false # for debugging only
 
     export ftest
     export
@@ -34,26 +48,48 @@ module PhyloNetworks
         tipLabels,
         writeTopology,
         writeSubTree!,
+        hybridlambdaformat,
         deleteleaf!,
+        deleteaboveLSA!,
+        removedegree2nodes!,
+        shrink2cycles!,
+        shrink3cycles!,
         printEdges,
         printNodes,
         sorttaxa!,
         ## SNAQ
         readTrees2CF,
+        countquartetsintrees,
         readTableCF,
         readTableCF!,
+        writeTableCF,
+        mapAllelesCFtable,
         readInputTrees,
         readNexusTrees,
         summarizeDataCF,
         snaq!,
         readSnaqNetwork,
-        snaqDebug,
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
+        ## getters
+        # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
+        getroot,
+        isrootof,
+        isleaf,
+        isexternal,
+        isparentof,
+        ischildof,
+        hassinglechild,
+        getchild,
+        getchildren,
+        getchildedge,
+        getparent,
+        getparents,
+        getparentminor,
+        getparentedge,
+        getparentedgeminor,
+        getpartneredge,
         ## Network Manipulation
-        # getParent, getParents, getMajorParentEdge, getMinorParentEdge, getChildren,
-        # functions above: first rename them throughout to be consistent with other packages, like:
-        # parent child parents children parentmajor parentminor ancestor sibling offspring
         rootatnode!,
         rootonedge!,
         directEdges!,
@@ -63,7 +99,6 @@ module PhyloNetworks
         rotate!,
         setLength!,
         setGamma!,
-        mapAllelesCFtable,
         deleteHybridThreshold!,
         displayedTrees,
         majorTree,
@@ -76,6 +111,9 @@ module PhyloNetworks
         biconnectedComponents,
         blobDecomposition!,
         blobDecomposition,
+        nni!,
+        checkroot!,
+        treeedgecomponents,
         ## Network Bootstrap
         treeEdgesBootstrap,
         hybridDetection,
@@ -93,11 +131,12 @@ module PhyloNetworks
         pairwiseTaxonDistanceMatrix,
         calibrateFromPairwiseDistances!,
         ## Network PCM
-        phyloNetworklm,
+        phylolm,
         PhyloNetworkLinearModel,
         simulate,
         TraitSimulation,
         ParamsBM,
+        ParamsMultiBM,
         ShiftNet,
         shiftHybrid,
         getShiftEdgeNumber,
@@ -108,8 +147,9 @@ module PhyloNetworks
         regressorHybrid,
         ancestralStateReconstruction,
         ReconstructedStates,
-        sigma2_estim,
-        mu_estim,
+        sigma2_phylo,
+        sigma2_within,
+        mu_phylo,
         lambda_estim,
         expectations,
         expectationsPlot,
@@ -124,25 +164,36 @@ module PhyloNetworks
         EqualRatesSubstitutionModel,
         BinaryTraitSubstitutionModel,
         TwoBinaryTraitSubstitutionModel,
-        nStates,
-        Q, P,
+        JC69, HKY85,
+        nstates,
+        Q,
+        getlabels,
+        nparams,
+        RateVariationAcrossSites,
         randomTrait,
         randomTrait!,
-        fitDiscrete,
-        ## TICR test
-        ticr,
-        ticr!
+        fitdiscrete,
+        readfastatodna,
+        stationary,
+        empiricalDNAfrequencies,
+        # phyLiNC,
+        # neighbor joining
+        nj
 
     include("types.jl")
+    include("nloptsummary.jl")
     include("auxiliary.jl")
+    include("generate_topology.jl")
     include("update.jl")
     include("undo.jl")
+    include("addHybrid_snaq.jl")
     include("addHybrid.jl")
     include("deleteHybrid.jl")
-    include("moves.jl")
+    include("moves_snaq.jl")
+    include("moves_semidirected.jl")
     include("readwrite.jl")
     include("readData.jl")
-    include("optimization.jl")
+    include("snaq_optimization.jl")
     include("pseudolik.jl")
     include("descriptive.jl")
     include("manipulateNet.jl")
@@ -154,8 +205,10 @@ module PhyloNetworks
     include("pairwiseDistanceLS.jl")
     include("interop.jl")
     include("substitutionModels.jl")
-    include("biconnectedComponents.jl")
+    include("graph_components.jl")
     include("traitsLikDiscrete.jl")
-    include("ticr.jl")
+    include("deprecated.jl")
+    include("nj.jl")
+    include("phyLiNCoptimization.jl")
 
 end #module

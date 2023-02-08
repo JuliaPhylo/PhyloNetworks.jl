@@ -1,8 +1,5 @@
 ```@meta
 CurrentModule = PhyloNetworks
-DocTestSetup = quote
-  using PhyloNetworks
-end
 ```
 
 # Internal Documentation
@@ -32,10 +29,5 @@ Order   = [:type]
 ```@autodocs
 Modules = [PhyloNetworks]
 Public = false
-Order   = [:function]
+Order   = [:function, :constant]
 ```
-
-```@meta
-DocTestSetup = nothing
-```
-

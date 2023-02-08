@@ -4,12 +4,6 @@ Documentation for `PhyloNetworks`'s public (exported) interface.
 
 See [Internal Documentation](@ref) for documentation on internal functions.
 
-```@meta
-DocTestSetup = quote
-    using PhyloNetworks
-end
-```
-
 ```@contents
 Pages = ["public.md"]
 ```
@@ -28,15 +22,38 @@ Private = false
 Order   = [:type]
 ```
 
-## utilities
+## basic utilities
 
 ```@docs
 tipLabels
-sorttaxa!
 printEdges
 printNodes
-summarizeDataCF
+getroot
+isrootof
+#isleaf
+#isexternal
+isparentof
+#ischildof
+hassinglechild
+getchild
+#getchildren
+#getchildedge
+getparent
+#getparents
+#getparentminor
+#getparentedge
+#getparentedgeminor
+getpartneredge
+getNodeAges
+pairwiseTaxonDistanceMatrix
+```
+
+## utilities to manipulate networks
+
+```@docs
+sorttaxa!
 directEdges!
+checkroot!
 preorder!
 cladewiseorder!
 rootatnode!
@@ -45,30 +62,38 @@ hybridatnode!
 setLength!
 setGamma!
 deleteleaf!
+deleteaboveLSA!
+removedegree2nodes!
+shrink2cycles!
+shrink3cycles!
 deleteHybridThreshold!
 rotate!
-getindex(::TraitSimulation, ::Symbol)
-getNodeAges
-pairwiseTaxonDistanceMatrix
 biconnectedComponents
 blobDecomposition
+treeedgecomponents
+nni!
 ```
 
 ## data and topology read/write
 
 ```@docs
+readfastatodna
 readTopology
 readTopologyLevel1
 readInputTrees
 readMultiTopology
+readNexusTrees
 readSnaqNetwork
 readTrees2CF
+countquartetsintrees
 readTableCF
 readTableCF!
+writeTableCF
 readBootstrapTrees
 writeSubTree!
 writeTopology
 writeMultiTopology
+hybridlambdaformat
 mapAllelesCFtable
 ```
 
@@ -76,14 +101,14 @@ mapAllelesCFtable
 
 ```@docs
 snaq!
-snaqDebug
 topologyMaxQPseudolik!
 topologyQPseudolik!
+summarizeDataCF
 fittedQuartetCF
 bootsnaq
 calibrateFromPairwiseDistances!
-ticr
-ticr!
+undirectedOtherNetworks
+nj
 ```
 ## network Comparisons
 
@@ -96,32 +121,34 @@ hardwiredClusters
 hardwiredCluster
 hardwiredClusterDistance
 treeEdgesBootstrap
-# hybridDetection
-# summarizeHFdf
+hybridDetection
+summarizeHFdf
 hybridBootstrapSupport
 ```
 
 ## continuous trait evolution
 
 ```@docs
-simulate
-shiftHybrid
-getShiftEdgeNumber
-getShiftValue
-phyloNetworklm
-sigma2_estim
-mu_estim
+phylolm
+sigma2_phylo
+sigma2_within
+mu_phylo
 lambda_estim
 ancestralStateReconstruction
 expectations
 predint
 expectationsPlot
 predintPlot
+simulate
+shiftHybrid
+getShiftEdgeNumber
+getShiftValue
 descendenceMatrix
 regressorShift
 regressorHybrid
 sharedPathMatrix
 vcv
+getindex(::TraitSimulation, ::Symbol)
 ```
 
 ## discrete trait evolution
@@ -129,14 +156,14 @@ vcv
 ```@docs
 parsimonySoftwired
 parsimonyGF
-nStates
 Q
-P
 randomTrait
-fitDiscrete
+randomTrait!
+fitdiscrete
 maxParsimonyNet
-```
-
-```@meta
-DocTestSetup = nothing
+getlabels
+nstates
+nparams
+stationary
+empiricalDNAfrequencies
 ```

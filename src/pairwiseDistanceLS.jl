@@ -1,11 +1,15 @@
 """
     getNodeAges(net)
 
-vector of node ages in pre-order, as in `nodes_changed`,
-which is assumed to have been calculated before.
+vector of node ages in pre-order, as in `nodes_changed`.
+
+*Warnings*: `net` is assumed to
+- have been preordered before (to calculate `nodes_changed`)
+- be time-consistent (all paths to the root to a given hybrid have the same length)
+- be ultrametric (all leaves have the same age: 0)
 """
 function getNodeAges(net::HybridNetwork)
-    x = Vector{Float64}(length(net.nodes_changed))
+    x = Vector{Float64}(undef, length(net.nodes_changed))
     for i in reverse(1:length(net.nodes_changed)) # post-order
         n = net.nodes_changed[i]
         if n.leaf
@@ -13,8 +17,8 @@ function getNodeAges(net::HybridNetwork)
             continue
         end
         for e in n.edge
-            if e.node[e.isChild1?2:1] == n # n parent of e
-                childnode = e.node[e.isChild1?1:2]
+            if getparent(e) == n # n parent of e
+                childnode = getchild(e)
                 childIndex = getIndex(childnode, net.nodes_changed)
                 x[i] = x[childIndex] + e.length
                 break # use 1st child, ignores all others
@@ -58,7 +62,6 @@ Providing node ages hence makes the network time consistent: such that
 all paths from the root to a given hybrid node have the same length.
 If node ages are not provided, the network need not be time consistent.
 """
-
 function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
             keepInternal=false::Bool, checkPreorder=true::Bool,
             nodeAges=Float64[]::Vector{Float64})
@@ -93,7 +96,7 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     nodenames = [n.name for n in net.nodes_changed]
     tipind = Int[]
     for l in tipLabels(net)
-        push!(tipind, findfirst(nodenames, l))
+        push!(tipind, findfirst(isequal(l), nodenames))
     end
     if indexation == :both
         return M[tipind, tipind]
@@ -156,7 +159,6 @@ not on branch lengths or node ages (distances are linear in either).
 
 WARNING: edge numbers need to range between 1 and #edges.
 """
-
 function pairwiseTaxonDistanceGrad(net::HybridNetwork;
         checkEdgeNumber=true::Bool, nodeAges=Float64[]::Vector{Float64})
     if checkEdgeNumber
@@ -212,7 +214,7 @@ end
 
 """
     calibrateFromPairwiseDistances!(net, distances::Matrix{Float64},
-        taxon_names::Vector{String})
+        taxon_names::Vector{<:AbstractString})
 
 Calibrate the network to match (as best as possible) input
 pairwise distances between taxa, such as observed from sequence data.
@@ -230,27 +232,27 @@ This function will output *one* of these equally good calibrations.
 optional arguments (default):
 - checkPreorder (true)
 - forceMinorLength0 (false) to force minor hybrid edges to have a length of 0
-- NLoptMethod (:LD_MMA) for the optimization algorithm.
-  Other options include :LN_COBYLA (derivative-free); see NLopt package.
+- NLoptMethod (`:LD_MMA`) for the optimization algorithm.
+  Other options include `:LN_COBYLA` (derivative-free); see NLopt package.
 - tolerance values to control when the optimization is stopped:
   ftolRel (1e-12), ftolAbs (1e-10) on the criterion, and
   xtolRel (1e-10), xtolAbs (1e-10) on branch lengths / divergence times.
 - verbose (false)
 """
-
 function calibrateFromPairwiseDistances!(net::HybridNetwork,
-      D::Array{Float64,2}, taxNames::Vector{String};
+      D::Array{Float64,2}, taxNames::Vector{<:AbstractString};
       checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
       ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
       ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
       xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
 
     checkPreorder && preorder!(net)
-    # fixit: remove root node if of degree 2, and if BL optimized
+    # fixit: remove root node if of degree 2, and if ultrametric=false
+    defaultedgelength = median(D)/(length(net.edge)/2)
     for e in net.edge
-        if e.length == -1.0 e.length=0.0; end
+        if e.length == -1.0 e.length=defaultedgelength; end
+        # get smarter starting values: NJ? fast dating?
     end
-    # fixit: get smart starting values: NJ? fast dating?
     if ultrametric # get all node ages in pre-order
         na = getNodeAges(net)
     else na = Float64[]; end
@@ -280,13 +282,14 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
         hybGParentI = Int[] # index in 1:nparams of minor (grand-)parent in param list
         for i in hybInd
             n = net.nodes_changed[i]
-            p = getMinorParent(n)
-            pi = getIndex(p, net.nodes_changed)
+            p = getparentminor(n)
+            pi = findfirst(n -> n===p, net.nodes_changed)
             push!(hybParentInd, pi)
-            pii = findfirst(parind, pi)
-            while pii==0 # in case minor parent of n is also hybrid node
-                p = getMinorParent(p)
-                pii = findfirst(parind, getIndex(p, net.nodes_changed))
+            pii = findfirst(isequal(pi), parind)
+            while pii===nothing # in case minor parent of n is also hybrid node
+                p = getparentminor(p)
+                pi = findfirst(n -> n===p, net.nodes_changed)
+                pii = findfirst(isequal(pi), parind)
             end
             push!(hybGParentI, pii)
         end
@@ -305,8 +308,8 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
     ntax = length(taxNames)
     tipind = Int[] # pre-order index for leaf #i in dna distances
     for l in taxNames
-        i = findfirst(nodenames, l)
-        i>0 || error("taxon $l not found in network")
+        i = findfirst(isequal(l), nodenames)
+        i !== nothing || error("taxon $l not found in network")
         push!(tipind, i)
     end
     # contraints: to force a parent to be older than its child
@@ -320,20 +323,20 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
         n = net.nodes_changed[i]
         if n.leaf continue; end # node ages already bounded by 0
         if n.hybrid && forceMinorLength0          # get index in param list of
-          nii = hybGParentI[findfirst(hybInd, i)] # minor grand-parent (same age)
+          nii = hybGParentI[findfirst(isequal(i), hybInd)] # minor grand-parent (same age)
         else
-          nii = findfirst(parind, i)
+          nii = findfirst(isequal(i), parind)
         end
         for e in n.edge
-          if e.node[e.isChild1?1:2] == n # n child of e
-            p = e.node[e.isChild1?2:1]   # parent of n
+          if getchild(e) == n # n child of e
+            p = getparent(e)  # parent of n
             if forceMinorLength0 && n.hybrid && !e.isMajor
                 continue; end # p and n at same age already
-            pi = findfirst([no.number for no in net.nodes_changed], p.number)
+            pi = findfirst(isequal(p.number), [no.number for no in net.nodes_changed])
             if forceMinorLength0 && p.hybrid
-              pii = hybGParentI[findfirst(hybInd, pi)]
+              pii = hybGParentI[findfirst(isequal(pi), hybInd)]
             else
-              pii = findfirst(parind, pi)
+              pii = findfirst(isequal(pi), parind)
             end
             push!(chii, nii)
             push!(anii, pii)
@@ -415,23 +418,6 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
     end
     NLopt.min_objective!(opt,obj)
     fmin, xmin, ret = NLopt.optimize(opt,par) # optimization here!
-    verbose && println("got $(round(fmin,5)) at $(round.(xmin,5)) after $(counter[1]) iterations (return code $(ret))")
+    verbose && println("got $(round(fmin, digits=5)) at $(round.(xmin, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     return fmin,xmin,ret
-end
-
-# This is a helper function to accept symbols instead of strings
-function calibrateFromPairwiseDistances!(net::HybridNetwork,
-      D::Array{Float64,2}, taxNames::Vector{Symbol};
-      checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
-      ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
-      ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
-    taxNames = [String(t) for t in taxNames]
-    calibrateFromPairwiseDistances!(net, D, taxNames;
-                                    checkPreorder=checkPreorder,
-                                    forceMinorLength0=forceMinorLength0,
-                                    verbose=verbose, ultrametric=ultrametric,
-                                    NLoptMethod=NLoptMethod, ftolRel=ftolRel,
-                                    ftolAbs=ftolAbs, xtolRel=xtolRel,
-                                    xtolAbs=xtolAbs)
 end

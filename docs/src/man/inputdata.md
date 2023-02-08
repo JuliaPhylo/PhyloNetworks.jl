@@ -44,14 +44,15 @@ less("raxmltrees.tre")
 ```
 or like this, to view the version downloaded with the package:
 ```julia
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
 less(raxmltrees)
 ```
 Just type `q` to quit viewing this file.
 You could read in these 30 trees and visualize the third one (say) like this:
 ```@example qcf
 using PhyloNetworks
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre");
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre");
+nothing # hide
 ```
 ```@repl qcf
 genetrees = readMultiTopology(raxmltrees);
@@ -65,8 +66,8 @@ using RCall # hide
 mkpath("../assets/figures") # hide
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('inputdata_gene3.svg'), width=4, height=3)" # hide
-R"par(mar = c(0, 0, 0, 0))"                    # hide
-plot(genetrees[3], :R); # tree for 3rd gene
+R"par"(mar=[0,0,0,0])                          # hide
+plot(genetrees[3]); # tree for 3rd gene
 R"dev.off()"                                   # hide
 nothing # hide
 ```
@@ -75,20 +76,22 @@ nothing # hide
 To read in all gene trees and directly summarize them by a list
 of quartet CFs (proportion of input trees with a given quartet):
 ```@repl qcf
-raxmlCF = readTrees2CF(raxmltrees, CFfile="tableCF.txt");
-PhyloNetworks.writeObsCF(raxmlCF) # observed CFs: gene frequencies
-rm("tableCF.txt") # hide
-rm("summaryTreesQuartets.txt") # hide
+q,t = countquartetsintrees(genetrees); # read in trees, calculate quartet CFs
+df = writeTableCF(q,t)   # data frame with observed CFs: gene frequencies
+using CSV
+CSV.write("tableCF.csv", df); # to save the data frame to a file
+raxmlCF = readTableCF("tableCF.csv") # read in the file and produces a "DataCF" object
+rm("tableCF.csv") # hide
 ```
-`less("tableCF.txt")` lets you see the content of the newly created
-file "tableCF.txt", within Julia. Again, type `q` to quit viewing this file.
+`less("tableCF.csv")` lets you see the content of the newly created
+file "tableCF.csv", within Julia. Again, type `q` to quit viewing this file.
 
 In this table, each 4-taxon set is listed in one row.
 The 3 "CF" columns gives the proportion of genes that has
 each of the 3 possible trees on these 4 taxa.
 
 For more help on any function, type `?` to enter the help mode,
-then type the name of the function. For example: type `?` then `readTrees2CF`
+then type the name of the function. For example: type `?` then `countquartetsintrees`
 for information on the various options of that function.
 
 When there are many more taxa, the number of quartets
@@ -96,12 +99,17 @@ might be very large and we might want to use a subset to speed things up.
 Here, if we wanted to use a random sample of 10 quartets
 instead of all quartets, we could do:
 
-`readTrees2CF(raxmltrees, whichQ="rand", numQ=10, CFfile="tableCF10.txt")`
+`raxmlCF = readTrees2CF(raxmltrees, whichQ="rand", numQ=10, CFfile="tableCF10.txt")`
 
 Be careful to use a numQ value smaller than the total number of possible
 4-taxon subsets, which is *n choose 4* on *n* taxa (e.g. 15 on 6 taxa).
-To get a predictable random sample, you may set the seed with `srand(12321)`
+To get a predictable random sample, you may set the seed with
+`using Random; Random.seed!(12321)`
 (for instance) prior to sampling the quartets as above.
+The `readTrees2CF` is *much* slower than the function `countquartetsintrees`
+to read in trees and calculate the quartet CFs observed in the trees,
+when we want to get *all* quartet CFs. But for a small sample of quartets,
+then `readTrees2CF` is available.
 
 ## Tutorial data: quartet CFs
 
@@ -120,7 +128,7 @@ or
 [here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/buckyCF.csv).
 
 ```@repl qcf
-buckyCFfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","buckyCF.csv");
+buckyCFfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","buckyCF.csv");
 buckyCF = readTableCF(buckyCFfile)
 ```
 The same thing could be done in 2 steps:
@@ -128,10 +136,10 @@ first to read the file and convert it to a 'DataFrame' object,
 and then to convert this DataFrame into a DataCF object.
 ```@repl qcf
 using CSV, DataFrames
-dat = CSV.read(buckyCFfile);
-head(dat) # head shows the first 6 rows only
+dat = DataFrame(CSV.File(buckyCFfile); copycols=false);
+first(dat, 6) # to see the first 6 rows
 buckyCF = readTableCF(dat)
-PhyloNetworks.writeObsCF(buckyCF)
+writeTableCF(buckyCF)
 ```
 In the input file, columns need to be in the right order:
 with the first 4 columns giving the names of the taxa in each 4-taxon set.
@@ -154,12 +162,13 @@ followed by the best tree on the original data.
 It's this last tree that we are most interested in.
 We can read it with
 ```@example qcf
-astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre");
+astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre");
 astraltree = readMultiTopology(astralfile)[102] # 102th tree: last tree here
 R"svg(name('inputdata_astraltree.svg'), width=4, height=3)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
-plot(astraltree, :R, showEdgeLength=true);
+R"par"(mar=[0,0,0,0]) # hide
+plot(astraltree, showedgelength=true);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![astraltree](../assets/figures/inputdata_astraltree.svg)
 

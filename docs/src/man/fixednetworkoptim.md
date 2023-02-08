@@ -8,9 +8,9 @@ This is useful if we have a few candidate networks to compare.
 Each network can be optimized individually, and the network with the best
 pseudolikelihood can be chosen.
 
-The score being optimized is the pseudo-deviance, i.e.
-the negative log pseudo-likelihood up to an additive constant
-(the lower the better).
+The score being optimized is a pseudo-deviance, i.e.
+a multiple of the negative log pseudo-likelihood up to an additive constant
+(the lower the better; a pseudo-deviance of 0 corresponds to a perfect fit).
 
 Following our example in [Getting a Network](@ref),
 we can optimize parameters on the true network
@@ -18,24 +18,26 @@ we can optimize parameters on the true network
 
 ```@setup fixednetworkoptim
 using PhyloNetworks
+using Logging # to suppress info messages below
+baselogger = global_logger()
 mkpath("../assets/figures")
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
-raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
+raxmlCF = readTableCF(writeTableCF(countquartetsintrees(readMultiTopology(raxmltrees), showprogressbar=false)...))
 ```
 
 ```@repl fixednetworkoptim
 truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 net1alt = topologyMaxQPseudolik!(truenet, raxmlCF);
 writeTopology(net1alt, round=true)
-net1alt.loglik # pseudo deviance, actually
+net1alt.loglik # pseudo deviance actually: the lower the better
 ```
 ```@example fixednetworkoptim
 using PhyloPlots, RCall
-R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
-R"svg(name('truenet_opt.svg'), width=4, height=4)" 
-R"par(mar = c(0, 0, 0, 0))" 
-plot(net1alt, :R, showGamma=true);
-R"dev.off()" 
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
+R"svg(name('truenet_opt.svg'), width=4, height=4)" # hide
+R"par"(mar=[0,0,0,0])
+plot(net1alt, showgamma=true);
+R"dev.off()" # hide
 nothing # hide
 ```
 ![truenet_opt](../assets/figures/truenet_opt.svg)
@@ -52,16 +54,16 @@ the search stops (but the optimization will take longer).
 It makes no difference on this small data set.
 ```julia
 net1par = topologyMaxQPseudolik!(truenet, raxmlCF, ftolRel=1e-10, xtolAbs=1e-10)
-net1par.loglik
+net1par.loglik # pseudo deviance, actually: the lower the better
 ```
 
 ## Network Score with no optimization
 
 For a network with given branch lengths and γ heritabilies,
-we can compute the pseudolikelihood with:
+we can compute the pseudolikelihood (well, a pseudo-deviance) with:
 ```@repl fixednetworkoptim
 topologyQPseudolik!(truenet,raxmlCF);
-truenet.loglik
+truenet.loglik # again, pseudo deviance
 ```
 This function is not maximizing the pseudolikelihood, it is simply computing the
 pseudolikelihood (or deviance) for the given branch lengths and probabilities of
@@ -102,14 +104,14 @@ We can read this file and look at its list of networks like this:
 ```@repl fixednetworkoptim
 file = "net1.networks";
 # or use the example file available with the package:
-file = joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.networks");
+file = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.networks");
 netlist = readMultiTopology(file) # read the full list of networks in that file
 ```
 Next, we would like to extract the network scores from the file.
 Below is a one-liner to do this
 (we make Julia send a `sed` command to the shell --sorry, Mac or Linux for this.)
 ```@repl fixednetworkoptim
-scoresInString = readstring(`sed -E 's/.+with -loglik ([0-9]+.[0-9]+).+/\1/' $file`)
+scoresInString = read(`sed -E 's/.+with -loglik ([0-9]+.[0-9]+).+/\1/' $file`, String)
 scores = parse.(Float64, split(scoresInString))
 # next: update the "loglik" of each network with the score read from the file
 for i in eachindex(netlist)
@@ -126,12 +128,13 @@ to re-root the networks.
 ```@example fixednetworkoptim
 R"svg(name('fixednetworkoptim_othernets1.svg'), width=7, height=4)" # hide
 R"layout(matrix(1:2,1,2))"; # hide
-R"par(mar = c(0,0,0,0))" # hide
-plot(netlist[1], :R, showGamma=true, showEdgeNumber=true, tipOffset=0.1);
-R"mtext('best net, score=28.3', line=-1)"
-plot(netlist[2], :R, showGamma=true, showEdgeNumber=true, tipOffset=0.1);
-R"mtext('direction modified, score=31.5', line=-1)";
+R"par"(mar=[0,0,0,0]) # hide
+plot(netlist[1], showgamma=true, showedgenumber=true, tipoffset=0.1);
+R"mtext"("best net, score=28.3", line=-1);
+plot(netlist[2], showgamma=true, showedgenumber=true, tipoffset=0.1);
+R"mtext"("direction modified, score=31.5", line=-1);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![othernets before reroot](../assets/figures/fixednetworkoptim_othernets1.svg)
 
@@ -144,7 +147,7 @@ Now imagine that our outgroup is taxon A.
   (rooted network on the left below).
 - For the second best network in our list, there are 2 ways to root it
   with A: on the external edge 8 to A (top right), or on its parent edge 10
-  (bottom right). These 2 options give quite different rooted versions
+  These 2 options give quite different rooted versions
   of the network, one of which requires the existence of an unsampled taxon,
   sister to BOECD, that would have contributed to introgression into
   an ancestor of E. The second rooted version says that an ancestor of
@@ -155,20 +158,25 @@ Now imagine that our outgroup is taxon A.
 ```@example fixednetworkoptim
 R"svg(name('fixednetworkoptim_othernets2.svg'), width=7, height=7)" # hide
 R"layout(matrix(c(1,4,2,3),2,2))"; # hide
-R"par(mar = c(0,0,0.5,0))" # hide
+R"par"(mar=[0,0,0.5,0]) # hide
 rootonedge!(netlist[1], 10); # root best net to make A outgroup
 rotate!(netlist[1], -4); # to 'un-cross' edges
 rotate!(netlist[1], -6);
-plot(netlist[1], :R, showGamma=true, tipOffset=0.1);
-R"mtext('best net, score=28.3', line=-1)";
-logging(DevNull, ; kind=:info) # hide
+rotate!(netlist[1], -5);
+plot(netlist[1], showgamma=true, tipoffset=0.1);
+R"mtext"("best net, score=28.3", line=-1);
+global_logger(NullLogger()); # hide
 rootatnode!(netlist[2], "A"); # net with modified direction: first way to make A outgroup
-logging() # hide
-plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
-R"mtext('second best in list, score=31.5\nrequires unsampled population', line=-2)";
+global_logger(baselogger);   # hide
+rotate!(netlist[2], -4) # to 'un-cross' edges
+rotate!(netlist[2], -6)
+plot(netlist[2], showgamma=true, tipoffset=0.1);
+R"mtext"("second best in list, score=31.5\nrequires unsampled population", line=-2);
 rootonedge!(netlist[2], 10) # net with modified direction: second way to make A outgroup
-plot(netlist[2], :R, showGamma=true, tipOffset=0.1);
-R"mtext('second best in list, score=31.5\ndifferent root position', line=-2)";
+for i in [9,-7] rotate!(netlist[2], i); end; # to 'un-cross' edges
+plot(netlist[2], showgamma=true, tipoffset=0.1);
+R"mtext"("second best in list, score=31.5\ndifferent root position", line=-2);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![othernets after reroot](../assets/figures/fixednetworkoptim_othernets2.svg)

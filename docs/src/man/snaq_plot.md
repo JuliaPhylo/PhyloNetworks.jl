@@ -1,14 +1,15 @@
 ```@setup snaqplot
 using PhyloNetworks
 mkpath("../assets/figures")
-raxmltrees = joinpath(Pkg.dir("PhyloNetworks"),"examples","raxmltrees.tre")
+raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
 raxmlCF = readTrees2CF(raxmltrees, writeTab=false, writeSummary=false)
-astralfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","astral.tre")
+astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
-net0 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net0.out"))
-net1 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net1.out"))
-net2 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net2.out"))
-net3 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","net3.out"))
+net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
+net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
+rotate!(net1, -6)
+net2 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net2.out"))
+net3 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net3.out"))
 net0.loglik = 53.53150526187732
 net1.loglik = 28.31506721890958
 net2.loglik = 28.31506721890957
@@ -19,7 +20,7 @@ net3.loglik = 28.315067218909626
 ## Network Estimation
 
 SNaQ implements the statistical inference method in
-[Sol&iacute;s-Lemus and An&eacute; 2016](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
+[Solís-Lemus & Ané 2016](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896).
 The procedure involves a numerical optimization of branch lengths and inheritance
 probabilities and a heuristic search in the space of phylogenetic networks.
 
@@ -44,9 +45,10 @@ using PhyloPlots
 using RCall # hide
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
 R"svg(name('snaqplot_net0_1.svg'), width=4, height=3)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
-plot(net0, :R);
+R"par"(mar=[0,0,0,0]) # hide
+plot(net0);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net0_1](../assets/figures/snaqplot_net0_1.svg)
 
@@ -65,10 +67,11 @@ We can visualize the estimated network and its inheritance values γ, which
 measure the proportion of genes inherited via each parent at a reticulation event
 (e.g. proportion of genes inherited via gene flow).
 ```@example snaqplot
-R"svg(name('snaqplot_net1_1.svg'), width=4, height=3)" # hide
-R"par(mar = c(0, 0, 0, 0))" # hide
-plot(net1, :R, showGamma=true);
+R"svg(name('snaqplot_net1_1.svg'), width=4, height=3)"; # hide
+R"par"(mar=[0,0,0,0]); # hide
+plot(net1, showgamma=true);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net1_1](../assets/figures/snaqplot_net1_1.svg)
 
@@ -87,7 +90,8 @@ The file `net1.networks` contains a list of networks that are slight modificatio
 of the best (estimated) network `net1`. The modifications changed the direction
 of one reticulation at a time, by moving the placement of one hybrid node to another
 node inside the same cycle.
-For each modified network, the pseudolikelihood score was calculated.
+For each modified network, the pseudolikelihood score was calculated
+(the `loglik` or `-Ploglik` values give a pseudo deviance actually).
 
 The function name `snaq!` ends with ! because it modifies the argument `raxmlCF`
 by including the expected CF. Type `?` then `snaq!` to get help on that function.
@@ -117,12 +121,13 @@ and plot them (they are identical and they both have a single reticulation):
 R"svg(name('snaqplot_net23.svg'), width=7, height=3)" # hide
 using RCall                  # to be able to tweak our plot within R
 R"layout(matrix(1:2, 1, 2))" # to get 2 plots into a single figure: 1 row, 2 columns
-R"par(mar = c(0,0,1,0))"     # for smaller margins
-plot(net2, :R, showGamma=true);
-R"mtext('hmax=2')"           # add text annotation: title here
-plot(net3, :R, showGamma=true);
-R"mtext('hmax=3')"
+R"par"(mar=[0,0,1,0])        # for smaller margins
+plot(net2, showgamma=true);
+R"mtext"("hmax=2")           # add text annotation: title here
+plot(net3, showgamma=true);
+R"mtext"("hmax=3")
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net23](../assets/figures/snaqplot_net23.svg)
 
@@ -144,6 +149,7 @@ you can tell julia to use 4 processors by starting julia with `julia -p 4`,
 or by starting julia the usual way (`julia`) and then adding processors with:
 
 ```julia
+using Distributed
 addprocs(4)
 ```
 
@@ -210,16 +216,14 @@ if length(ARGS) > 1
 end
 outputfile = string("net", h, "_", nruns, "runs") # example: "net2_10runs"
 seed = 1234 + h # change as desired! Best to have it different for different h
-info("will run SNaQ with h=",h,
-    ", # of runs=",nruns,
-    ", seed=",seed,
-    ", output will go to: ", outputfile)
+@info "will run SNaQ with h=$h, # of runs=$nruns, seed=$seed, output will go to: $outputfile"
 
+using Distributed
 addprocs(nruns)
 @everywhere using PhyloNetworks
 net0 = readTopology("astraltree.tre");
-using CSV
-df_sp = CSV.read("tableCF_speciesNames.csv", categorical=false);
+using DataFrames, CSV
+df_sp = DataFrame(CSV.File("tableCF_speciesNames.csv", pool=false); copycols=false);
 d_sp = readTableCF!(df_sp);
 net = snaq!(net0, d_sp, hmax=h, filename=outputfile, seed=seed, runs=nruns)
 ```
@@ -238,7 +242,8 @@ In the submit file below, the first 5 lines set things up for slurm.
 They are most likely to be specific to your cluster.
 The main idea here is to use a slurm "array" from 0 to 3, to run our
 julia script multiple times, 4 times actually: from hmax=0 to hmax=3.
-Each would do 30 runs.
+Each would do 30 runs
+(and each would be allocated 30 cores in the submit script below).
 Then log out of the cluster and go for coffee.
 
 ```bash
@@ -246,11 +251,12 @@ Then log out of the cluster and go for coffee.
 #SBATCH -o path/to/slurm/log/file/runsnaq_slurm%a.log
 #SBATCH -J runsnaq
 #SBATCH --array=0-3
-#SBATCH -n 120
+#SBATCH -c 30
 ## --array: to run multiple instances of this script,
-##          one for each value in the array
+##          one for each value in the array.
+##          1 instance = 1 task
 ## -J job name
-## -n number of cores
+## -c number of cores (CPUs) per task
 
 echo "slurm task ID = $SLURM_ARRAY_TASK_ID used as hmax"
 echo "start of SNaQ parallel runs on $(hostname)"
@@ -262,15 +268,17 @@ echo "end of SNaQ run ..."
 ## choosing the number of hybridizations
 
 Each network has a `loglik` attribute, which is its pseudo deviance:
-twice the negative log-likelihood up to a constant (the constant is
+a multiple of the negative log-likelihood up to a constant (the constant is
 such that the score is 0 if the network fits the data perfectly).
 The lower the better. We can plot these scores across hybrid values:
 ```@example snaqplot
 scores = [net0.loglik, net1.loglik, net2.loglik, net3.loglik]
+hmax = collect(0:3)
 R"svg(name('snaqplot_scores_heuristic.svg'), width=4, height=3)" # hide
-R"par(mar=c(2.5,2.5,.5,.5), mgp=c(1.4,.4,0), tck=-0.02)";  # hide
-R"plot($scores, type='b', ylab='network score', xlab='hmax', col='blue')"
+R"par"(mar=[2.5,2.5,.5,.5], mgp=[1.4,.4,0], tck=-0.02, las=1, lab=[3,5,7]);  # hide
+R"plot"(hmax, scores, type="b", ylab="network score", xlab="hmax", col="blue");
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![scores_heuristic](../assets/figures/snaqplot_scores_heuristic.svg)
 
@@ -284,7 +292,7 @@ package such as [Gadfly](http://gadflyjl.org/stable/) or
 using Gadfly
 plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
 ```
-<!-- cool blog post here about using ggplot within julia: http://avt.im/blog/2018/03/23/R-packages-ggplot-in-julia -->
+(btw, cool [blog](http://avt.im/blog/2018/03/23/R-packages-ggplot-in-julia) about using ggplot within julia)
 
 ## Network Visualization
 
@@ -300,15 +308,14 @@ then we tell R to wrap up and save its image file.
 ```@example snaqplot
 using PhyloPlots # to visualize networks
 using RCall      # to send additional commands to R like this: R"..."
-R"name = function(x) file.path('..', 'assets', 'figures', x)" # function to create file name in appropriate folder
-R"svg(name('snaqplot_net1_2.svg'), width=4, height=3)" # starts image file
-R"par(mar = c(0,0,0,0))" # to reduce margins (no margins at all here)
-plot(net1, :R, showGamma=true, showEdgeNumber=true); # network is plotted & sent to file
+imagefilename = "../assets/figures/snaqplot_net1_2.svg"
+R"svg"(imagefilename, width=4, height=3) # starts image file
+R"par"(mar=[0,0,0,0]) # to reduce margins (no margins at all here)
+plot(net1, showgamma=true, showedgenumber=true); # network is plotted & sent to file
 R"dev.off()"; # wrap up and save image file
+nothing # hide
 ```
 ![net1_2](../assets/figures/snaqplot_net1_2.svg)
-
-<!-- This will open a browser where the plot will appear (unless you use [Juno](http://junolab.org), which would capture and display the plot). To get a pdf version, for instance (see [Gadfly tutorial](http://gadflyjl.org/) for other formats): using Gadfly; p=pdf(...); draw(PDF("bestnet_h1.pdf", 4inch, 4inch),p) -->
 
 The plot function has many options, to annotate nodes and edges. In the
 example above, hybrid edges were annotated with their γ inheritance values
@@ -317,31 +324,37 @@ major edge with γ>0.5), and edges were annotated with their internal numbers.
 
 Type `?` to switch to the help mode
 of Julia, then type the name of the function, here `plot`.
-Edge colors can be modified, for instance.
+Below are two visualizations.
+The first uses the default style (`:fulltree`) and modified edge colors.
+The second uses the `:majortree` style.
+That style doesn't have an arrow by default for minor hybrid edges,
+but we can ask for one by specifying a positive arrow length.
 ```@example snaqplot
-R"svg(name('snaqplot_net1_3.svg'), width=4, height=3)" # hide
-R"par(mar = c(0,0,0,0))" # hide
-plot(net1, :R, showEdgeLength=true, minorHybridEdgeColor="tan")
+R"svg(name('snaqplot_net1_3.svg'), width=7, height=3)" # hide
+R"par"(mar=[0,0,0,0]) # hide
+R"layout(matrix(1:2,1,2))";
+plot(net1, showedgelength=true, minorhybridedgecolor="tan");
+plot(net1, style=:majortree, arrowlen=0.07);
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net1_3](../assets/figures/snaqplot_net1_3.svg)
-
-<!-- for Gadfly: "using Gadfly" and option minorHybridEdgeColor=colorant"tan" -->
 
 Edge lengths are shown, too. They were estimated in coalescent units:
 number of generations / effective population size.
 Some edge lengths are not identifiable, hence not shown.
 
 Below is another example, where space was added between the network and
-the taxon names via the `tipOffset` option.
+the taxon names via the `tipoffset` option.
 Also, edge colors were changed, and the nodes numbers are shown (used internally)
 
 ```@example snaqplot
 R"svg(name('snaqplot_net1_4.svg'), width=4, height=3)" # hide
-R"par(mar = c(0,0,0,0))" # hide
-plot(net1,:R, tipOffset=0.5, showNodeNumber=true, edgeColor="tomato4",
-     minorHybridEdgeColor="skyblue", majorHybridEdgeColor="tan");
+R"par"(mar=[0,0,0,0]) # hide
+plot(net1, tipoffset=0.5, shownodenumber=true, edgecolor="tomato4",
+     minorhybridedgecolor="skyblue", majorhybridedgecolor="tan");
 R"dev.off()"; # hide
+nothing # hide
 ```
 ![net1_4](../assets/figures/snaqplot_net1_4.svg)
 
@@ -372,14 +385,5 @@ The easiest way to provide information on the error is by checking the
 failed and the corresponding seed to replicate the run.
 In case of an error, the `.err` file might look like:
 `Total errors: 1 in seeds [4545]`.
-To replicate the bug (necessary to fix it!),
-you can run the following function with the same settings that caused the error:
-
-```julia
-snaqDebug(startnetwork, raxmlCF, hmax=2, seed=4545)
-```
-
-This will create two files: `snaqDebug.log` and `debug.log`,
-with information on steps to retrace the bug.
-You can attach them to your issue (or send them offline),
-to help us fix the bug.
+This file and any information that will help replicating the error
+will be immensely helpful to fix the error/bug.

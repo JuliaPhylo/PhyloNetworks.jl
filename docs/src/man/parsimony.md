@@ -25,7 +25,7 @@ using PhyloNetworks
 mkpath("../assets/figures")
 using RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)"
-net1 = readTopology(joinpath(Pkg.dir("PhyloNetworks"),"examples","swadesh.out"))
+# net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","swadesh.out"))
 # we would get net1 from analyzing the complete data, but not available with the package
 ```
 
@@ -33,9 +33,9 @@ First, we need to read the trait table as a DataFrame object:
 
 ```@repl parsimony
 using CSV, DataFrames
-csvfile = joinpath(Pkg.dir("PhyloNetworks"),"examples","Swadesh.csv");
-dat = CSV.read(csvfile);
-head(dat) # head shows the first 6 rows only
+csvfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","Swadesh.csv");
+dat = CSV.File(csvfile) |> DataFrame;
+first(dat, 6) # to see the first 6 rows
 ```
 
 Then, we need to convert the DataFrame object `dat`
@@ -61,8 +61,9 @@ net = readTopology("(Spanish,((English)#H1,(Norwegian,(German,#H1))));");
 using PhyloPlots, RCall
 R"svg(name('parsimony-fixed-net.svg'), width=4, height=4)"; # hide
 R"par"(mar = [0,0,0,0]);
-plot(net, :R);
+plot(net, xlim=[0.8,7.5]);
 R"dev.off"(); # hide
+nothing # hide
 ```
 ![parsimony-fixed-net](../assets/figures/parsimony-fixed-net.svg)
 
@@ -101,5 +102,5 @@ net1 = maxParsimonyNet(starttree, dat, hmax=1, outgroup="Spanish", rootname="swa
 The example data is very small: only 1 of the 11 traits is parsimony informative,
 on the 4 taxa specified by the starting topology. So these data happen
 to be compatible with a tree, and that tree is returned despite allowing
-for up to 1 reticulation.
-<!-- `(Spanish,((English,Norwegian),German));` -->
+for up to 1 reticulation:
+`(Spanish,((English,Norwegian),German));`.

@@ -1,10 +1,9 @@
-# PhyloNetworks: analysis for phylogenetic networks
+# PhyloNetworks: analysis for phylogenetic networks <img src="docs/src/logo_text.png" align=right>
 
-[![Build Status](https://travis-ci.org/crsl4/PhyloNetworks.jl.svg)](https://travis-ci.org/crsl4/PhyloNetworks.jl)
+[![Build status](https://github.com/crsl4/PhyloNetworks.jl/workflows/CI/badge.svg?branch=master)](https://github.com/crsl4/PhyloNetworks.jl/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/latest)
-[![codecov.io](http://codecov.io/github/crsl4/PhyloNetworks.jl/coverage.svg?branch=master)](http://codecov.io/github/crsl4/PhyloNetworks.jl?branch=master)
-[![Coverage Status](https://coveralls.io/repos/crsl4/PhyloNetworks.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/crsl4/PhyloNetworks?branch=master)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/dev)
+[![codecov](https://codecov.io/gh/crsl4/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/crsl4/PhyloNetworks.jl)
 
 ## Overview
 
@@ -27,18 +26,22 @@ PhyloNetworks is a [Julia](http://julialang.org) package with utilities to:
 
 To get help, check
 
-- the [latest documentation](https://crsl4.github.io/PhyloNetworks.jl/latest)
+- the [latest documentation](https://crsl4.github.io/PhyloNetworks.jl/dev)
 - the [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) for a step-by-step tutorial
   (July 2018) with background on networks
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   for common questions. Join the group to post/email your questions,
   or to receive information on new versions, bugs fixed, etc.
 
-If you use the package, please cite
+If you use the package, please cite ([bibtex format here](CITATION.bib))
 
-- Claudia Sol&iacute;s-Lemus, Paul Bastide and C&eacute;cile An&eacute; (2017). PhyloNetworks: a package for phylogenetic networks. [Molecular Biology and Evolution](https://academic.oup.com/mbe/article/doi/10.1093/molbev/msx235/4103410/PhyloNetworks-a-package-for-phylogenetic-networks?guestAccessKey=230afceb-df28-4160-832d-aa7c73f86369) doi: 10.1093/molbev/msx235
+- Claudia Sol&iacute;s-Lemus, Paul Bastide and C&eacute;cile An&eacute; (2017).
+  PhyloNetworks: a package for phylogenetic networks.
+  [Molecular Biology and Evolution](https://academic.oup.com/mbe/article/doi/10.1093/molbev/msx235/4103410/PhyloNetworks-a-package-for-phylogenetic-networks?guestAccessKey=230afceb-df28-4160-832d-aa7c73f86369)
+  34(12):3292–3298.
+  [doi:10.1093/molbev/msx235](https://doi.org/10.1093/molbev/msx235)
 
-## Maximum pseudolikelihood estimation of species network: SNaQ <img src="http://pages.stat.wisc.edu/~claudia/Images/snaq.png" align=right title="SNaQ logo" width=262.5 height=111>
+## Maximum pseudolikelihood estimation of species network: SNaQ <img src="docs/src/snaq.png" align=right title="SNaQ logo" width=262.5 height=111>
 <!-- ![SNaQ logo](http://pages.stat.wisc.edu/~claudia/Images/snaq.png)
 original size: 525px × 222px-->
 
@@ -54,7 +57,8 @@ If you use SNaQ, please cite
 - Claudia Sol&iacute;s-Lemus and C&eacute;cile An&eacute; (2016).
   Inferring Phylogenetic Networks with Maximum Pseudolikelihood under Incomplete Lineage Sorting.
   [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
-  12(3):e1005896. doi: 10.1371/journal.pgen.1005896
+  12(3):e1005896.
+  [doi:10.1371/journal.pgen.1005896](https://doi.org/10.1371/journal.pgen.1005896)
 
 ## Phylogenetic comparative methods for trait evolution
 
@@ -63,9 +67,24 @@ with or without transgressive evolution after reticulations:
 
 - Bastide, Solís-Lemus, Kriebel, Sparks, Ané (2018).
   Phylogenetic Comparative Methods for Phylogenetic Networks with Reticulations.
-  Systematic Biology.
+  Systematic Biology, 67(5):800–820.
   [doi:10.1093/sysbio/syy033](https://doi.org/10.1093/sysbio/syy033).
   SI on [dryad](http://dx.doi.org/10.5061/dryad.nt2g6)
   including a [tutorial for trait evolution](https://datadryad.org/bitstream/handle/10255/dryad.177752/xiphophorus_PCM_analysis.html?sequence=1)
   and a [tutorial for network calibration](https://datadryad.org/bitstream/handle/10255/dryad.177754/xiphophorus_networks_calibration.html?sequence=1).
-  
+
+Continuous traits, accounting for within-species variation:
+
+- Benjamin Teo, Jeffrey P. Rose, Paul Bastide & Cécile Ané (2022).
+  Accounting for intraspecific variation in continuous trait evolution
+  on a reticulate phylogeny.
+  [bioRxiv](https://doi.org/10.1101/2022.05.12.490814)
+
+For a discrete trait (influence of gene flow on the trait,
+ancestral state reconstruction, rates):
+
+- Karimi, Grover, Gallagher, Wendel, Ané & Baum (2020). Reticulate evolution
+  helps explain apparent homoplasy in floral biology and pollination in baobabs
+  (*Adansonia*; Bombacoideae; Malvaceae).
+  Systematic Biology,
+  69(3):462-478. doi: [10.1093/sysbio/syz073](https://academic.oup.com/sysbio/advance-article/doi/10.1093/sysbio/syz073/5613901?guestAccessKey=a32e7dd3-27fd-4a13-b171-7ff5d6da0e01).

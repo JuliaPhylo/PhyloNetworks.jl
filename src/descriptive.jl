@@ -13,7 +13,6 @@ Vector of `Quartet`s, `DataCF`,
 
 For a network, the taxon names are coerced to strings.
 """
-# see readData.jl and traits.jl
 function tipLabels(net::HybridNetwork)
     return String[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
 end
@@ -57,8 +56,8 @@ function fittedQuartetCF(d::DataCF, format=:wide::Symbol)
             tx3 = repeat([q.taxon[3] for q in d.quartet], inner=[3]),
             tx4 = repeat([q.taxon[4] for q in d.quartet], inner=[3]),
             quartet = repeat(["12_34","13_24","14_23"], outer=[nQ]),
-            obsCF = Array{Float64}(3*nQ),
-            expCF = Array{Float64}(3*nQ)  )
+            obsCF = Array{Float64}(undef, 3*nQ),
+            expCF = Array{Float64}(undef, 3*nQ)  )
         row = 1
         for i in 1:nQ
             for j in 1:3
@@ -85,17 +84,20 @@ except for edges in
   but are kept, because the two γ*(1-exp(-t)) values are identifiable.
 
 will break if `inCycle` attributes are not initialized (at -1) or giving a correct node number.
+
+see [`Node`](@ref) for the meaning of boolean attributes
+`isBadTriangle` (which corresponds to a "good" triangle above),
+`isBadDiamondI` and `isBadDiamondII`.
 """
-# 'good' triangle in the paper = bad triangle in hyb node attribute: Not extremely or very bad
 function setNonIdBL!(net::HybridNetwork)
     for e in net.edge
-        if(!e.istIdentifiable)
+        if !e.istIdentifiable
             keeplength = any(n -> (n.isBadDiamondII || n.isBadTriangle), e.node)
             # if below 'bad' hybrid node, length=0 by constraint. If above, length estimated.
             # next: keep length if edge across from hybrid node in bad diamond I.
-            if (!keeplength && e.inCycle != -1)
+            if  !keeplength && e.inCycle != -1
                 hyb = net.node[getIndexNode(e.inCycle, net)]
-                if (hyb.isBadDiamondI)
+                if hyb.isBadDiamondI
                     keeplength |= !any(n -> (n==hyb), e.node) # only if e across hyb: no touching it
                 end
             end
@@ -151,11 +153,11 @@ function Base.show(io::IO, obj::HybridNetwork)
     try
         # par = writeTopology(obj,round=true) # but writeTopology changes the network, not good
         s = IOBuffer()
-        writeSubTree!(s, obj, false,true, true,3)
-        par = String(s)
+        writeSubTree!(s, obj, false,true, true,3,true)
+        par = String(take!(s))
     catch err
         println("ERROR with writeSubTree!:")
-        showerror(STDOUT, err)
+        showerror(stdout, err)
         println("Trying writeTopologyLevel1")
         par = writeTopologyLevel1(obj)
     end

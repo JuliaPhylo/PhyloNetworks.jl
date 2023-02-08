@@ -8,7 +8,6 @@ Turn to `missing` any element of `x` exactly equal to -1.0.
 Used for branch lengths and γs. `x` needs to accept missing values.
 If not, this can be done with `allowmissing(x)`.
 """
-
 @inline function makemissing!(x::AbstractVector)
     for i in 1:length(x)
         if x[i] == -1.0
@@ -32,7 +31,7 @@ julia> net = readTopology("(A,(B,(C,D)));");
 julia> PhyloNetworks.resetNodeNumbers!(net);
 
 julia> PhyloNetworks.majoredgematrix(net)
-6×2 Array{Int64,2}:
+6×2 Matrix{Int64}:
  5  1
  5  6
  6  2
@@ -42,7 +41,7 @@ julia> PhyloNetworks.majoredgematrix(net)
 ```
 """
 function majoredgematrix(net::HybridNetwork)
-    edge = Matrix{Int}(length(net.edge)-length(net.hybrid), 2) # major edges
+    edge = Matrix{Int}(undef, length(net.edge)-length(net.hybrid), 2) # major edges
     i = 1 #row index for edge matrix
     for n in net.nodes_changed # topological pre-order
         !n.leaf || continue # skip leaves: associate node with children edges
@@ -76,7 +75,7 @@ julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.3::0.9),(C,#H1:0.3::0.1):1.1),D
 julia> directEdges!(net); preorder!(net);
 
 julia> PhyloNetworks.majoredgelength(net)
-8-element Array{Union{Float64, Missings.Missing},1}:
+8-element Vector{Union{Missing, Float64}}:
   missing
  0.7     
   missing
@@ -88,7 +87,7 @@ julia> PhyloNetworks.majoredgelength(net)
 ```
 """ #"
 function majoredgelength(net::HybridNetwork)
-    edgeLength = Array{Union{Float64,Missing}}(length(net.edge)-length(net.hybrid))
+    edgeLength = Array{Union{Float64,Missing}}(undef, length(net.edge)-length(net.hybrid))
     i=1
     for n in net.nodes_changed # topological pre-order
         if !n.leaf
@@ -119,17 +118,17 @@ Assumes correct `isChild1` fields.
 ```julia-repl
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 julia> PhyloNetworks.minorreticulationmatrix(net)
-1×2 Array{Int64,2}:
+1×2 Matrix{Int64}:
  -6  3
 ```
 """ #"
 function minorreticulationmatrix(net::HybridNetwork)
-    reticulation = Matrix{Int}(length(net.hybrid), 2) # initialize
+    reticulation = Matrix{Int}(undef, length(net.hybrid), 2) # initialize
     j = 1 # row index, row = reticulate edge
     for e in net.edge
         if !e.isMajor # minor (hybrid) edges only
-            reticulation[j,1] = getParent(e).number
-            reticulation[j,2] = getChild(e).number
+            reticulation[j,1] = getparent(e).number
+            reticulation[j,2] = getchild(e).number
             j += 1
         end
     end
@@ -150,12 +149,12 @@ Output: vector allowing for missing values.
 julia> net = readTopology("(((A:3.1,(B:0.2)#H1:0.4::0.9),(C,#H1:0.3::0.1):1.1),D:0.7);");
 
 julia> PhyloNetworks.minorreticulationlength(net)
-1-element Array{Union{Float64, Missings.Missing},1}:
+1-element Vector{Union{Missing, Float64}}:
  0.3
 ```
 """ #"
 function minorreticulationlength(net::HybridNetwork)
-    reticulationLength = Vector{Union{Float64,Missing}}(0) # initialize
+    reticulationLength = Vector{Union{Float64,Missing}}(undef, 0) # initialize
     for e in net.edge
         if !e.isMajor #find minor hybrid edge
             push!(reticulationLength, e.length)
@@ -179,12 +178,12 @@ Output: vector allowing for missing values.
 julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 
 julia> PhyloNetworks.minorreticulationgamma(net)
-1-element Array{Union{Float64, Missings.Missing},1}:
+1-element Vector{Union{Float64, Missings.Missing}}:
  0.1
 ```
  """ #"
 function minorreticulationgamma(net::HybridNetwork)
-    reticulationGamma = Vector{Union{Float64,Missing}}(0) #initialize
+    reticulationGamma = Vector{Union{Float64,Missing}}(undef, 0) #initialize
     for e in net.edge
         if !e.isMajor # minor hybrid edges only
             push!(reticulationGamma, e.gamma)

@@ -2,7 +2,7 @@
 # Claudia January 2015
 
 globalerror = false
-println("--------- Case G --------------")
+#println("--------- Case G --------------")
 include("../examples/case_g_example.jl");
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -46,7 +46,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    err = true
+    global err = true
 end
 
 for q in d.quartet
@@ -83,7 +83,7 @@ try
     update!(net,x)
     net.ht == x || error("net.ht not correctly changed to x with update")
 catch
-    err = true
+    global err = true
 end
 
 for q in d.quartet
@@ -119,7 +119,7 @@ try
     update!(net,x)
     net.ht == x || error("net.ht not correctly changed to x with update")
 catch
-    err = true
+    global err = true
 end
 
 for q in d.quartet
@@ -142,7 +142,7 @@ try
     reduce(&,map(approxEq,q5.qnet.expCF,[(1-x[1])/3*exp(-x[2])+x[1]/3*exp(-x[2]-x[3]),(1-x[1])*(1-2/3*exp(-x[2]))+x[1]*(1-2/3*exp(-x[2]-x[3])),
                                     (1-x[1])/3*exp(-x[2])+x[1]/3*exp(-x[2]-x[3])])) || error("q5 expCF wrong")
 catch
-    err = true
+    global err = true
 end
 
 #logPseudoLik(d)
@@ -153,7 +153,7 @@ else
     globalerror = true
 end
 
-println("--------- Case F Bad Diamond I --------------")
+#println("--------- Case F Bad Diamond I --------------")
 include("../examples/case_f_example.jl");
 parameters!(net)
 
@@ -196,7 +196,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    err = true
+    global err = true
 end
 
 for q in d.quartet
@@ -231,7 +231,7 @@ try
     update!(net,x)
     net.ht == x || error("net.ht not correctly changed to x with update")
 catch
-    err = true
+    global err = true
 end
 
 for q in d.quartet
@@ -252,7 +252,7 @@ try
     reduce(&,map(approxEq,q5.qnet.expCF,[(1-x[2]-x[3])/3,(1+2*x[2]-x[3])/3,(1-x[2]+2*x[3])/3])) || error("q5 expCF wrong")
 
 catch
-    err = true
+    global err = true
 end
 
 #logPseudoLik(d)
@@ -264,7 +264,7 @@ else
 end
 
 
-println("--------- Case I Bad Diamond II --------------")
+#println("--------- Case I Bad Diamond II --------------")
 include("../examples/case_i_example.jl");
 
 q1 = Quartet(1,["6","7","4","8"],[0.5,0.4,0.1]);
@@ -309,7 +309,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    err = true
+    global err = true
 end
 
 for q in d.quartet
@@ -348,7 +348,7 @@ try
     update!(net,x)
     net.ht == x || ("net.ht not correctly changed to x with update")
 catch
-    err = true
+    global err = true
 end
 
 for q in d.quartet
@@ -373,7 +373,7 @@ try
     reduce(&,map(approxEq,q5.qnet.expCF,[(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1-2/3*exp(-x[4])),(1-x[1])*(1-2/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4])),(1-x[1])*(1/3*exp(-x[3]))+x[1]*(1/3*exp(-x[4]))])) || error("q5 expCF wrong")
 
 catch
-    err = true
+    global err = true
 end
 
 #logPseudoLik(d)
