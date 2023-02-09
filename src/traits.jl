@@ -519,7 +519,7 @@ julia> dfr = innerjoin(dat, dfr_shift, on=:tipNames); # join data and regressors
 julia> using StatsModels # for statistical model formulas
 
 julia> fitBM = phylolm(@formula(trait ~ shift_1 + shift_8), dfr, net; reml=false) # actual fit
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
+PhyloNetworkLinearModel
 
 Formula: trait ~ 1 + shift_1 + shift_8
 
@@ -654,7 +654,7 @@ julia> dfr = innerjoin(dat, dfr_hybrid, on=:tipNames); # join data and regressor
 julia> using StatsModels
 
 julia> fitBM = phylolm(@formula(trait ~ shift_6), dfr, net; reml=false) # actual fit
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
+PhyloNetworkLinearModel
 
 Formula: trait ~ 1 + shift_6
 
@@ -1080,12 +1080,12 @@ The `TraitSimulation` object has fields: `M`, `params`, `model`.
 struct TraitSimulation
     M::MatrixTopologicalOrder
     params::ParamsProcess
-    model::AbstractString
+    evomodel::AbstractString
 end
 
 function Base.show(io::IO, obj::TraitSimulation)
     disp = "$(typeof(obj)):\n"
-    disp = disp * "Trait simulation results on a network with $(length(obj.M.tipNames)) tips, using a $(obj.model) model, with parameters:\n"
+    disp = disp * "Trait simulation results on a network with $(length(obj.M.tipNames)) tips, using a $(obj.evomodel) model, with parameters:\n"
     disp = disp * paramstable(obj.params)
     println(io, disp)
 end
@@ -1638,17 +1638,22 @@ mutable struct PhyloNetworkLinearModel <: GLM.LinPredModel
     ind::Vector{Int}
     "nonmissing: vector indicating which tips have non-missing data"
     nonmissing::BitArray{1}
-    "model: the model used for the fit"
-    model::ContinuousTraitEM
+    "evomodel: the model used for the fit"
+    evomodel::ContinuousTraitEM
     # ContinuousTraitEM is abstract: not efficient. parametrize PhyloNetworkLinearModel?
     # but the types for Vy, Y and X are also abstract.
     "model_within: the model used for within-species variation (if needed)"
     model_within::Union{Nothing, WithinSpeciesCTM}
+    "formula: a StatsModels.FormulaTerm formula"
+    formula::Union{StatsModels.FormulaTerm,Nothing}
 end
 
 # default model_within=nothing
 PhyloNetworkLinearModel(lm,  V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing, model) =
-  PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing, model,nothing)
+  PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing, model,nothing,nothing)
+# default formula=nothing
+PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy,reml,ind,nonmissing,model,model_within) =
+PhyloNetworkLinearModel(lm,V,Vy,RL,Y,X,logdetVy, reml,ind,nonmissing,model,model_within,nothing)
 
 
 #= ------ roadmap of phylolm methods --------------
@@ -1695,8 +1700,9 @@ function phylolm(X::Matrix, Y::Vector, net::HybridNetwork,
         phylolm_wsp(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
                     counts=counts, ySD=ySD)
     else
-        phylolm(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
+        res = phylolm(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
                 startingValue=startingValue, fixedValue=fixedValue)
+        return res
     end
 end
 
@@ -1708,6 +1714,7 @@ function phylolm(::BM, X::Matrix, Y::Vector, net::HybridNetwork,reml::Bool;
     # V_ij = expected shared time for independent genes in i & j
     V = sharedPathMatrix(net)
     linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
+    print("typeof(BM()) $(typeof(BM())) \n")
     return PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
                 logdetVy, reml, ind, nonmissing, BM())
 end
@@ -2081,9 +2088,6 @@ To access the response values, do `response(object)`.
 To access the model matrix, do `object.mm.m`.
 To access the model formula, do `show(object.mf.f)`.
 
-All of the StatsBase methods that can be applied to a `PhyloNetworkLinearModel`
-can also be applied to a `StatsModels.TableRegressionModel`.
-
 ## Within-species variation
 
 For a high-level description, see [`PhyloNetworkLinearModel`](@ref).
@@ -2152,7 +2156,7 @@ julia> using StatsModels # for stat model formulas
 julia> fitBM = phylolm(@formula(trait ~ 1), dat, phy; reml=false);
 
 julia> fitBM # Shows a summary
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
+PhyloNetworkLinearModel
 
 Formula: trait ~ 1
 
@@ -2296,7 +2300,7 @@ julia> df = DataFrame( # individual-level observations
 
 julia> m1 = phylolm(@formula(trait3 ~ trait1), df, net;
                     tipnames=:species, withinspecies_var=true)
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
+PhyloNetworkLinearModel
 
 Formula: trait3 ~ 1 + trait1
 
@@ -2326,7 +2330,7 @@ julia> df_r = DataFrame( # species-level statistics (sample means, standard devi
 
 julia> m2 = phylolm(@formula(trait3 ~ trait1), df_r, net;
                 tipnames=:species, withinspecies_var=true, y_mean_std=true)
-StatsModels.TableRegressionModel{PhyloNetworkLinearModel, Matrix{Float64}}
+PhyloNetworkLinearModel
 
 Formula: trait3 ~ 1 + trait1
 
@@ -2441,11 +2445,12 @@ function phylolm(f::StatsModels.FormulaTerm,
     haskey(modeldic, model) || error("phylolm is not defined for model $model.")
     modelobj = modeldic[model]
 
-    StatsModels.TableRegressionModel(
-        phylolm(mm.m, Y, net, modelobj; reml=reml, nonmissing=nonmissing, ind=ind,
-                    startingValue=startingValue, fixedValue=fixedValue,
-                    withinspecies_var=withinspecies_var, counts=counts, ySD=ySD),
-        mf, mm)
+    
+    res = phylolm(mm.m, Y, net, modelobj; reml=reml, nonmissing=nonmissing, ind=ind,
+                  startingValue=startingValue, fixedValue=fixedValue,
+                  withinspecies_var=withinspecies_var, counts=counts, ySD=ySD)
+    res.formula = f
+    return res
 end
 
 ### Methods on type phyloNetworkRegression
@@ -2554,7 +2559,7 @@ StatsBase.dof_residual(m::PhyloNetworkLinearModel) =  nobs(m.lm) - length(coef(m
 # degrees of freedom consumed by the species-level model
 function StatsBase.dof(m::PhyloNetworkLinearModel)
     res = length(coef(m)) + 1 # +1: phylogenetic variance
-    if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
+    if any(typeof(m.evomodel) .== [PagelLambda, ScalingHybrid])
         res += 1 # lambda is one parameter
     end
     if !isnothing(m.model_within)
@@ -2668,7 +2673,6 @@ function StatsBase.nulldeviance(m::PhyloNetworkLinearModel)
     return sum(ro.^2)
 end
 StatsModels.hasintercept(m::PhyloNetworkLinearModel) = any(i -> all(==(1), view(m.X , :, i)), 1:size(m.X, 2))
-StatsModels.hasintercept(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = StatsModels.hasintercept(m.model)
 # Null Log likelihood (null model with only the intercept)
 # Same remark
 function StatsBase.nullloglikelihood(m::PhyloNetworkLinearModel)
@@ -2716,17 +2720,12 @@ function sigma2_phylo(m::PhyloNetworkLinearModel)
     return σ²
 end
 
-# adapt to TableRegressionModel because sigma2_phylo is a new function
-sigma2_phylo(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) =
-  sigma2_phylo(m.model)
-
 """
     sigma2_within(m::PhyloNetworkLinearModel)
 
 Estimated within-species variance for a fitted object.
 """
 sigma2_within(m::PhyloNetworkLinearModel) = (isnothing(m.model_within) ? nothing : m.model_within.wsp_var[1])
-sigma2_within(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = sigma2_within(m.model)
 # ML estimate for ancestral state of the BM
 """
     mu_phylo(m::PhyloNetworkLinearModel)
@@ -2734,19 +2733,13 @@ sigma2_within(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} whe
 Estimated root value for a fitted object.
 """
 function mu_phylo(m::PhyloNetworkLinearModel)
-    @warn """You fitted the data against a custom matrix, so I have no way
-         to know which column is your intercept (column of ones).
-         I am using the first coefficient for ancestral mean mu by convention,
-         but that might not be what you are looking for."""
-    if size(m.lm.pp.X,2) == 0
-        return 0
-    else
-        return coef(m)[1]
-    end
-end
-# Need to be adapted manually to TableRegressionModel beacouse it's a new function
-function mu_phylo(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
-    if m.mf.f.rhs.terms[1] != StatsModels.InterceptTerm{true}()
+    if m.formula === nothing 
+        @warn """You fitted the data against a custom matrix, so I have no way
+        to know which column is your intercept (column of ones).
+        I am using the first coefficient for ancestral mean mu by convention,
+        but that might not be what you are looking for."""
+        size(m.lm.pp.X,2) == 0 && return 0
+    elseif m.formula.rhs.terms[1] != StatsModels.InterceptTerm{true}()
         error("The fit was done without intercept, so I cannot estimate mu")
     end
     return coef(m)[1]
@@ -2758,7 +2751,7 @@ end
 
 Value assigned to the lambda parameter, if appropriate.
 """
-lambda(m::PhyloNetworkLinearModel) = lambda(m.model)
+lambda(m::PhyloNetworkLinearModel) = lambda(m.evomodel)
 lambda(m::Union{BM,PagelLambda,ScalingHybrid}) = m.lambda
 
 """
@@ -2767,7 +2760,7 @@ lambda(m::Union{BM,PagelLambda,ScalingHybrid}) = m.lambda
 
 Assign a new value to the lambda parameter.
 """
-lambda!(m::PhyloNetworkLinearModel, lambda_new) = lambda!(m.model, lambda_new)
+lambda!(m::PhyloNetworkLinearModel, lambda_new) = lambda!(m.evomodel, lambda_new)
 lambda!(m::Union{BM,PagelLambda,ScalingHybrid}, lambda_new::Real) = (m.lambda = lambda_new)
 
 """
@@ -2776,14 +2769,13 @@ lambda!(m::Union{BM,PagelLambda,ScalingHybrid}, lambda_new::Real) = (m.lambda = 
 Estimated lambda parameter for a fitted object.
 """
 lambda_estim(m::PhyloNetworkLinearModel) = lambda(m)
-lambda_estim(m::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T) = lambda_estim(m.model)
 
 ### Print the results
 # Variance
 function paramstable(m::PhyloNetworkLinearModel)
     Sig = sigma2_phylo(m)
     res = "phylogenetic variance rate: " * @sprintf("%.6g", Sig)
-    if any(typeof(m.model) .== [PagelLambda, ScalingHybrid])
+    if any(typeof(m.evomodel) .== [PagelLambda, ScalingHybrid])
         Lamb = lambda_estim(m)
         res = res*"\nLambda: " * @sprintf("%.6g", Lamb)
     end
@@ -2793,22 +2785,20 @@ function paramstable(m::PhyloNetworkLinearModel)
     end
     return(res)
 end
-function Base.show(io::IO, obj::PhyloNetworkLinearModel)
-    println(io, "$(typeof(obj.model)):\n\nParameter Estimates, using ", (obj.reml ? "REML" : "ML"),":\n",
-            paramstable(obj), "\n\nCoefficients:\n", coeftable(obj))
-end
 # For DataFrameModel. see also Base.show in
 # https://github.com/JuliaStats/StatsModels.jl/blob/master/src/statsmodel.jl
-function Base.show(io::IO, obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
+function Base.show(io::IO, obj::PhyloNetworkLinearModel)
     ct = coeftable(obj)
     println(io, "$(typeof(obj))")
-    print(io, "\nFormula: ")
-    println(io, string(obj.mf.f)) # formula
+    if !(obj.formula === nothing)
+        print(io, "\nFormula: ")
+        println(io, string(obj.formula)) # formula
+    end
     println(io)
-    println(io, "Model: $(evomodelname(obj.model.model))")
+    println(io, "Model: $(evomodelname(obj.evomodel))")
     println(io)
-    println(io,"Parameter Estimates, using ", (obj.model.reml ? "REML" : "ML"),":")
-    println(io, paramstable(obj.model))
+    println(io,"Parameter Estimates, using ", (obj.reml ? "REML" : "ML"),":")
+    println(io, paramstable(obj))
     println(io)
     println(io,"Coefficients:")
     show(io, ct)
@@ -2982,7 +2972,7 @@ Models fitted with different criteria (ML and REML) are not nested.
 Models with different predictors (fixed effects) must be fitted with ML to be
 considered nested.
 """
-function isnested(m1m::PhyloNetworkLinearModel, m2m::PhyloNetworkLinearModel; atol::Real=0.0)
+function StatsModels.isnested(m1m::PhyloNetworkLinearModel, m2m::PhyloNetworkLinearModel; atol::Real=0.0)
     if !(nobs(m1m) ≈ nobs(m2m))
         @error "Models must have the same number of observations"
         return false
@@ -3019,7 +3009,7 @@ function isnested(m1m::PhyloNetworkLinearModel, m2m::PhyloNetworkLinearModel; at
         return false
     end
     # nesting of phylogenetic variance models
-    return isnested(m1m.model, m2m.model)
+    return isnested(m1m.evomodel, m2m.evomodel)
 end
 
 isnested(::T,::T) where T <: ContinuousTraitEM = true
@@ -3027,18 +3017,10 @@ isnested(::BM,::Union{PagelLambda,ScalingHybrid}) = true
 isnested(::Union{PagelLambda,ScalingHybrid}, ::BM) = false
 isnested(::ScalingHybrid,::PagelLambda) = false
 isnested(::PagelLambda,::ScalingHybrid) = false
-StatsModels.isnested(m1::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T},
-    m2::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}; atol::Real=0.0) where T =
-    isnested(m1.model, m2.model; atol=atol)
 
 ## ANOVA using ftest from GLM - need version 0.8.1
-function GLM.ftest(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...)  where T
-    objsModels = [obj.model for obj in objs]
-    return ftest(objsModels...)
-end
-
 function GLM.ftest(objs::PhyloNetworkLinearModel...)
-    if !all( isa(o.model,BM) && isnothing(o.model_within) for o in objs)
+    if !all( isa(o.evomodel,BM) && isnothing(o.model_within) for o in objs)
         throw(ArgumentError("""F test is only valid for the vanilla BM model.
         Use a likelihood ratio test instead with function `lrtest`."""))
     end
@@ -3057,11 +3039,6 @@ data, for models that have more and more effects.
 
 Returns a DataFrame object with the anova table.
 """
-function anova(objs::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T}...) where T
-    objsModels = [obj.model for obj in objs]
-    return(anova(objsModels...))
-end
-
 function anova(objs::PhyloNetworkLinearModel...)
     anovaTable = Array{Any}(undef, length(objs)-1, 6)
     ## Compute binary statistics
@@ -3225,8 +3202,7 @@ higher-level methods, for real data:
    - fits an intercept-only model, then calls #3
    - by default without kwargs: model = BM w/o within-species variation
 
-3. ancestralStateReconstruction(TableRegressionModel[, Matrix]) which calls:
-   ancestralStateReconstruction(PhyloNetworkLinearModel[, Matrix])
+3. ancestralStateReconstruction(PhyloNetworkLinearModel[, Matrix])
    - takes a model already fitted
    - if no matrix given: the model must be intercept-only. An expanded intercept
      column is created with length = # nodes with *no* data
@@ -3609,13 +3585,6 @@ function ancestralStateReconstruction(obj::PhyloNetworkLinearModel)
     end
     X_n = ones((length(obj.V.nodeNumbersTopOrder) - sum(obj.nonmissing), 1))
     ancestralStateReconstruction(obj, X_n)
-end
-# For a TableRegressionModel
-function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T)
-    ancestralStateReconstruction(obj.model)
-end
-function ancestralStateReconstruction(obj::StatsModels.TableRegressionModel{PhyloNetworkLinearModel,T} where T, X_n::Matrix)
-    ancestralStateReconstruction(obj.model, X_n)
 end
 
 """

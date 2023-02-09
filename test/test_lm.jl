@@ -72,9 +72,9 @@ fitbis = phylolm(@formula(trait ~ 1), dfr, net; reml=false)
 @test coef(phynetlm) ≈ coef(fitbis)
 @test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
-@test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(phynetlm)[fitbis.ind] ≈ residuals(fitbis)
+@test response(phynetlm)[fitbis.ind] ≈ response(fitbis)
+@test predict(phynetlm)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_phylo(phynetlm) ≈ sigma2_phylo(fitbis)
 @test stderror(phynetlm) ≈ stderror(fitbis)
@@ -101,9 +101,9 @@ fitlam = phylolm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0
 @test coef(fitlam) ≈ coef(fitbis)
 @test vcov(fitlam) ≈ vcov(fitbis)
 @test nobs(fitlam) ≈ nobs(fitbis)
-@test residuals(fitlam)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(fitlam)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(fitlam)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(fitlam)[fitbis.ind] ≈ residuals(fitbis)
+@test response(fitlam)[fitbis.ind] ≈ response(fitbis)
+@test predict(fitlam)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(fitlam) ≈ dof_residual(fitbis)
 @test sigma2_phylo(fitlam) ≈ sigma2_phylo(fitbis)
 @test stderror(fitlam) ≈ stderror(fitbis)
@@ -254,8 +254,8 @@ dfr = DataFrame(trait = Y, reg = X, tipNames = ["Ag","Ak","E","M","Az","Ag2","As
 phynetlm = phylolm(@formula(trait ~ -1 + reg), dfr, net; reml=false)
 # Naive version (GLS): most of it hard-coded, but code shown below
 ntaxa = length(Y)
-X = phynetlm.model.X
-# Vy = phynetlm.model.Vy; Vyinv = inv(Vy); XtVyinv = X' * Vyinv; logdetVy = logdet(Vy)
+X = phynetlm.X
+# Vy = phynetlm.Vy; Vyinv = inv(Vy); XtVyinv = X' * Vyinv; logdetVy = logdet(Vy)
 betahat = [1.073805579608655] # inv(XtVyinv * X) * XtVyinv * Y
 fittedValues =  X * betahat
 resids = Y - fittedValues
@@ -387,9 +387,9 @@ fitbis = phylolm(@formula(trait ~ pred), dfr, net; reml=false)
 @test coef(phynetlm) ≈ coef(fitbis)
 @test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
-@test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(phynetlm)[fitbis.ind] ≈ residuals(fitbis)
+@test response(phynetlm)[fitbis.ind] ≈ response(fitbis)
+@test predict(phynetlm)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_phylo(phynetlm) ≈ sigma2_phylo(fitbis)
 @test stderror(phynetlm) ≈ stderror(fitbis)
@@ -542,8 +542,8 @@ phynetlm = phylolm(@formula(trait~1), dfr2, net)
 blup2 = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 
 @test expectations(blup)[1:length(blup.NodeNumbers),:condExpectation] ≈ expectations(blup2)[1:length(blup.NodeNumbers),:condExpectation]
-@test blup.traits_tips[phynetlm.model.ind] ≈ blup2.traits_tips
-@test blup.TipNumbers[phynetlm.model.ind] ≈ blup2.TipNumbers
+@test blup.traits_tips[phynetlm.ind] ≈ blup2.traits_tips
+@test blup.TipNumbers[phynetlm.ind] ≈ blup2.TipNumbers
 @test predint(blup)[1:length(blup.NodeNumbers), :] ≈ predint(blup2)[1:length(blup.NodeNumbers), :]
 
 # With unknown tips
@@ -702,9 +702,9 @@ fitbis = phylolm(@formula(trait ~ -1), dfr, net)
 #@test coef(phynetlm) ≈ coef(fitbis)
 #@test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
-@test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(phynetlm)[fitbis.ind] ≈ residuals(fitbis)
+@test response(phynetlm)[fitbis.ind] ≈ response(fitbis)
+@test predict(phynetlm)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_phylo(phynetlm) ≈ sigma2_phylo(fitbis)
 #@test stderror(phynetlm) ≈ stderror(fitbis)
