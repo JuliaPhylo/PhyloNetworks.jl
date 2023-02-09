@@ -1561,7 +1561,8 @@ Phylogenetic linear model representation.
 
 ## Fields
 
-`lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `reml`, `ind`, `nonmissing`, `model`, `model_within`.
+`lm`, `V`, `Vy`, `RL`, `Y`, `X`, `logdetVy`, `reml`, `ind`, `nonmissing`,
+`evomodel`, `model_within` and `formula`.
 The following syntax pattern can be used to get more information on a specific field:
 e.g. to find out about the `lm` field, do `?PhyloNetworkLinearModel.lm`.
 
@@ -2038,14 +2039,13 @@ end
     phylolm(f::StatsModels.FormulaTerm, fr::AbstractDataFrame, net::HybridNetwork; kwargs...)
 
 Fit a phylogenetic linear regression model to data.
-
-Return a [`StatsModels.TableRegressionModel`](https://juliastats.org/StatsModels.jl/stable/api/#StatsModels.TableRegressionModel) object.
-This object has three fields: `model`, `mf`, `mm` (see [StatsModels](https://juliastats.github.io/StatsModels.jl/stable/)).
-To access the fitted [`PhyloNetworkLinearModel`](@ref), do `object.model`.
+Return an object of type [`PhyloNetworkLinearModel`](@ref).
+It contains a linear model from the GLM package, in `object.lm`, of type
+[GLM.LinearModel](https://juliastats.org/GLM.jl/stable/api/#GLM.LinearModel).
 
 ## Arguments
 
-* `f`: formula to use for the regression.
+* `f`: formula to use for the regression, see [StatsModels](https://juliastats.org/StatsModels.jl/stable/)
 * `fr`: DataFrame containing the response values, predictor values, species/tip labels for each observation/row.
 * `net`: phylogenetic network to use. Should have labelled tips.
 
@@ -2083,8 +2083,8 @@ variance components if `model="BM"` and `withinspecies_var=true`.
 ## Methods applied to fitted models
 
 To access the response values, do `response(object)`.
-To access the model matrix, do `object.mm.m`.
-To access the model formula, do `show(object.mf.f)`.
+To access the model matrix, do `modelmatrix(object.lm)`.
+To access the model formula, do `show(object.formula)`.
 
 ## Within-species variation
 
@@ -2138,7 +2138,7 @@ species standard deviation / sample sizes (if used) will throw an error.
 
 ## See also
 
-[`PhyloNetworkLinearModel`](@ref), [`ancestralStateReconstruction`](@ref)
+[`simulate`](@ref), [`ancestralStateReconstruction`](@ref)
 
 ## Examples: Without within-species variation
 
@@ -2410,8 +2410,6 @@ function phylolm(f::StatsModels.FormulaTerm,
     mf = ModelFrame(f, sch, data, PhyloNetworkLinearModel)
     mm = StatsModels.ModelMatrix(mf)
     Y = StatsModels.response(mf)
-    # Y = convert(Vector{Float64}, StatsModels.response(mf))
-    # Y, pred = StatsModels.modelcols(f, fr)
 
     if withinspecies_var && y_mean_std
         # find columns in data frame for: # of individuals from each species
