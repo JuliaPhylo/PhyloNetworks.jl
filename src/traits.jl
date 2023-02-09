@@ -1700,9 +1700,8 @@ function phylolm(X::Matrix, Y::Vector, net::HybridNetwork,
         phylolm_wsp(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
                     counts=counts, ySD=ySD)
     else
-        res = phylolm(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
+        phylolm(model, X,Y,net, reml; nonmissing=nonmissing, ind=ind,
                 startingValue=startingValue, fixedValue=fixedValue)
-        return res
     end
 end
 
@@ -1714,7 +1713,6 @@ function phylolm(::BM, X::Matrix, Y::Vector, net::HybridNetwork,reml::Bool;
     # V_ij = expected shared time for independent genes in i & j
     V = sharedPathMatrix(net)
     linmod, Vy, RL, logdetVy = pgls(X,Y,V; nonmissing=nonmissing, ind=ind)
-    print("typeof(BM()) $(typeof(BM())) \n")
     return PhyloNetworkLinearModel(linmod, V, Vy, RL, Y, X,
                 logdetVy, reml, ind, nonmissing, BM())
 end
