@@ -125,6 +125,12 @@ fitSH = phylolm(@formula(trait ~ 1), dfr, net, model="scalingHybrid", fixedValue
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
 @test aic(fitlam) ≈ aic(fitSH)
 
+@test modelmatrix(fitlam) == reshape(ones(4), (4,1))
+s = IOBuffer(); show(s, formula(fitlam))
+@test String(take!(s)) == "trait ~ 1"
+PhyloNetworks.lambda!(fitlam, 0.5)
+@test PhyloNetworks.lambda(fitlam) == 0.5
+
 ## Pagel's Lambda
 fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phylolm(@formula(trait ~ 1), dfr, net, model="lambda", reml=false))
 @test lambda_estim(fitlam) ≈ 1.24875
