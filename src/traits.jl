@@ -2083,8 +2083,8 @@ variance components if `model="BM"` and `withinspecies_var=true`.
 ## Methods applied to fitted models
 
 To access the response values, do `response(object)`.
-To access the model matrix, do `modelmatrix(object.lm)`.
-To access the model formula, do `show(object.formula)`.
+To access the model matrix, do `modelmatrix(object)`.
+To access the model formula, do `formula(object)`.
 
 ## Within-species variation
 
@@ -2138,7 +2138,7 @@ species standard deviation / sample sizes (if used) will throw an error.
 
 ## See also
 
-[`simulate`](@ref), [`ancestralStateReconstruction`](@ref)
+[`simulate`](@ref), [`ancestralStateReconstruction`](@ref), [`vcv`](@ref)
 
 ## Examples: Without within-species variation
 
@@ -2454,6 +2454,9 @@ end
 ## Un-changed Quantities
 # Coefficients of the regression
 StatsBase.coef(m::PhyloNetworkLinearModel) = coef(m.lm)
+StatsBase.coefnames(m::PhyloNetworkLinearModel) =
+    (m.formula === nothing ? ["x$i" for i in 1:length(coef(m))] : coefnames(formula(m).rhs))
+StatsModels.formula(obj::PhyloNetworkLinearModel) = obj.formula
 
 """
     StatsBase.nobs(m::PhyloNetworkLinearModel)
@@ -2534,17 +2537,17 @@ function StatsBase.coeftable(m::PhyloNetworkLinearModel; level::Real=0.95)
     n_coef = size(m.lm.pp.X, 2) # no. of predictors
     if n_coef == 0
         return CoefTable([0], ["Fixed Value"], ["(Intercept)"])
-    else
-        cc = coef(m)
-        se = stderror(m)
-        tt = cc ./ se
-        p = ccdf.(Ref(FDist(1, dof_residual(m))), abs2.(tt))
-        ci = se*quantile(TDist(dof_residual(m)), (1-level)/2)
-        levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
-        CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
-                  ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
-                  ["x$i" for i = 1:n_coef], 4, 3)
     end
+    cc = coef(m)
+    se = stderror(m)
+    tt = cc ./ se
+    p = ccdf.(Ref(FDist(1, dof_residual(m))), abs2.(tt))
+    ci = se*quantile(TDist(dof_residual(m)), (1-level)/2)
+    levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+    cn = StatsModels.vectorize(coefnames(m))
+    CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
+              ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
+              cn, 4, 3)
 end
 
 # degrees of freedom for residuals: at the species level, for coefficients of
@@ -2591,8 +2594,10 @@ end
 # Compute the residuals
 # (Rescaled by cholesky of variance between tips)
 StatsBase.residuals(m::PhyloNetworkLinearModel) = m.RL * residuals(m.lm)
-# Tip data
+# Tip data: m.Y is different from response(m.lm)
+#       and m.X is different from modelmatrix(m.lm)
 StatsBase.response(m::PhyloNetworkLinearModel) = m.Y
+StatsBase.modelmatrix(m::PhyloNetworkLinearModel) = m.X
 # Predicted values at the tips
 # (rescaled by cholesky of tips variances)
 StatsBase.predict(m::PhyloNetworkLinearModel) = m.RL * predict(m.lm)
