@@ -342,7 +342,6 @@ mutable struct QuartetNetwork <: Network
     function QuartetNetwork(net::HybridNetwork)
         net2 = deepcopy(net); #fixit: maybe we dont need deepcopy of all, maybe only arrays
         new(net2.numTaxa,net2.numNodes,net2.numEdges,net2.node,net2.edge,net2.hybrid,net2.leaf,net2.numHybrids, [true for e in net2.edge],[],-1,[], -1.,net2.names,Int8[-1,-1,-1,-1],Int8[-1,-1,-1],[0,0,0],[],true,[])
-        #new(sum([n.leaf?1:0 for n in net.node]),size(net.node,1),size(net.edge,1),copy(net.node),copy(net.edge),copy(net.hybrid),size(net.hybrid,1), [true for e in net2.edge],[],-1,[],-1.,net2.names,[-1,-1,-1,-1],[-1,-1,-1],[],true,[])
     end
     QuartetNetwork() = new(0,0,0,[],[],[],[],0,[],[],-1,[],-1.0,[],[],[],[],[],true,[])
 end

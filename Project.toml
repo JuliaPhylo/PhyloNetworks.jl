@@ -1,7 +1,7 @@
 name = "PhyloNetworks"
 uuid = "33ad39ac-ed31-50eb-9b15-43d0656eaa72"
 license = "MIT"
-version = "0.15.3"
+version = "0.16.0"
 
 [deps]
 BioSequences = "7e6ae17a-c86d-528c-b3b9-7f778a29fe59"

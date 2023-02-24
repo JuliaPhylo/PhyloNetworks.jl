@@ -576,11 +576,13 @@ end
 
 """
     deleteNode!(net::HybridNetwork, n::Node)
+    deleteNode!(net::QuartetNetwork, n::Node)
 
 Delete node `n` from a network, i.e. removes it from
 net.node, and from net.hybrid or net.leaf as appropriate.
 Update attributes `numNodes`, `numTaxa`, `numHybrids`.
-Warning: `net.names` is *not* updated.
+Warning: `net.names` is *not* updated, and this is a feature (not a bug)
+for networks of type QuartetNetwork.
 
 Warning: if the root is deleted, the new root is arbitrarily set to the
 first node in the list. This is intentional to save time because this function
@@ -606,13 +608,6 @@ function deleteNode!(net::HybridNetwork, n::Node)
     end
 end
 
-# function to delete a Node in net.node and
-# update numNodes and numTaxa for QuartetNetwork
-# if hybrid node, it deletes also from net.hybrid
-# and updates numHybrids
-# note that net.names is never updated to keep it
-# accurate
-# if n is leaf, we delete from qnet.leaf
 function deleteNode!(net::QuartetNetwork, n::Node)
     index = findfirst(no -> no.number == n.number, net.node)
     # isEqual (from above) checks for more than node number
