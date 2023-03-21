@@ -33,6 +33,7 @@ module PhyloNetworks
 
     import Base: show
     import GLM: ftest
+    import StatsModels: coefnames
 
     const DEBUGC = false # even more debug messages
     global CHECKNET = false # for debugging only
