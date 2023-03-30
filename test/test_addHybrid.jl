@@ -70,11 +70,11 @@ netl1 = readTopology(str_level1);
 # directional: throws error if the new network would not be a DAG, e.g. if edge 1 is a directed descendant of edge 2
 # case 6
 nodeS145 = PhyloNetworks.getparent(netl1.edge[6])
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[15], true)
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[15], true)
 # case 2
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[18], true)
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[18], true)
 # case 3 (bad hybrid edge choice leads to a nonDAG)
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[20], true)
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[4], false)
-@test !PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[4], true)
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[20], true)
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[4], false)
+@test !PhyloNetworks.directionalconflict(nodeS145, netl1.edge[4], true)
 end # of edge checking functions
