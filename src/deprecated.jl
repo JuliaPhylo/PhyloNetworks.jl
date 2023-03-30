@@ -14,20 +14,21 @@
 
 function Base.getproperty(mm::PhyloNetworkLinearModel, f::Symbol)
     if f === :model
-        Base.depwarn("accessing the `model` field of PhyloNetworkLinearModel.jl models is deprecated, " *
-                     "as they are no longer wrapped in a `TableRegressionModel` " *
-                     "and can be used directly now", :getproperty)
+        Base.depwarn("""accessing the 'model' field of PhyloNetworkLinearModel's is
+            deprecated, as they are no longer wrapped in a TableRegressionModel.
+            They can be used directly now.""",
+            :getproperty) # force=true to show warning. currently silent by default
         return mm
     elseif f === :mf
-        Base.depwarn("accessing the `mf` field of PhyloNetworkLinearModel.jl models is deprecated, " *
-                     "as they are no longer wrapped in a `TableRegressionModel`." *
-                     "Use `formula(m)` to access the model formula.", :getproperty)
+        Base.depwarn("""accessing the 'mf' field of PhyloNetworkLinearModel's is
+            deprecated, as they are no longer wrapped in a TableRegressionModel.
+            Use `formula(m)` to access the model formula.""", :getproperty)
         form = formula(mm)
         return ModelFrame{Nothing, typeof(mm)}(form, nothing, nothing, typeof(mm))
     elseif f === :mm
-        Base.depwarn("accessing the `mm` field of PhyloNetworkLinearModel.jl models is deprecated, " *
-                     "as they are no longer wrapped in a `TableRegressionModel`." *
-                     "Use `modelmatrix(m)` to access the model matrix.", :getproperty)
+        Base.depwarn("""accessing the 'mm' field of PhyloNetworkLinearModel's is
+            deprecated, as they are no longer wrapped in a TableRegressionModel.
+            Use `modelmatrix(m)` to access the model matrix.""", :getproperty)
         modmatr = modelmatrix(mm)
         return ModelMatrix{typeof(modmatr)}(modmatr, Int[])
     else
