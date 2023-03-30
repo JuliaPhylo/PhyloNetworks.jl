@@ -103,13 +103,13 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         end
         hybridpartnernew = (fixroot ? true : rand() > 0.2) # if true: partner hybrid = new edge above edge 2
         ## check that the new network will be a DAG: no directional conflict
-        if directionalconflict(net, p1, edge2, hybridpartnernew)
+        if directionalconflict(p1, edge2, hybridpartnernew)
             if fixroot # don't try to change the direction of edge2
                 push!(blacklist, (e1,e2))
                 continue
             end # else: try harder: change direction of edge2 and move root
             hybridpartnernew = !hybridpartnernew # try again with opposite
-            if directionalconflict(net, p1, edge2, hybridpartnernew)
+            if directionalconflict(p1, edge2, hybridpartnernew)
                 push!(blacklist, (e1,e2))
                 continue
             end # else: switching hybridpartnernew worked
@@ -231,8 +231,7 @@ function hybrid3cycle(edge1::Edge, edge2::Edge)
 end
 
 """
-    directionalconflict(net::HybridNetwork, parent::Node, edge::Edge,
-                        hybridpartnernew::Bool)
+    directionalconflict(parent::Node, edge::Edge, hybridpartnernew::Bool)
 
 Check if creating a hybrid edge down of `parent` node into the middle of `edge`
 would create a directed cycle in `net`, i.e. not a DAG. The proposed hybrid
@@ -243,7 +242,7 @@ Does *not* modify the network.
 
 Output: `true` if a conflict would arise (non-DAG), `false` if no conflict.
 """
-function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybridpartnernew::Bool)
+function directionalconflict(parent::Node, edge2::Edge, hybridpartnernew::Bool)
     if hybridpartnernew # all edges would retain their directions: use isChild1 fields
         c2 = getchild(edge2)
         return parent === c2 || isdescendant(parent, c2)

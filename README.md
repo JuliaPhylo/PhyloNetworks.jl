@@ -70,8 +70,8 @@ with or without transgressive evolution after reticulations:
   Systematic Biology, 67(5):800–820.
   [doi:10.1093/sysbio/syy033](https://doi.org/10.1093/sysbio/syy033).
   SI on [dryad](http://dx.doi.org/10.5061/dryad.nt2g6)
-  including a [tutorial for trait evolution](https://datadryad.org/bitstream/handle/10255/dryad.177752/xiphophorus_PCM_analysis.html?sequence=1)
-  and a [tutorial for network calibration](https://datadryad.org/bitstream/handle/10255/dryad.177754/xiphophorus_networks_calibration.html?sequence=1).
+  including a tutorial for trait evolution
+  and a tutorial for network calibration.
 
 Continuous traits, accounting for within-species variation:
 

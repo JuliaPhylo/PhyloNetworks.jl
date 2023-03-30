@@ -141,9 +141,10 @@ chooseEdgesGamma(net::HybridNetwork) = chooseEdgesGamma(net, false, net.edge)
 chooseEdgesGamma(net::HybridNetwork, blacklist::Bool) = chooseEdgesGamma(net, blacklist, net.edge)
 
 # aux function for addHybridization
-# that takes the output edge1, edge2, gamma from
-# chooseEdgesGamma and created necessary edges
+# that takes the output edge1, edge2.
 # returns edge3, edge4, and adjusts edge1, edge2 to shorter length
+# fixit: problem if edge1 or edge2 have a missing length, coded as -1.0.
+# would be best to set lengths of e3, e4 to 0.0, and leave lengths of e1,e2 unchanged
 function parameters4createHybrid!(edge1::Edge, edge2::Edge,net::HybridNetwork)
     max_edge = maximum([e.number for e in net.edge]);
     t1 = rand()*edge1.length;
@@ -343,21 +344,21 @@ end
 addHybridizationUpdateSmart!(net::HybridNetwork, N::Integer) = addHybridizationUpdateSmart!(net, false,N)
 
 
-# ----------------------------------- add alternative hybridizations found in bootstrap ------------------------------------
+# --- add alternative hybridizations found in bootstrap
 """
     addAlternativeHybridizations!(net::HybridNetwork, BSe::DataFrame;
                                   cutoff=10::Number, top=3::Int)
 
-Modify the network `net` (the best network estimated with snaq) by adding other hybridizations
-that are present in the bootstrap networks. By default, it will only consider hybrid edges with
-more than 10% bootstrap support (`cutoff`) and it will only include the three top hybridizations
-(`top`) sorted by bootstrap support.
+Modify the network `net` (the best estimated network) by adding some of
+the hybridizations present in the bootstrap networks. By default, it will only
+add hybrid edges with more than 10% bootstrap support (`cutoff`) and it will
+only include the top 3 hybridizations (`top`) sorted by bootstrap support.
 
-The function also modifies the dataframe `BSe`. In the original `BSe`,
+The dataframe `BSe` is also modified. In the original `BSe`,
 supposedly obtained with `hybridBootstrapSupport`, hybrid edges that do not
 appear in the best network have a missing number.
-After the hybrid edges are added with `addAlternativeHybridizations`, `BSe` is modified to include the
-edge numbers of the newly added hybrid edges.
+After hybrid edges from bootstrap networks are added,
+`BSe` is modified to include the edge numbers of the newly added hybrid edges.
 To distinguish hybrid edges present in the original network versus new edges,
 an extra column of true/false values is also added to `BSe`, named "alternative",
 with true for newly added edges absent from the original network.
@@ -367,76 +368,109 @@ major tree topology.
 
 # example
 
-```julia
-bootnet = readMultiTopology("bootstrap-networks.txt")
-bestnet = readTopology("best.tre")
-BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
-addAlternativeHybridizations!(bestnet,BSe)
-using PhyloPlots
-plot(bestnet, edgelabel=BSe[[:edge,:BS_hybrid_edge]])
+```jldoctest
+julia> bootnet = readMultiTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples", "bootsnaq.out")); # vector of 10 networks
+
+julia> bestnet = readTopology("((O,(E,#H7:::0.196):0.314):0.332,(((A)#H7:::0.804,B):10.0,(C,D):10.0):0.332);");
+
+julia> BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
+
+julia> BSe[1:6,[:edge,:hybrid_clade,:sister_clade,:BS_hybrid_edge]]
+6×4 DataFrame
+ Row │ edge     hybrid_clade  sister_clade  BS_hybrid_edge 
+     │ Int64?   String        String        Float64        
+─────┼─────────────────────────────────────────────────────
+   1 │       7  H7            B                       33.0
+   2 │       3  H7            E                       32.0
+   3 │ missing  c_minus3      c_minus8                44.0
+   4 │ missing  c_minus3      H7                      44.0
+   5 │ missing  E             O                       12.0
+   6 │ missing  c_minus6      c_minus8                 9.0
+
+julia> PhyloNetworks.addAlternativeHybridizations!(bestnet, BSe)
+
+julia> BSe[1:6,[:edge,:hybrid_clade,:sister_clade,:BS_hybrid_edge,:alternative]]
+6×5 DataFrame
+ Row │ edge     hybrid_clade  sister_clade  BS_hybrid_edge  alternative 
+     │ Int64?   String        String        Float64         Bool        
+─────┼──────────────────────────────────────────────────────────────────
+   1 │       7  H7            B                       33.0        false
+   2 │       3  H7            E                       32.0        false
+   3 │      16  c_minus3      c_minus8                44.0         true
+   4 │      19  c_minus3      H7                      44.0         true
+   5 │      22  E             O                       12.0         true
+   6 │ missing  c_minus6      c_minus8                 9.0        false
+
+julia> # using PhyloPlots; plot(bestnet, edgelabel=BSe[:,[:edge,:BS_hybrid_edge]]);
 ```
 """
 function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)
     top > 0 || error("top must be greater than 0")
-    BSe[:alternative] = falses(length(BSe[:hybrid]))
-    newBSe = BSe[BSe[:BS_hybrid_edge] .> cutoff,:]
-    newBSe = newBSe[.!ismissing.(newBSe[:hybrid]) & .!ismissing.(newBSe[:sister]),:]
-    newBSe = newBSe[ismissing.(newBSe[:edge]),:]
-    newHyb = newBSe[1:top,:]
-
-    if(size(newHyb,1) == 0)
-        @warn "Did not find any alternative hybridizations with bootstrap support greater than the cutoff, so nothign added"
+    BSe[!,:alternative] = falses(nrow(BSe))
+    newBSe = subset(BSe,
+        :BS_hybrid_edge => x -> x.> cutoff, :edge   => ByRow( ismissing),
+        :hybrid => ByRow(!ismissing),       :sister => ByRow(!ismissing),
+    )
+    top = min(top,nrow(newBSe))
+    if top==0
+        @info "no alternative hybridizations with support > cutoff $cutoff%, so nothing added."
         return
     end
-
     for i in 1:top
-        hybnum = newHyb[:hybrid][i]
-        sisnum = newHyb[:sister][i]
-        edgenum = addHybridBetweenClades!(hybnum,sisnum,net)
-        ind1 = findall(x->!ismissing(x) && x==hybnum,BSe[:hybrid])
-        ind2 = findall(x->!ismissing(x) && x==sisnum,BSe[:sister])
+        hybnum = newBSe[i,:hybrid]
+        sisnum = newBSe[i,:sister]
+        edgenum = addHybridBetweenClades!(net, hybnum, sisnum)
+        if isnothing(edgenum)
+          @warn "cannot add desired hybrid (BS=$(newBSe[i,:BS_hybrid_edge])): the network would have a directed cycle"
+          continue
+        end
+        ind1 = findall(x->!ismissing(x) && x==hybnum, BSe[!,:hybrid])
+        ind2 = findall(x->!ismissing(x) && x==sisnum, BSe[!,:sister])
         ind = intersect(ind1,ind2)
-        BSe[ind,:edge] = edgenum
-        BSe[ind,:alternative] = true
+        BSe[ind,:edge] .= edgenum
+        BSe[ind,:alternative] .= true
     end
 end
 
 
-## function to a hybrid edge between hybrid clade (hybnum = node number) and sister clade (sisnum = node number)
-## the function finds the parent edges to these nodes, and puts a hybrid edge between them
-## the function modifies net, and it returns the number of the minor hybrid edge added
-function addHybridBetweenClades!(hybnum::Number,sisnum::Number,net::HybridNetwork)
+"""
+    addHybridBetweenClades!(net::HybridNetwork, hybnum::Number, sisnum::Number)
+
+Modify `net` by adding a minor hybrid edge from "donor" to "recipient",
+where "donor" is the major parent edge `e1` of node number `hybnum` and
+"recipient" is the major parent edge `e2` of node number `sisnum`.
+The new nodes are currently inserted at the middle of these parent edges.
+
+If a hybrid edge from `e1` to `e2` would create a directed cycle in the network,
+then this hybrid cannot be added.
+In that case, the donor edge `e1` is moved up if its parent is a hybrid node,
+to ensure that the sister clade to the new hybrid would be a desired (the
+descendant taxa from `e1`) and a new attempt is made to create a hybrid edge.
+
+Output: number of the new hybrid edge, or `nothing` if the desired hybridization
+is not possible.
+
+See also:
+[`addhybridedge!`](@ref) (used by this method) and
+[`directionalconflict`](@ref) to check that `net` would still be a DAG.
+"""
+function addHybridBetweenClades!(net::HybridNetwork, hybnum::Number, sisnum::Number)
     hybind = getIndexNode(hybnum,net)
     sisind = getIndexNode(sisnum,net)
-
-    ## hybridization ed1->ed2
-    edge1 = getparentedge(net.node[sisind]) # major parent edges
-    edge2 = getparentedge(net.node[hybind])
-
-    edge3,edge4 = parameters4createHybrid!(edge1, edge2,net)
-    hybridnode = createHybrid!(edge1, edge2, edge3, edge4, net, 0.1) ## gamma=0.1, fixed later
-    if(edge1.length < 0)
-        setBranchLength!(edge1,-1.0)
-        setBranchLength!(edge3,-1.0)
+    e1 = getparentedge(net.node[sisind]) # major parent edges
+    e2 = getparentedge(net.node[hybind])
+    p1 = getparent(e1)
+    if directionalconflict(p1, e2, true) # then: first try to move the donor up
+        # so long as the descendant taxa (= sister clade) remain the same
+        while p1.hybrid
+          e1 = getparentedge(p1) # major parent edge: same descendant taxa
+          p1 = getparent(e1)
+        end
+        directionalconflict(p1, e2, true) && return nothing
     end
-    if(edge2.length < 0)
-        setBranchLength!(edge2,-1.0)
-        setBranchLength!(edge4,-1.0)
-    end
-
-    if(edge2.isChild1)
-        edge4.hybrid = true
-        setGamma!(edge4,0.9)
-        edge4.isChild1 = true
-    else
-        edge2.hybrid = true
-        setGamma!(edge2,0.9)
-        edge2.isChild1 = false
-    end
-    ## used gamma=0.1 to make the new edge a minor edge, but we really do not have gamma value:
-    emaj = getparentedge(hybridnode)
-    emaj.gamma = -1
-    e = getparentedgeminor(hybridnode)
-    e.gamma = -1
-    return e.number
+    hn, he = addhybridedge!(net, e1, e2, true) # he: missing length & gamma by default
+    # ideally: add option "where" to breakedge!, used by addhybridedge!
+    # so as to place the new nodes at the base of each clade.
+    # currently: the new nodes are inserted at the middle of e1 and e2.
+    return he.number
 end
