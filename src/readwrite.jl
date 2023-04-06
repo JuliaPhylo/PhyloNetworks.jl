@@ -1371,6 +1371,186 @@ function readMultiTopology(file::AbstractString, fast::Bool=true)
     return vnet
 end
 
+
+@doc raw"""
+    readnexus_treeblock(filename, treereader=readTopology, args...;
+                        reticulate=true, stringmodifier=[r"#(\d+)" => s"#H\1"])
+
+Read the *first* "trees" block of a nexus-formatted file, using the translate
+table if present, and return a vector of `HybridNetwork`s.
+Information inside `[&...]` are interpreted as comments and are discarded by the
+default tree reader. Optional arguments `args` are passed to the tree reader.
+
+For the nexus format, see
+[Maddison, Swofford & Maddison (1997)](https://doi.org/10.1093/sysbio/46.4.590).
+
+Unless `reticulate` is false, the following is done to read networks with reticulations.
+
+Prior to reading each phylogeny, each instance of `#number` is replaced by
+`#Hnumber` to fit the standard extended Newick format at hybrid nodes.
+This behavior can be changed with option `stringmodifier`, which should be a
+vector of pairs accepted by `replace`.
+
+Inheritance γ values are assumed to be given within "comment" blocks at *minor*
+hybrid edges (cut as tips to form the extended Newick) like this, on an example:
+
+    #11[&conv=11, relSize=0.08, ...
+
+In this example, the corresponding edge to hybrid H11 has γ=0.08.
+"""
+function readnexus_treeblock(file::AbstractString, treereader=readTopology::Function, args...;
+            reticulate=true, stringmodifier=[r"#(\d+)\b" => s"#H\1"]) # add H
+    vnet = HybridNetwork[]
+    rx_start = r"^\s*begin\s+trees\s*;"i
+    rx_end = r"^\s*end\s*;"i
+    rx_tree = r"^\s*tree\s+[^(]+(\([^;]*;)"i
+    treeblock = false
+    translate = false
+    id2name = nothing
+    open(file) do s
+        numl = 0
+        for line in eachline(s)
+            numl += 1
+            if treeblock
+                occursin(rx_end, line) && break # exit if end of tree block
+            elseif occursin(rx_start, line)     # start reading tree block
+                    treeblock = true
+                    line, translate, id2name = readnexus_translatetable(s)
+            else continue
+            end
+            # now we are inside the treeblock
+            m = match(rx_tree, line)
+            isnothing(m) && continue
+            phy = m.captures[1]
+            if reticulate # fix #Hn and extract γ from #Hn[&conv=n, relSize=γ]
+                phy = replace(phy, stringmodifier...)
+                id2gamma = readnexus_extractgamma(phy)
+            end
+            net = nothing
+            try
+                net = treereader(phy, args...)
+            catch err
+                warnmsg = "skipped phylogeny on line $(numl) of file\n$file\n" *
+                    (:msg in fieldnames(typeof(err)) ? err.msg : string(typeof(err)))
+                @warn warnmsg
+                continue # don't push to vnet
+            end
+            reticulate && readnexus_assigngammas!(net, id2gamma)
+            if translate
+                for tip in net.leaf
+                    id = parse(Int, tip.name)
+                    tip.name = id2name[id]
+                end
+            end
+            push!(vnet, net)
+        end
+    end
+    return vnet
+end
+
+"""
+    readnexus_translatetable(io)
+
+Read translate table from IO object `io`, whose first non-empty line should contain
+"translate". Then each line should have "number name" and the end of the table
+is indicated by a ;. Output tuple:
+- line that was last read, and is not part of the translate table, taken from `io`
+- translate: boolean, whether a table was successfully read
+- id2name: dictionary mapping number to name.
+"""
+function readnexus_translatetable(io)
+    rx_translate = r"^\s*translate"i
+    rx_emptyline = r"^\s*$"
+    line = readline(io)
+    translate = false
+    id2name = Dict{Int,String}()
+    while true
+        if occursin(rx_translate, line)
+            translate = true
+            break
+        elseif occursin(rx_emptyline, line)
+            line = readline(io)
+        else
+            translate = false
+            break
+        end
+    end
+    if translate # then read the table
+        rx_end = r"^\s*;"
+        rx_idname = r"\s*(\d+)\s+(\w+)\s*([,;]?)"
+        while true
+            line = readline(io)
+            occursin(rx_emptyline, line) && continue
+            if occursin(rx_end, line)
+                line = readline(io)
+                break
+            end
+            m = match(rx_idname, line)
+            if isnothing(m)
+                @warn "problem reading the translate table at line $line.\nnumbers won't be translated to names"
+                translate = false
+                break
+            end
+            push!(id2name, parse(Int,m.captures[1]) => String(m.captures[2]))
+            if m.captures[3] == ";"
+                line = readline(io)
+                break
+            end
+        end
+    end
+    return line, translate, id2name
+end
+
+"""
+    readnexus_extractgamma(nexus_string)
+
+Extract γ from comments and return a dictionary hybrid number ID => γ.
+The output from contactrees BEAST2 uses this format for reticulations at *minor*
+edges, example:
+
+    #11[&conv=11, relSize=0.19, ...
+
+The function below assumes that the "H" was already added back, like this:
+
+    #H11[&conv=11, relSize=0.19, ...
+
+See [`readnexus_assigngammas!`](@ref).
+"""
+function readnexus_extractgamma(nexstring)
+    rx_gamma = r"#H(\d+)\[&conv=\1,\s*relSize=(\d+\.\d+)"
+    id2gamma = Dict{Int,Float64}()
+    for m in eachmatch(rx_gamma, nexstring)
+        push!(id2gamma, parse(Int, m.captures[1]) => parse(Float64,m.captures[2]))
+    end
+    return id2gamma
+end
+
+"""
+    readnexus_assigngammas!(net, d::Dict)
+
+Assign d[i] as the `.gamma` value of the minor parent edge of hybrid "Hi",
+if this hybrid node name is found, and if its minor parent doesn't already
+have a non-missing γ. See [`readnexus_extractgamma`](@ref)
+"""
+function readnexus_assigngammas!(net::HybridNetwork, id2gamma::Dict)
+    for (i,gam) in id2gamma
+        nam = "H$i"
+        j = findfirst(n -> n.name == nam, net.hybrid)
+        if isnothing(j)
+            @warn "didn't find any hybrid node named $nam."
+            continue
+        end
+        hn = net.hybrid[j]
+        he = getparentedgeminor(hn)
+        if he.gamma == -1.0
+            setGamma!(he, gam)
+        else
+            @warn "hybrid edge number $(he.number) has γ=$(he.gamma). won't erase with $gam."
+        end
+    end
+    return net
+end
+
 """
     writeMultiTopology(nets, file_name; append=false)
     writeMultiTopology(nets, IO)

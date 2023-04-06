@@ -27,13 +27,16 @@
 
 
 @testset "test: reading nexus file" begin
+# example with translate table, reticulations, failed gamma in 2nd net, bad 3rd net
+nexusfile = joinpath(@__DIR__, "..", "examples", "test_reticulatetreeblock.nex")
+# nexusfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","test_reticulatetreeblock.nex")
+vnet = (@test_logs (:warn, r"^hybrid edge") (:warn,r"^skipped") readnexus_treeblock(nexusfile));
+@test length(vnet) == 2
+@test writeTopology(vnet[1]) == "((tax4,(tax3,#H7:0.001::0.08):0.3):0.6,(tax2,(tax1:0.1)#H7:0.9::0.92):10.0);"
+# example without translate table and without reticulations
 nexusfile = joinpath(@__DIR__, "..", "examples", "test.nex")
 # nexusfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","test.nex")
-vnet = readNexusTrees(nexusfile);
-@test length(vnet) == 10
-@test length(vnet[10].edge) == 10
-@test vnet[10].edge[7].length ≈ 0.00035
-vnet = readNexusTrees(nexusfile, PhyloNetworks.readTopologyUpdate, false, false);
+vnet = readnexus_treeblock(nexusfile, PhyloNetworks.readTopologyUpdate, false, false; reticulate=false);
 @test length(vnet) == 10
 @test length(vnet[10].edge) == 9
 @test vnet[10].edge[7].length ≈ 0.00035

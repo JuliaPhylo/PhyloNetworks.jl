@@ -82,7 +82,7 @@ readTopology
 readTopologyLevel1
 readInputTrees
 readMultiTopology
-readNexusTrees
+readnexus_treeblock
 readSnaqNetwork
 readTrees2CF
 countquartetsintrees
