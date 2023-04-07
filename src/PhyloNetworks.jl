@@ -66,7 +66,7 @@ module PhyloNetworks
         writeTableCF,
         mapAllelesCFtable,
         readInputTrees,
-        readNexusTrees,
+        readnexus_treeblock,
         summarizeDataCF,
         snaq!,
         readSnaqNetwork,

@@ -1,6 +1,5 @@
-@deprecate phyloNetworklm phylolm
-@deprecate sigma2_estim sigma2_phylo
-@deprecate mu_estim mu_phylo
+@deprecate readNexusTrees readnexus_treeblock
+
 @deprecate getChild getchild false
 @deprecate getChildren getchildren false
 @deprecate getChildEdge getchildedge false
