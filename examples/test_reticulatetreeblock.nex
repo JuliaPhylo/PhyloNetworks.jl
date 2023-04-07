@@ -18,9 +18,15 @@ translate
 4 tax4
 ;
 
-Tree	gt0=((4,(3,#7[&conv=7, relSize=0.08, affectedBlocks="{bark,dirty,dry}"]:0.001)[&height_95%_HPD={38.01,87.51}]:0.3):0.6,(2,(1:0.1)#7:0.9):10);
+Tree	bacter=((4,(3,#7[&conv=1, relSize=0.08, affectedBlocks="{bark,dirty,dry}"]:0.001)[&height_95%_HPD={38.01,87.51}]:0.3):0.6,(2,(1:0.1)#7:0.9):10);
 tree gt1 = ((4,(3,#7[&conv=7,relSize=0.58, posterior=0.87]:0.001::0.57):0.3):0.6,(2,(1)#7));
 tree fake = this line won't match a newick string
 tree gt2 = (error will be caught and warning sent;
+tree speciesnetwork = (((1:1.13,((2:0.21)#H1:0.89,(3:1.03,(#H1[&gamma=0.28]:0.30,4:0.51)S3:0.51)S4:0.08)S5:0.2):0.6,5:1.14):0.16);
 
 end;
+
+bacter example: https://raw.githubusercontent.com/taming-the-beast/Bacter-Tutorial/master/precooked_runs/bacter_tutorial.Ecoli_rplA.trees
+SpeciesNetwork examples:
+MCMC sample: https://raw.githubusercontent.com/mmatschiner/tutorials/master/bayesian_analysis_of_species_networks/res/speciesnetwork.trees
+summary: https://raw.githubusercontent.com/mmatschiner/tutorials/master/bayesian_analysis_of_species_networks/res/speciesnetwork_sum.trees

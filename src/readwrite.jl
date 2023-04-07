@@ -1392,9 +1392,15 @@ This behavior can be changed with option `stringmodifier`, which should be a
 vector of pairs accepted by `replace`.
 
 Inheritance γ values are assumed to be given within "comment" blocks at *minor*
-hybrid edges (cut as tips to form the extended Newick) like this, on an example:
+hybrid edges (cut as tips to form the extended Newick) like this for example,
+as output by bacter ([Vaughan et al. 2017](http://dx.doi.org/10.1534/genetics.116.193425)):
 
-    #11[&conv=11, relSize=0.08, ...
+    #11[&conv=0, relSize=0.08, ...
+
+or like this, as output by SpeciesNetwork
+([Zhang et al. 2018](https://doi.org/10.1093/molbev/msx307)):
+
+    #H11[&gamma=0.08]
 
 In this example, the corresponding edge to hybrid H11 has γ=0.08.
 """
@@ -1504,23 +1510,38 @@ end
 """
     readnexus_extractgamma(nexus_string)
 
-Extract γ from comments and return a dictionary hybrid number ID => γ.
-The output from contactrees BEAST2 uses this format for reticulations at *minor*
-edges, example:
+Extract γ from comments and return a dictionary hybrid number ID => γ, from
+one single phylogeny given as a string.
+The output from BEAST2 uses this format for reticulations at *minor* edges,
+as output by bacter ([Vaughan et al. 2017](http://dx.doi.org/10.1534/genetics.116.193425)):
 
-    #11[&conv=11, relSize=0.19, ...
+    #11[&conv=0, relSize=0.08, ...
 
-The function below assumes that the "H" was already added back, like this:
+or as output by SpeciesNetwork ([Zhang et al. 2018](https://doi.org/10.1093/molbev/msx307)):
 
-    #H11[&conv=11, relSize=0.19, ...
+    #H11[&gamma=0.08]
 
+The function below assumes that the "H" was already added back if not present
+already (from bacter), like this:
+
+    #H11[&conv=0, relSize=0.19, ...
+
+The bacter format is tried first. If this format doesn't give any match,
+then the SpeciesNetwork format is tried next.  
 See [`readnexus_assigngammas!`](@ref).
 """
 function readnexus_extractgamma(nexstring)
-    rx_gamma = r"#H(\d+)\[&conv=\1,\s*relSize=(\d+\.\d+)"
+    rx_gamma_v1 = r"#H(\d+)\[&conv=\d+,\s*relSize=(\d+\.\d+)"
+    rx_gamma_v2 = r"#H(\d+)\[&gamma=(\d+\.\d+)"
     id2gamma = Dict{Int,Float64}()
-    for m in eachmatch(rx_gamma, nexstring)
+    # first: try format v1
+    for m in eachmatch(rx_gamma_v1, nexstring)
         push!(id2gamma, parse(Int, m.captures[1]) => parse(Float64,m.captures[2]))
+    end
+    if isempty(id2gamma) # then try format v2
+      for m in eachmatch(rx_gamma_v2, nexstring)
+        push!(id2gamma, parse(Int, m.captures[1]) => parse(Float64,m.captures[2]))
+      end
     end
     return id2gamma
 end
