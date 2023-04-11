@@ -17,16 +17,12 @@ writeExpCF(d::DataCF) = writeExpCF(d.quartet)
 """
     writeTableCF(vector of Quartet objects)
     writeTableCF(DataCF)
-    writeTableCF(vector of QuartetT objects [, taxonames])
 
 Build a DataFrame containing observed quartet concordance factors,
 with columns named:
-- `:tx1`, `:tx2`, `:tx3`, `:tx4` for the four taxon names in each quartet
--  `:CF12_34`, `:CF13_24`, `:CF14_23` for the 3 quartets of a given four-taxon set
-- `:ngenes` if this information is available for some quartets
-
-If the input are [`QuartetT`](@ref) objects, their `data` field needs to
-contain vectors of 4 values.
+- `t1`, `t2`, `t3`, `t4` for the four taxon names in each quartet
+- `CF12_34`, `CF13_24`, `CF14_23` for the 3 quartets of a given four-taxon set
+- `ngenes` if this information is available for some quartets
 """
 function writeTableCF(quartets::Array{Quartet,1})
     df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
@@ -46,21 +42,84 @@ end
 
 writeTableCF(d::DataCF) = writeTableCF(d.quartet)
 
+
+"""
+    writeTableCF(quartetlist::Vector{QuartetT} [, taxonnames]; colnames)
+
+Convert a vector of [`QuartetT`](@ref) objects to a data frame, with 1 row for
+each four-taxon set in the list. Each four-taxon set contains quartet data of
+some type `T`, which determines the number of columns in the data frame.
+This data type `T` should be a vector of length 3 or 4, or a 3×n matrix.
+
+In the output data frame, the columns are, in this order:
+- `qind`: contains the quartet's `number`
+- `t1, t2, t3, t4`: contain the quartet's `taxonnumber`s if no `taxonnames`
+  are given, or the taxon names otherwise. The name of taxon number `i` is
+  taken to be `taxonnames[i]`.
+- 3 columns for each column in the quartet's `data`.
+  The first 3 columns are named `CF12_34, CF13_24, CF14_23`. The next
+  columns are named `V2_12_34, V2_13_24, V2_14_23` and contain the data in
+  the second column of the quartet's data matrix. And so on.
+  For the data frame to have non-default column names, provide the desired
+  3, 4, or 3×n names as a vector via the optional argument `colnames`.
+"""
 function writeTableCF(quartets::Vector{QuartetT{T}},
-                      taxa::AbstractVector{<:AbstractString}=Vector{String}()) where T<:AbstractVector
-    V = eltype(T) # would expect Float64, but Int would be reasonable if counts are not normalized
-    V <: Real || error("CFs need to take real values")
-    df = DataFrames.DataFrame(t1=String[],t2=String[],t3=String[],t4=String[],
-                              CF12_34=V[],CF13_24=V[],CF14_23=V[], ngenes=V[])
-    ntaxa = length(taxa)
-    taxstring = x -> ( x>ntaxa ? string(x) : taxa[x] )
+            taxa::AbstractVector{<:AbstractString}=Vector{String}();
+            colnames=nothing) where
+            T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
+    V = eltype(T)
+    colnames_data = quartetdata_columnnames(T)
+    if !isnothing(colnames)
+        if length(colnames) == length(colnames_data)
+            colnames_data = colnames
+        else
+          @error "'colnames' needs to be of length $(length(colnames_data)).\nwill use default column names."
+        end
+    end
+    translate = !isempty(taxa)
+    tnT = (translate ? eltype(taxa) : Int) # Type for taxon names
+    if translate
+        taxstring = x -> taxa[x] # will error if a taxonnumber > length(taxa): okay
+    else
+        taxstring = x -> x
+    end
+    df = DataFrames.DataFrame(qind=Int[], t1=tnT[],t2=tnT[],t3=tnT[],t4=tnT[])
+    for cn in colnames_data
+        df[:,Symbol(cn)] = V[]
+    end
     for q in quartets
-        length(q.data) == 4 || error("quartet $(q.data) does not have 4 data points: CF12, CF13, CF14, ngenes")
-        qn = taxstring.(q.taxonnumber)
-        push!(df, [qn[1],qn[2],qn[3],qn[4],q.data[1],q.data[2],q.data[3],q.data[4]])
+      push!(df, (q.number, taxstring.(q.taxonnumber)..., q.data...) )
     end
     return df
 end
+
+"""
+    quartetdata_columnnames(T) where T <: StaticArray
+
+Vector of column names to hold the quartet data of type `T` in a data frame.
+If T is a length-3 vector type, they are "CF12_34","CF13_24","CF14_23".
+If T is a length-4 vector type, the 4th name is "ngenes".
+If T is a 3×n matrix type, the output vector contains 3×n names,
+3 for each of "CF", "V2_", "V3_", ... "Vn_".
+
+Used by [`writeTableCF`](@ref) to build a data frame from a vector of
+[`QuartetT`](@ref) objects.
+"""
+function quartetdata_columnnames(::Type{T}) where T <: StaticArray{Tuple{3},S,1} where S
+    return ["CF12_34","CF13_24","CF14_23"]
+end
+function quartetdata_columnnames(::Type{T}) where T <: StaticArray{Tuple{4},S,1} where S
+    return ["CF12_34","CF13_24","CF14_23","ngenes"]
+end
+function quartetdata_columnnames(::Type{T}) where # for a 3×N matrix: N names
+                T <: StaticArray{Tuple{3,N},S,2} where {N,S}
+    N > 0 || error("expected at least 1 column of data")
+    colnames_q = ["12_34","13_24","14_23"]
+    colnames = "CF" .* colnames_q
+    for i in 2:N append!(colnames, "V$(i)_" .* colnames_q); end
+    return colnames
+end
+
 
 """
     readTableCF(file)
