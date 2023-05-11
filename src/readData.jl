@@ -162,28 +162,28 @@ end
 
 function readTableCF!(df::DataFrames.DataFrame; summaryfile=""::AbstractString, kwargs...)
     @debug "assume the numbers for the taxon read from the observed CF table match the numbers given to the taxon when creating the object network"
+    taxoncolnames = [[:t1, :tx1, :tax1, :taxon1], [:t2, :tx2, :tax2, :taxon2],
+                     [:t3, :tx3, :tax3, :taxon3], [:t4, :tx4, :tax4, :taxon4] ]
+    taxoncol = [findfirst(x-> x ∈ taxoncolnames[1], DataFrames.propertynames(df)),
+                findfirst(x-> x ∈ taxoncolnames[2], DataFrames.propertynames(df)),
+                findfirst(x-> x ∈ taxoncolnames[3], DataFrames.propertynames(df)),
+                findfirst(x-> x ∈ taxoncolnames[4], DataFrames.propertynames(df))]
     alternativecolnames = [ # obsCF12 is as exported by fittedQuartetCF()
-        [:CF12_34, Symbol("CF12.34"), :obsCF12],
-        [:CF13_24, Symbol("CF13.24"), :obsCF13],
-        [:CF14_23, Symbol("CF14.23"), :obsCF14]
+        [:CF12_34, Symbol("CF12.34"), :obsCF12, :CF1234],
+        [:CF13_24, Symbol("CF13.24"), :obsCF13, :CF1324],
+        [:CF14_23, Symbol("CF14.23"), :obsCF14, :CF1423]
     ]
     obsCFcol = [findfirst(x-> x ∈ alternativecolnames[1], DataFrames.propertynames(df)),
                 findfirst(x-> x ∈ alternativecolnames[2], DataFrames.propertynames(df)),
                 findfirst(x-> x ∈ alternativecolnames[3], DataFrames.propertynames(df))]
     ngenecol =  findfirst(isequal(:ngenes), DataFrames.propertynames(df))
     withngenes = ngenecol !== nothing
-    if nothing in obsCFcol # one or more col names for CFs were not found
-        size(df,2) == (withngenes ? 8 : 7) ||
-          @warn """Column names for quartet concordance factors (CFs) were not recognized.
-          Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values,
-          or CF12.34 or obsCF12, etc.
-          Will assume that the first 4 columns give the taxon names, and that columns 5-7 give the CFs."""
-        obsCFcol = [5,6,7] # assuming CFs are in columns 5,6,7, with colname mismatch
-    end
-    minimum(obsCFcol) > 4 ||
-        error("CFs found in columns $obsCFcol, but taxon labels expected in columns 1-4")
-    # fixit: what about columns giving the taxon names: always assumed to be columns 1-4? No warning if not?
-    columns = [[1,2,3,4]; obsCFcol]
+    nothing in taxoncol && error("columns for taxon names were not found")
+    nothing in obsCFcol && error(
+      """Could not identify columns with quartet concordance factors (qCFs).
+      Was expecting CF12_34, CF13_24 and CF14_23 for the columns with CF values,
+      or CF12.34 or obsCF12, etc.""")
+    columns = [taxoncol; obsCFcol]
     if withngenes  push!(columns, ngenecol)  end
 
     d = readTableCF!(df, columns; kwargs...)

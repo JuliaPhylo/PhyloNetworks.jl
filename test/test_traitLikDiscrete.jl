@@ -340,6 +340,7 @@ asr = ancestralStateReconstruction(fit1)
 pltw = [-0.08356534477069566, -2.5236181051014333]
 @test PhyloNetworks.posterior_logtreeweight(fit1) ≈ pltw atol=1e-5
 @test PhyloNetworks.posterior_logtreeweight(fit1, 1:1) ≈ reshape(pltw, (2,1)) atol=1e-5
+@test PhyloNetworks.posterior_loghybridweight(fit1, "H1") ≈ -2.5236227134322293
 
 end # end of testset, fixed topology
 
