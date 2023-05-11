@@ -865,7 +865,7 @@ julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
 
 julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
 
-julia> plhw = PhyloNetworks.posterior_loghybridweight(fit, "H1")
+julia> plhw = PhyloNetworks.posterior_loghybridweight(fit, "H1");
 
 julia> round(exp(plhw), digits=5) # posterior probability of going through minor hybrid edge
 0.08017
