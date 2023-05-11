@@ -791,10 +791,14 @@ end
 """
     posterior_logtreeweight(obj::SSM, trait = 1)
 
-Return an array A such that A[t] = log of P(tree `t` and trait `trait`)
-if a single `trait` is requested, or A[i,t]= log of P(tree `t` and trait `i`)
+Array A of log-posterior probabilities for each tree displayed in the network:
+such that A[t] = log of P(tree `t` | trait `trait`)
+if a single `trait` is requested, or A[t,i]= log of P(tree `t` | trait `i`)
 if `trait` is a vector or range (e.g. `trait = 1:obj.nsites`).
 These probabilities are conditional on the model parameters in `obj`.
+
+Displayed trees are listed in the order in which they are stored in the fitted
+model object `obj`.
 
 **Precondition**: `_loglikcache` updated by [`discrete_corelikelihood!`](@ref)
 
@@ -833,6 +837,58 @@ function posterior_logtreeweight(obj::SSM, trait = 1)
     siteliks = mapslices(logsumexp, ts, dims=1) # 1 x ntraits array (or 1-element vector)
     ts .-= siteliks
     return ts
+end
+
+"""
+    posterior_loghybridweight(obj::SSM, hybrid_name, trait = 1)
+    posterior_loghybridweight(obj::SSM, edge_number, trait = 1)
+
+Log-posterior probability for all trees displaying the minor parent edge
+of hybrid node named `hybrid_name`, or displaying the edge number `edge_number`.
+That is: log of P(hybrid minor parent | trait) if a single `trait` is requested,
+or A[i]= log of P(hybrid minor parent | trait `i`)
+if `trait` is a vector or range (e.g. `trait = 1:obj.nsites`).
+These probabilities are conditional on the model parameters in `obj`.
+
+**Precondition**: `_loglikcache` updated by [`discrete_corelikelihood!`](@ref)
+
+# examples
+
+```jldoctest
+julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+
+julia> m1 = BinaryTraitSubstitutionModel([0.1, 0.1], ["lo", "hi"]); # arbitrary rates
+
+julia> using DataFrames
+
+julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
+
+julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
+
+julia> plhw = PhyloNetworks.posterior_loghybridweight(fit, "H1");
+
+julia> round(exp(plhw), digits=5) # posterior probability of going through minor hybrid edge
+0.08017
+
+julia> hn = net.node[3]; getparentedgeminor(hn).gamma # prior probability
+0.1
+```
+"""
+function posterior_loghybridweight(obj::SSM, hybridname::String, trait = 1)
+    hn_index = findfirst(n -> n.name == hybridname, obj.net.node)
+    isnothing(hn_index) && error("node named $hybridname not found")
+    hn = obj.net.node[hn_index]
+    hn.hybrid || error("node named $hybridname is not a hybrid node")
+    me = getparentedgeminor(hn)
+    posterior_loghybridweight(obj, me.number, trait)
+end
+function posterior_loghybridweight(obj::SSM, edgenum::Integer, trait = 1)
+    tpp = posterior_logtreeweight(obj, trait) # size: (ntree,) or (ntree,ntraits)
+    hasedge = tree -> any(e.number == edgenum for e in tree.edge)
+    tokeep = map(hasedge, obj.displayedtree)
+    tppe = view(tpp, tokeep, :) # makes it a matrix
+    epp = dropdims(mapslices(logsumexp, tppe, dims=1); dims=2)
+    return (size(epp)==(1,) ? epp[1] : epp) # scalar or vector
 end
 
 """
