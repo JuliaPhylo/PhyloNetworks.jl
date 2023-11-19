@@ -95,18 +95,16 @@ end
 
 """
     hybridatnode!(net::HybridNetwork, nodeNumber::Integer)
-    hybridatnode(net, nodeNumber)
 
-Change the status of edges in network `net`,
+Change the direction and status of edges in network `net`,
 to move the hybrid node in a cycle to the node with number `nodeNumber`.
 This node must be in one (and only one) cycle, otherwise an error will be thrown.
-
-The second method does not modify `net`, checks that it's of level 1, and
-returns the new network after hybrid modification.
-
-`net` is assumed to be of level 1, that is, each blob has a
-single cycle with a single reticulation.
 Check and update the nodes' field `inCycle`.
+
+Output: `net` after hybrid modification.
+
+Assumption: `net` must be of level 1, that is, each blob has a
+single cycle with a single reticulation.
 
 # example
 
@@ -150,7 +148,7 @@ Move the reticulation from `hybrid` to `newNode`,
 which must in the same cycle. `net` is assumed to be of level 1,
 but **no checks** are made and fields are supposed up-to-date.
 
-Called by `hybridatnode!(net, node number)`, which is itself
+Called by `hybridatnode!(net, nodenumber)`, which is itself
 called by [`undirectedOtherNetworks`](@ref).
 """
 function hybridatnode!(net::HybridNetwork, hybrid::Node, newNode::Node)
@@ -182,7 +180,13 @@ end
 # does not call hybridatnode! but repeats its code: oops! violates DRY principle
 # nodeNumber should correspond to the number assigned by readTopologyLevel1,
 # and the node numbers in `net` are irrelevant.
-@doc (@doc hybridatnode!) hybridatnode
+"""
+    hybridatnode(net::HybridNetwork, nodeNumber::Integer)
+
+Move the hybrid node in a cycle to make node number `nodeNumber` a hybrid node
+Compared to [`hybridatnode!`], this method checks that `net` is of level 1
+(required) and does not modify it.
+"""
 function hybridatnode(net0::HybridNetwork, nodeNumber::Integer)
     net = readTopologyLevel1(writeTopologyLevel1(net0)) # we need inCycle attributes
     ind = 0
