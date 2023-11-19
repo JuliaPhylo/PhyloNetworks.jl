@@ -133,7 +133,7 @@ The `rvsymbol` should be as required by [`RateVariationAcrossSites`](@ref).
 The network's gamma values are modified if they are missing. After that,
 a deep copy of the network is passed to the inner constructor.
 """
-function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
+function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::AbstractString,
         modsymbol::Symbol, rvsymbol=:noRV::Symbol, ratecategories=4::Int;
         maxhybrid=length(net.hybrid)::Int)
     for e in net.edge # check for missing or inappropriate γ values
@@ -449,14 +449,14 @@ end
 
 #species, dat version, no ratemodel
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
-    species::Array{String}, dat::DataFrame; kwargs...)
+    species::Array{<:AbstractString}, dat::DataFrame; kwargs...)
     ratemodel = RateVariationAcrossSites(ncat=1)
     fitdiscrete(net, model, ratemodel, species, dat; kwargs...)
 end
 
 #species, dat version with ratemodel
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
-    ratemodel::RateVariationAcrossSites, species::Array{String},
+    ratemodel::RateVariationAcrossSites, species::Array{<:AbstractString},
     dat::DataFrame; kwargs...)
     dat2 = traitlabels2indices(dat, model) # vec of vec, indices
     o, net = check_matchtaxonnames!(copy(species), dat2, net)
@@ -465,7 +465,7 @@ end
 
 #wrapper: species, dat version with model symbol
 function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
-    species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
+    species::Array{<:AbstractString}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     labels = learnlabels(modSymbol, dat)
     if modSymbol == :JC69
@@ -498,7 +498,7 @@ end
 #dnadata with dnapatternweights version with ratemodel
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
     ratemodel::RateVariationAcrossSites,dnadata::DataFrame,
-    dnapatternweights::Array{Float64}; kwargs...)
+    dnapatternweights::Array{<:AbstractFloat}; kwargs...)
     dat2 = traitlabels2indices(dnadata[!,2:end], model)
     o, net = check_matchtaxonnames!(dnadata[:,1], dat2, net)
     kwargs = (:siteweights => dnapatternweights, kwargs...)
@@ -508,7 +508,7 @@ end
 
 #wrapper for dna data
 function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
-    dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
+    dnapatternweights::Array{<:AbstractFloat}, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     if modSymbol == :JC69
         model = JC69([1.0], true)  # 1.0 instead of rate because relative version
@@ -580,7 +580,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         return obj
     end
     if optimizeQ
-        function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+        function loglikfun(x::Vector{<:AbstractFloat}, grad::Vector{<:AbstractFloat}) # modifies obj
             setrates!(obj.model, x)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
@@ -609,7 +609,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optQ.numevals) iterations (return code $(ret))")
     end
     if optimizeRVAS
-        function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64})
+        function loglikfunRVAS(alpha::Vector{<:AbstractFloat}, grad::Vector{<:AbstractFloat})
             setparameters!(obj.ratemodel, alpha)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
