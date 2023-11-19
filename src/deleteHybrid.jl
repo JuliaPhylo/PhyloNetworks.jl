@@ -16,8 +16,8 @@
 function identifyInCycle(net::Network,node::Node)
     node.hybrid || error("node $(node.number) is not hybrid, cannot identifyInCycle")
     start = node;
-    hybedge = getHybridEdge(node);
-    last = getOtherNode(hybedge,node);
+    hybedge = getparentedgeminor(node)
+    lastnode = getOtherNode(hybedge,node)
     dist = 0;
     queue = PriorityQueue();
     path = Node[];
@@ -33,32 +33,19 @@ function identifyInCycle(net::Network,node::Node)
             return true, net.edges_changed, net.nodes_changed
         else
             curr = dequeue!(queue);
-            if(isEqual(curr,last))
+            if isEqual(curr,lastnode)
                 found = true;
                 push!(path,curr);
-            else
-                if(!net.visited[getIndex(curr,net)])
-                    net.visited[getIndex(curr,net)] = true;
-                    if(isEqual(curr,start))
-                        for e in curr.edge
-                            if(!e.hybrid || e.isMajor)
-                                other = getOtherNode(e,curr);
-                                other.prev = curr;
-                                dist = dist+1;
-                                enqueue!(queue,other,dist);
-                            end
-                        end
-                    else
-                        for e in curr.edge
-                            if(!e.hybrid || e.isMajor)
-                                other = getOtherNode(e,curr);
-                                if(!other.leaf && !net.visited[getIndex(other,net)])
-                                    other.prev = curr;
-                                    dist = dist+1;
-                                    enqueue!(queue,other,dist);
-                                end
-                            end
-                        end
+            elseif !net.visited[getIndex(curr,net)]
+                net.visited[getIndex(curr,net)] = true
+                atstart = isEqual(curr,start)
+                for e in curr.edge
+                    e.isMajor || continue
+                    other = getOtherNode(e,curr)
+                    if atstart || (!other.leaf && !net.visited[getIndex(other,net)])
+                        other.prev = curr
+                        dist = dist+1
+                        enqueue!(queue,other,dist)
                     end
                 end
             end
@@ -149,17 +136,9 @@ function deleteHybridizationUpdate!(net::HybridNetwork, hybrid::Node, random::Bo
         push!(edgesRoot, edges[2])
         undoContainRoot!(edgesRoot);
     end
-    @debug begin
-        msg = ""
-        if edges[1].gamma < 0.5
-            msg = "strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) less than 0.5"
-        end
-        if edges[1].gamma == 1.0
-            msg = "strange major hybrid edge $(edges[1].number) with gamma $(edges[1].gamma) equal to 1.0"
-        end
-        msg
-    end
     limit = edges[1].gamma
+    @debug (limit < 0.5 ? "strange major hybrid edge $(edges[1].number) with γ $limit < 0.5" :
+            (limit == 1.0 ? "strange major hybrid edge $(edges[1].number) with γ = $limit" : ""))
     if(random)
         minor = rand() < limit ? false : true
     else

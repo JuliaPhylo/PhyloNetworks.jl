@@ -1,4 +1,4 @@
-using Documenter, DocumenterMarkdown
+using Documenter
 
 using Pkg
 Pkg.add(PackageSpec(name="PhyloPlots", rev="master"))
@@ -11,7 +11,13 @@ makedocs(
     sitename = "PhyloNetworks.jl",
     authors = "Claudia Solís-Lemus, Cécile Ané, Paul Bastide and contributors.",
     modules = [PhyloNetworks], # to list methods from PhyloNetworks only, not from Base etc.
-    format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true"), # easier local build
+    format = Documenter.HTML(
+        prettyurls = get(ENV, "CI", nothing) == "true", # easier local build
+        size_threshold = 600 * 2^10, size_threshold_warn = 500 * 2^10), # 600 KiB
+    # exception, so warning-only for :missing_docs. List all others:
+    warnonly = Documenter.except(:autodocs_block, :cross_references, :docs_block,
+        :doctest, :eval_block, :example_block, :footnote, :linkcheck_remotes,
+        :linkcheck, :meta_block, :parse_error, :setup_block),
     pages = [
         "Home" => "index.md",
         "Manual" => [

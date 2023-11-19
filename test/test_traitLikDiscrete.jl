@@ -231,7 +231,7 @@ redirect_stdout(originalstdout)
 @test StatsBase.loglikelihood(fit2) ≈ -2.6447247349802496 atol=2e-4
 m2.rate[:] = [0.2, 0.3];
 dat2 = DataFrame(trait1= ["hi","hi","lo","lo","hi"], trait2=["hi",missing,"lo","hi","lo"]);
-fit3 = (@test_logs fitdiscrete(net, m2, species, dat2; optimizeQ=false, optimizeRVAS=false))
+fit3 = (@test_logs fitdiscrete(net, m2, String7.(species), dat2; optimizeQ=false, optimizeRVAS=false))
 
 @test fit3.loglik ≈ (-2.6754091090953693 - 2.1207856874033491)
 PhyloNetworks.fit!(fit3; optimizeQ=true, optimizeRVAS=false)

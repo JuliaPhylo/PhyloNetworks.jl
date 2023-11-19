@@ -7,6 +7,10 @@ using CSV
 
 @testset "auxiliary" begin
 
+@testset "read level 1: hyb edge at root then 2-cycle" begin
+@test_throws "cycle with only 2 nodes" readTopologyLevel1("((t9,((t3,t2))#H12:::0.52),#H12:::0.48);")
+end
+
 @testset "setlengths and setgammas" begin
 originalstdout = stdout
 redirect_stdout(devnull) # requires julia v1.6
