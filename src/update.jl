@@ -49,19 +49,14 @@ function updateInCycle!(net::HybridNetwork,node::Node)
         elseif !net.visited[getIndex(curr,net)]
             net.visited[getIndex(curr,net)] = true
             atstart = isEqual(curr,start)
-            e1 = (atstart ? getparentedge(curr) : nothing) # priority to major parent
-            incidentnodelist = (atstart ? [getOtherNode(e1,curr)] : Node[])
             for e in curr.edge
-                (e !== e1 && e.isMajor) || continue
+                e.isMajor || continue
                 other = getOtherNode(e,curr)
-                if !other.leaf && !net.visited[getIndex(other,net)]
-                    push!(incidentnodelist, other)
+                if atstart || (!other.leaf && !net.visited[getIndex(other,net)])
+                    other.prev = curr
+                    dist = dist+1
+                    enqueue!(queue,other,dist)
                 end
-            end
-            for other in incidentnodelist
-                other.prev = curr
-                dist = dist+1
-                enqueue!(queue,other,dist)
             end
         end
     end # end while
