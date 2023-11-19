@@ -16,8 +16,8 @@
 function identifyInCycle(net::Network,node::Node)
     node.hybrid || error("node $(node.number) is not hybrid, cannot identifyInCycle")
     start = node;
-    hybedge = getHybridEdge(node);
-    last = getOtherNode(hybedge,node);
+    hybedge = getparentedgeminor(node)
+    lastnode = getOtherNode(hybedge,node)
     dist = 0;
     queue = PriorityQueue();
     path = Node[];
@@ -33,33 +33,25 @@ function identifyInCycle(net::Network,node::Node)
             return true, net.edges_changed, net.nodes_changed
         else
             curr = dequeue!(queue);
-            if(isEqual(curr,last))
+            if isEqual(curr,lastnode)
                 found = true;
                 push!(path,curr);
-            else
-                if(!net.visited[getIndex(curr,net)])
-                    net.visited[getIndex(curr,net)] = true;
-                    if(isEqual(curr,start))
-                        for e in curr.edge
-                            if(!e.hybrid || e.isMajor)
-                                other = getOtherNode(e,curr);
-                                other.prev = curr;
-                                dist = dist+1;
-                                enqueue!(queue,other,dist);
-                            end
-                        end
-                    else
-                        for e in curr.edge
-                            if(!e.hybrid || e.isMajor)
-                                other = getOtherNode(e,curr);
-                                if(!other.leaf && !net.visited[getIndex(other,net)])
-                                    other.prev = curr;
-                                    dist = dist+1;
-                                    enqueue!(queue,other,dist);
-                                end
-                            end
-                        end
+            elseif !net.visited[getIndex(curr,net)]
+                net.visited[getIndex(curr,net)] = true
+                atstart = isEqual(curr,start)
+                e1 = (atstart ? getparentedge(curr) : nothing) # priority to major parent
+                incidentnodelist = (atstart ? [getOtherNode(e1,curr)] : Node[])
+                for e in curr.edge
+                    (e !== e1 && e.isMajor) || continue
+                    other = getOtherNode(e,curr)
+                    if !other.leaf && !net.visited[getIndex(other,net)]
+                        push!(incidentnodelist, other)
                     end
+                end
+                for other in incidentnodelist
+                    other.prev = curr
+                    dist = dist+1
+                    enqueue!(queue,other,dist)
                 end
             end
         end

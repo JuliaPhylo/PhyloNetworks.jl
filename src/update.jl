@@ -21,95 +21,68 @@
 #          unlike updateInCycle recursive, but it is expected
 #          to be much faster
 function updateInCycle!(net::HybridNetwork,node::Node)
-    if(node.hybrid)
-        start = node;
-        node.inCycle = node.number;
-        node.k = 1;
-        hybedge = getHybridEdge(node);
-        hybedge.inCycle = node.number;
-        last = getOtherNode(hybedge,node);
-        dist = 0;
-        queue = PriorityQueue();
-        path = Node[];
-        net.edges_changed = Edge[];
-        net.nodes_changed = Node[];
-        push!(net.edges_changed,hybedge);
-        push!(net.nodes_changed,node);
-        found = false;
-        net.visited = [false for i = 1:size(net.node,1)];
-        enqueue!(queue,node,dist);
-#        println("start is $(start.number), last is $(last.number)")
-        while(!found)
-            if(isempty(queue))
-                return false, true, net.edges_changed, net.nodes_changed
-            else
-                #println("at this moment, queue is $([n.number for n in queue])")
-                curr = dequeue!(queue);
- #               println("curr $(curr.number)")
-                if(isEqual(curr,last))
- #                   println("encuentra a la last $(curr.number)")
-                    found = true;
-                    push!(path,curr);
-                else
-                    if(!net.visited[getIndex(curr,net)])
- #                       println("curr not visited $(curr.number)")
-                        net.visited[getIndex(curr,net)] = true;
-                        if(isEqual(curr,start))
-                            #println("curr is start")
-                            for e in curr.edge
-                                if(!e.hybrid || e.isMajor)
-                                    other = getOtherNode(e,curr);
- #                                   println("other is $(other.number), pushed to queue")
-                                    other.prev = curr;
-                                    dist = dist+1;
-                                    enqueue!(queue,other,dist);
-                                end
-                            end
-                        else
-                            for e in curr.edge
-                                if(!e.hybrid || e.isMajor)
-                                    other = getOtherNode(e,curr);
- #                                   println("other is $(other.number)")
-                                    if(!other.leaf && !net.visited[getIndex(other,net)])
- #                                       println("dice que other $(other.number) no es leaf ni visited, lo mete a queue")
-                                        other.prev = curr;
-                                        dist = dist+1;
-                                        enqueue!(queue,other,dist);
-                                    end
-                                end
-                            end
-                        end
-                    end
+    node.hybrid || error("node is not hybrid")
+    start = node
+    node.inCycle = node.number
+    node.k = 1
+    hybedge = getparentedgeminor(node)
+    hybedge.inCycle = node.number
+    lastnode = getOtherNode(hybedge,node)
+    dist = 0
+    queue = PriorityQueue()
+    path = Node[]
+    net.edges_changed = Edge[]
+    net.nodes_changed = Node[]
+    push!(net.edges_changed,hybedge)
+    push!(net.nodes_changed,node)
+    found = false
+    net.visited = falses(length(net.node))
+    enqueue!(queue,node,dist)
+    while !found
+        if isempty(queue)
+            return false, true, net.edges_changed, net.nodes_changed
+        end
+        curr = dequeue!(queue)
+        if isEqual(curr,lastnode)
+            found = true
+            push!(path,curr)
+        elseif !net.visited[getIndex(curr,net)]
+            net.visited[getIndex(curr,net)] = true
+            atstart = isEqual(curr,start)
+            e1 = (atstart ? getparentedge(curr) : nothing) # priority to major parent
+            incidentnodelist = (atstart ? [getOtherNode(e1,curr)] : Node[])
+            for e in curr.edge
+                (e !== e1 && e.isMajor) || continue
+                other = getOtherNode(e,curr)
+                if !other.leaf && !net.visited[getIndex(other,net)]
+                    push!(incidentnodelist, other)
                 end
             end
-        end # end while
- #       println("after while, path has $([n.number for n in path])")
-        curr = pop!(path);
- #       println("path should be empty here: $(isempty(path))")
-        while(!isEqual(curr, start))
- #           println("curr es $(curr.number)")
-            if(curr.inCycle!= -1)
-                push!(path,curr);
-                curr = curr.prev;
-            else
-                curr.inCycle = start.number;
-                push!(net.nodes_changed, curr);
-                node.k  =  node.k + 1;
-                edge = getConnectingEdge(curr,curr.prev);
-                edge.inCycle = start.number;
-                push!(net.edges_changed, edge);
-                curr = curr.prev;
+            for other in incidentnodelist
+                other.prev = curr
+                dist = dist+1
+                enqueue!(queue,other,dist)
             end
         end
-        if(!isempty(path) || node.k<3)
-            @debug "warning: new cycle intersects existing cycle"
-            return false, false, net.edges_changed, net.nodes_changed
+    end # end while
+    curr = pop!(path)
+    while !isEqual(curr, start)
+        if curr.inCycle!= -1
+            push!(path,curr)
+            curr = curr.prev
         else
-            return true, false, net.edges_changed, net.nodes_changed
+            curr.inCycle = start.number
+            push!(net.nodes_changed, curr)
+            node.k  =  node.k + 1
+            edge = getConnectingEdge(curr,curr.prev)
+            edge.inCycle = start.number
+            push!(net.edges_changed, edge)
+            curr = curr.prev
         end
-    else
-        error("node is not hybrid")
     end
+    flag = isempty(path) # || node.k<3
+    !flag && @debug "warning: new cycle intersects existing cycle"
+    return flag, false, net.edges_changed, net.nodes_changed
 end
 
 """
@@ -218,7 +191,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
     edge_maj, edge_min, tree_edge2 = hybridEdges(node);
     other_maj = getOtherNode(edge_maj,node);
     other_min = getOtherNode(edge_min,node);
-    node.k > 2 || return false, []
+    node.k > 2 || error("cycle with only 2 nodes: parallel edges") # return false, []
     if(node.k == 4) # could be bad diamond I,II
 #        net.numTaxa >= 5 || return false, [] #checked inside optTopRuns now
         edgebla,edge_min2,tree_edge3 = hybridEdges(other_min);
@@ -346,8 +319,6 @@ end
 # by nodesChanged vector (obtained from updateInCycle)
 # warning: needs updateInCycle for all hybrids before running this
 function updatePartition!(net::HybridNetwork, nodesChanged::Vector{Node})
-    length(nodesChanged) > 2 || error("incycle with only 2 nodes in it after updateGammaz")
-    #println("nodesChanged are $([n.number for n in nodesChanged])")
     if(net.numHybrids == 0)
         net.partition = Partition[]
     end

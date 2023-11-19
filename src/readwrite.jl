@@ -750,16 +750,11 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     nodes = copy(net.node)
     for n in nodes
         if isNodeNumIn(n,net.node) # very important to check
-            if size(n.edge,1) == 2
-                if !n.hybrid
-                    if !leaveRoot || !isEqual(net.node[net.root],n) #if n is the root
-                        deleteIntNode!(net,n);
-                    end
-                else
-                    hyb = count([e.hybrid for e in n.edge]);
-                    if hyb == 1
-                        deleteIntNode!(net,n);
-                    end
+            if size(n.edge,1) == 2 # delete n if:
+                if (!n.hybrid && (!leaveRoot || !isEqual(net.node[net.root],n)) ||
+                    (n.hybrid && sum(e.hybrid for e in n.edge) == 1))
+                    deleteIntNode!(net,n)
+                    continue # n was deleted: skip the rest
                 end
             end
             if !n.hybrid

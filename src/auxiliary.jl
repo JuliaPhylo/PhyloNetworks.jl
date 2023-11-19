@@ -481,17 +481,6 @@ function getIndexHybrid(node::Node, net::Network)
     return i
 end
 
-# function that given a hybrid node, it gives you the minor hybrid edge
-# warning: assumes level-1 network: see getparentedgeminor for a general network
-function getHybridEdge(node::Node)
-    node.hybrid || error("node $(node.number) is not hybrid node, cannot get hybrid edges")
-    a = nothing;
-    for e in node.edge
-        (e.hybrid && !e.isMajor) ? a = e : nothing; # assumes level-1: child of hybrid node must be a tree edge
-    end
-    isa(a,Nothing) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
-end
-
 
 # function that given two nodes, it gives you the edge that connects them
 # returns error if they are not connected by an edge
@@ -684,36 +673,24 @@ end
 # function to delete an internal node with only 2 edges
 function deleteIntNode!(net::Network, n::Node)
     size(n.edge,1) == 2 || error("node $(n.number) does not have only two edges")
-#    isEqual(n,net.node[net.root]) && println("deleting the root $(n.number) because it has only two edges attached")
     index = n.edge[1].number < n.edge[2].number ? 1 : 2;
-    edge1 = n.edge[index];
-    edge2 = n.edge[index==1 ? 2 : 1];
-    if(!edge1.hybrid && !edge2.hybrid)
-        node1 = getOtherNode(edge1,n);
-        node2 = getOtherNode(edge2,n);
-        removeEdge!(node2,edge2);
-        removeNode!(n,edge1);
-        setEdge!(node2,edge1);
-        setNode!(edge1,node2);
-        deleteNode!(net,n);
-        deleteEdge!(net,edge2);
-    else
-        @warn "the two edges $([edge1.number,edge2.number]) attached to node $(n.number) must be tree edges to delete node"
-        if(edge1.hybrid)
-            hybedge = edge1
-            otheredge = edge2
-        elseif(edge2.hybrid)
-            hybedge = edge2
-            otheredge = edge1
+    edge1 = n.edge[index]; # edge1 will be kept
+    edge2 = n.edge[index==1 ? 2 : 1] # we will delete edge2 and n, except if edge2 is hybrid
+    if edge2.hybrid
+        (edge2, edge1) = (edge1, edge2)
+        if getchild(edge1) === n || edge2.hybrid
+            @error "node with incoming hybrid edge or incident to 2 hybrid edges: will not be removed"
+            return nothing
         end
-        othernode = getOtherNode(otheredge,n)
-        removeNode!(n,hybedge)
-        removeEdge!(othernode,otheredge)
-        setEdge!(othernode,hybedge)
-        setNode!(hybedge,othernode)
-        deleteNode!(net,n)
-        deleteEdge!(net,otheredge)
     end
+    node2 = getOtherNode(edge2,n)
+    removeEdge!(node2,edge2)
+    removeNode!(n,edge1)
+    setEdge!(node2,edge1)
+    setNode!(edge1,node2)
+    deleteNode!(net,n)
+    deleteEdge!(net,edge2)
+    return nothing
 end
 
 
