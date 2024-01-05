@@ -394,6 +394,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         deleteleaf!(net, n1.number; index=false, nofuse=nofuse,
                     simplify=simplify, unroot=unroot, multgammas=multgammas,
                     keeporiginalroot=keeporiginalroot)
+        # fixit: containRoot might be wrong, if simplify is true: check for hybrid deletions?
     # else: delete "edge" then n2 as appropriate
     elseif n2degree == 1
         error("node $(n2.number) (parent of hybrid edge $(edge.number) to be deleted) has 1 edge only!")
