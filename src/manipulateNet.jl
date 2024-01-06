@@ -901,8 +901,8 @@ tree edges with γ<1, or with reticulations in which the two parent
 `keeporiginalroot`: if true, keep the root even if it is of degree one
 (forcing `unroot` to be false).
 
-Warning: does **not** update attributes related to level-1 networks,
-such as inCycle, partition, gammaz, etc.
+Warning: does **not** update edges' `containRoot` nor attributes
+related to level-1 networks such as inCycle, partition, gammaz, etc.
 Does not require branch lengths, and designed to work on networks
 of all levels.
 """
@@ -993,8 +993,8 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             any(getchild(e) ≡ cn && e !== e1 && e !==e2 for e in cn.edge) &&
                 error("root has 2 hybrid edges, but their common child has an extra parent")
             removeEdge!(cn,e1); removeEdge!(cn,e2)
-            removeHybrid!(net,cn) # removes n1 from net.hybrid, updates net.numHybrids
-            cn.hybrid = false
+            removeHybrid!(net,cn) # removes cn from net.hybrid, updates net.numHybrids
+            cn.hybrid = false # !! allowrootbelow! not called: would require correct isChild1
             empty!(e1.node); empty!(e2.node)
             deleteEdge!(net,e1,part=false); deleteEdge!(net,e2,part=false)
             empty!(nodei.edge)
@@ -1032,11 +1032,13 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
             pn  = getparent(e1)
             if pn ≡ getparent(e2)
                 # e1 and e2 have same child and same parent. Remove e1.
-                e2.hybrid=false;
-                e2.isMajor=true;
+                e2.hybrid = false # assumes bicombining at cn: no third hybrid parent
+                e2.isMajor = true
                 e2.gamma = addBL(e1.gamma, e2.gamma)
                 removeEdge!(pn,e1); removeEdge!(cn,e1)
                 deleteEdge!(net,e1,part=false)
+                removeHybrid!(net,cn) # removes cn from net.hybrid, updates net.numHybrids
+                cn.hybrid = false # !! allowrootbelow! not called: would require correct isChild1
                 # call recursion again because pn and/or cn might be of degree 2 (or even 1).
                 deleteleaf!(net, cn.number; nofuse = nofuse, simplify=simplify, unroot=unroot,
                             multgammas=multgammas, keeporiginalroot=keeporiginalroot)
@@ -1233,6 +1235,22 @@ function allowrootbelow!(n::Node, pe::Edge)
         allowrootbelow!(ce)
     end
     return nothing
+end
+"""
+    allowrootbelow!(net::HybridNetwork)
+
+Set `containRoot` to `true` for each edge below the root node, then
+traverses `net` in preorder to update `containRoot` of all edges (stopping
+at hybrid nodes): see the other methods.
+Assumes correct `isChild1` edge field.
+"""
+function allowrootbelow!(net::HybridNetwork)
+    rn = net.node[net.root]
+    for e in rn.edge
+        if e.containRoot
+            allowrootbelow!(getchild(e), e)
+        end
+    end
 end
 
 """

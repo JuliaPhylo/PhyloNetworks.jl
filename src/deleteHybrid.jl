@@ -193,7 +193,7 @@ function deleteHybrid!(node::Node,net::HybridNetwork,minor::Bool, blacklist::Boo
             end
         end
         hybindex = findfirst([e.hybrid for e in other2.edge]);
-        hybindex != nothing || error("didn't find hybrid edge in other2")
+        isnothing(hybindex) && error("didn't find hybrid edge in other2")
         if(hybindex == 1)
             treeedge1 = other2.edge[2];
             treeedge2 = other2.edge[3];
@@ -387,6 +387,7 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         # below: won't delete n1, delete edge instead
     end
 
+    formernumhyb = net.numHybrids
     # next: delete n1 recursively, or delete edge and delete n2 recursively.
     # keep n2 if it has 4+ edges (or if nofuse). 1 edge should never occur.
     #       If root, would have no parent: treat network as unrooted and change the root.
@@ -407,6 +408,9 @@ function deletehybridedge!(net::HybridNetwork, edge::Edge,
         deleteleaf!(net, n2.number; index=false, nofuse=nofuse,
                     simplify=simplify, unroot=unroot, multgammas=multgammas,
                     keeporiginalroot=keeporiginalroot)
+    end
+    if net.numHybrids != formernumhyb # deleteleaf! does not update containRoot
+        allowrootbelow!(net)
     end
     return net
 end
@@ -429,7 +433,7 @@ function undoPartition!(net::HybridNetwork, hybrid::Node, edgesInCycle::Vector{E
                 p = splice!(net.partition,i)
                 @debug "after splice, p partition has edges $([e.number for e in p.edges]) and cycle $(p.cycle)"
                 ind = findfirst(isequal(hybrid.number), p.cycle)
-                ind != nothing || error("hybrid not found in p.cycle")
+                isnothing(ind) && error("hybrid not found in p.cycle")
                 deleteat!(p.cycle,ind) #get rid of that hybrid number
                 cycles = vcat(cycles,p.cycle)
                 edges = vcat(edges,p.edges)
