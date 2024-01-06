@@ -1236,6 +1236,22 @@ function allowrootbelow!(n::Node, pe::Edge)
     end
     return nothing
 end
+"""
+    allowrootbelow!(net::HybridNetwork)
+
+Set `containRoot` to `true` for each edge below the root node, then
+traverses `net` in preorder to update `containRoot` of all edges (stopping
+at hybrid nodes): see the other methods.
+Assumes correct `isChild1` edge field.
+"""
+function allowrootbelow!(net::HybridNetwork)
+    rn = net.node[net.root]
+    for e in rn.edge
+        if e.containRoot
+            allowrootbelow!(getchild(e), e)
+        end
+    end
+end
 
 """
     unzip_canonical!(net::HybridNetwork)

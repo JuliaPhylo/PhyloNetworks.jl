@@ -84,6 +84,14 @@ net = deepcopy(net0)
 @test writeTopology(deletehybridedge!(net, net.edge[5]), round=true) == "((#H1:1.0::0.1,b:1.0):1.0,c:1.0,(a:1.0)#H1:3.0::0.9);"
 @test writeTopology(deletehybridedge!(net0, net0.edge[5],false,true,false,false), round=true) ==
   "((#H2:1.0::0.2,((a:1.0)#H1:1.0::0.9)#H2:3.0::0.8):1.0,(#H1:1.0::0.1,b:1.0):1.0,c:1.0);"
+
+# level-2 degree-2 blob simplifying to parallel edges, + polytomy below
+net0 = readTopology("(africa_east:0.003,((#H3:0::0.003,(non_africa_west:0.2,non_africa_east:0.2)#H1:0.3::1):0.3,(#H1:0::0)#H3:0::0.997)H2:0);");
+PhyloNetworks.deletehybridedge!(net0, net0.edge[2], false, false, false, true, false)
+@test all(!n.hybrid for n in net0.node)
+@test all(e.containRoot for e in net0.edge)
+@test writeTopology(net0) == "(africa_east:0.003,(non_africa_west:0.2,non_africa_east:0.2)H1:0.0);"
+
 end # of testing deletehybridedge!
 
 @testset "testing deleteleaf! and hardwiredClusterDistance" begin
