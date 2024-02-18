@@ -1241,7 +1241,9 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
         writeTopologyLevel1(newT,true)
     end
     writelog && write(logfile, "\nBegins heuristic optimization of network------\n")
+    loopcount = 0
     while(absDiff > liktolAbs && failures < Nfail && currT.loglik > liktolAbs && stillmoves) #stops if close to zero because of new deviance form of the pseudolik
+        if (loopcount % 50) == 0 GC.gc() end
         if CHECKNET && !isempty(d.repSpecies)
             checkTop4multAllele(currT) || error("currT is not good for multiple alleles")
         end
@@ -1308,6 +1310,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
             stillmoves = false
         end
         @debug "--------- loglik_$(count) end: earlier log can be discarded ----"
+        loopcount += 1
     end
     if ftolAbs > 1e-7 || ftolRel > 1e-7 || xtolAbs > 1e-7 || xtolRel > 1e-7
         writelog && write(logfile,"\nfound best network, now we re-optimize branch lengths and gamma more precisely")
