@@ -1218,8 +1218,8 @@ function chooseEdgeNNI(net::Network,N::Integer, probQR::Float64, d::DataCF)
     i = 0
     while((index1 == 0 || index1 > size(net.edge,1) || net.edge[index1].hybrid || hasNeighborHybrid(net.edge[index1]) || !isInternalEdge(net.edge[index1])) && i < N)
         if(probQR>0.0 && rand() < probQR)
-            println("NNI sampleEdgeQuartetWeighted")
             index1 = sampleEdgeQuartetWeighted(net.edge, d);
+            i += 1
         else
             index1 = round(Integer,rand()*size(net.edge,1));
             i += 1
@@ -1424,7 +1424,7 @@ function NNIRepeat!(net::HybridNetwork,N::Integer)
 end
 function NNIRepeat!(net::HybridNetwork,N::Integer, probQR::Float64, d::DataCF)
     N > 0 || error("N must be positive: $(N)")
-    flag,edge = chooseEdgeNNI(net,N)
+    flag,edge = chooseEdgeNNI(net,N, probQR, d)
     flag || return false
     i = 0
     success = false
