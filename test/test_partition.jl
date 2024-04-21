@@ -3,57 +3,33 @@
 
 tree = "(((((((1,2),3),4),5),(6,7)),(8,9)),10);"
 
-#seed = 2738
-seed = 56326
+# earlier seeds: 2738, 56326 up to v0.14.2
+seed = 41
 
 currT0 = readTopologyLevel1(tree);
 Random.seed!(seed);
 besttree = deepcopy(currT0);
-success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
-success
-#printEdges(besttree)
-#printNodes(besttree)
-writeTopologyLevel1(besttree,true)
+successful,_ = PhyloNetworks.addHybridizationUpdate!(besttree);
+@test successful
+@test_logs PhyloNetworks.writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
 length(net.partition)
-[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
-[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
-[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
-[n.number for n in net.partition[4].edges] == [9,7,5,3,1,2,4,6,8] || error("wrong partition")
-[n.number for n in net.partition[5].edges] == [17] || error("wrong partition")
-[n.number for n in net.partition[6].edges] == [14] || error("wrong partition")
+@test Set([e.number for e in p.edges] for p in net.partition) ==
+    Set([[15], [11], [10], [9,7,5,3,1,2,4,6,8], [17], [14]])
 
-
-success = false
-success,hybrid,flag,nocycle,flag2,flag3 = addHybridizationUpdate!(besttree);
-success
-#printEdges(besttree)
-#printNodes(besttree)
-@test_logs writeTopologyLevel1(besttree,true)
+successful = false
+successful,_ = PhyloNetworks.addHybridizationUpdate!(besttree);
+@test successful
+@test_logs PhyloNetworks.writeTopologyLevel1(besttree,true)
 net = deepcopy(besttree);
-length(net.partition)
-[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
-[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
-[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
-[n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
-[n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
-[n.number for n in net.partition[6].edges] == [3,1,2] || error("wrong partition")
-[n.number for n in net.partition[7].edges] == [21] || error("wrong partition")
-[n.number for n in net.partition[8].edges] == [8] || error("wrong partition")
-[n.number for n in net.partition[9].edges] == [6] || error("wrong partition")
-[n.number for n in net.partition[10].edges] == [4] || error("wrong partition")
+@test length(net.partition) == 9
+@test Set([e.number for e in p.edges] for p in net.partition) ==
+    Set([[14], [11], [10], [17], [15], [22,8,9], [3,1,2], [4], [6]])
 
 deleteHybridizationUpdate!(net,net.node[21]);
-length(net.partition)
-length(net.partition) == 6 || error("wrong partition")
-# 15,11,10,[9,7,5,3,1,2,4,6,8],17,14
-[n.number for n in net.partition[1].edges] == [15] || error("wrong partition")
-[n.number for n in net.partition[2].edges] == [11] || error("wrong partition")
-[n.number for n in net.partition[3].edges] == [10] || error("wrong partition")
-[n.number for n in net.partition[4].edges] == [17] || error("wrong partition")
-[n.number for n in net.partition[5].edges] == [14] || error("wrong partition")
-[n.number for n in net.partition[6].edges] == [3,1,2,21,8,6,4,9,7] || error("wrong partition")
-#printNodes(net)
+@test length(net.partition) == 6
+@test Set([e.number for e in p.edges] for p in net.partition) ==
+    Set([[14], [11], [10], [17], [15], [22,8,9,3,1,2,4,21,5]])
 
 deleteHybridizationUpdate!(net,net.node[18]);
-length(net.partition) == 0 || error("wrong partition")
+@test length(net.partition) == 0

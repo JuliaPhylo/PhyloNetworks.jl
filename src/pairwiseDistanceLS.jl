@@ -1,8 +1,12 @@
 """
     getNodeAges(net)
 
-vector of node ages in pre-order, as in `nodes_changed`,
-which is assumed to have been calculated before.
+vector of node ages in pre-order, as in `nodes_changed`.
+
+*Warnings*: `net` is assumed to
+- have been preordered before (to calculate `nodes_changed`)
+- be time-consistent (all paths to the root to a given hybrid have the same length)
+- be ultrametric (all leaves have the same age: 0)
 """
 function getNodeAges(net::HybridNetwork)
     x = Vector{Float64}(undef, length(net.nodes_changed))
@@ -13,8 +17,8 @@ function getNodeAges(net::HybridNetwork)
             continue
         end
         for e in n.edge
-            if getParent(e) == n # n parent of e
-                childnode = getChild(e)
+            if getparent(e) == n # n parent of e
+                childnode = getchild(e)
                 childIndex = getIndex(childnode, net.nodes_changed)
                 x[i] = x[childIndex] + e.length
                 break # use 1st child, ignores all others
@@ -210,7 +214,7 @@ end
 
 """
     calibrateFromPairwiseDistances!(net, distances::Matrix{Float64},
-        taxon_names::Vector{String})
+        taxon_names::Vector{<:AbstractString})
 
 Calibrate the network to match (as best as possible) input
 pairwise distances between taxa, such as observed from sequence data.
@@ -236,7 +240,7 @@ optional arguments (default):
 - verbose (false)
 """
 function calibrateFromPairwiseDistances!(net::HybridNetwork,
-      D::Array{Float64,2}, taxNames::Vector{String};
+      D::Array{Float64,2}, taxNames::Vector{<:AbstractString};
       checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
       ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
       ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
@@ -278,12 +282,12 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
         hybGParentI = Int[] # index in 1:nparams of minor (grand-)parent in param list
         for i in hybInd
             n = net.nodes_changed[i]
-            p = getMinorParent(n)
+            p = getparentminor(n)
             pi = findfirst(n -> n===p, net.nodes_changed)
             push!(hybParentInd, pi)
             pii = findfirst(isequal(pi), parind)
             while pii===nothing # in case minor parent of n is also hybrid node
-                p = getMinorParent(p)
+                p = getparentminor(p)
                 pi = findfirst(n -> n===p, net.nodes_changed)
                 pii = findfirst(isequal(pi), parind)
             end
@@ -324,8 +328,8 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
           nii = findfirst(isequal(i), parind)
         end
         for e in n.edge
-          if getChild(e) == n # n child of e
-            p = getParent(e)  # parent of n
+          if getchild(e) == n # n child of e
+            p = getparent(e)  # parent of n
             if forceMinorLength0 && n.hybrid && !e.isMajor
                 continue; end # p and n at same age already
             pi = findfirst(isequal(p.number), [no.number for no in net.nodes_changed])

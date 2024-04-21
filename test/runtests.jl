@@ -10,7 +10,7 @@ using CSV # for reading files
 using DataFrames
 using Distributed # parallel in test_correctLik.jl and test_bootstrap.jl
 using GLM # for coef, nobs, residuals etc.
-using LinearAlgebra: norm, diag, logdet # LinearAlgebra.rotate! not brought into scope
+using LinearAlgebra: norm, diag, logdet, PosDefException # LinearAlgebra.rotate! not brought into scope
 using Random
 using StaticArrays # for rate substitution matrices
 using Statistics
@@ -86,7 +86,7 @@ tests = [
     "test_badDiamII.jl",
     "test_multipleAlleles.jl",
     "test_bootstrap.jl",
-    "test_perfectData.jl", # "test_readme.jl"
+    "test_perfectData.jl",
     "test_moves_semidirected.jl",
     "test_lm.jl", "test_lm_tree.jl", "test_traits.jl", "test_simulate.jl", "test_simulate_mbd.jl",
     "test_lm_withinspecies.jl",

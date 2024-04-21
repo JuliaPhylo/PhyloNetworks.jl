@@ -453,7 +453,7 @@ function treeEdgesBootstrap(net::Vector{HybridNetwork}, net0::HybridNetwork)
     @info """edge numbers in the data frame correspond to the current edge numbers in the network.
        If the network is modified, the edge numbers in the (modified) network might not correspond
        to those in the bootstrap table. Plot the bootstrap values onto the current network with
-       plot(network_name, edgeLabel=bootstrap_table_name)"""
+       plot(network_name, edgelabel=bootstrap_table_name)"""
     return df, tree0
 end
 
@@ -663,13 +663,13 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
     skipone = (!rooted && length(reftre.node[reftre.root].edge)<3) # not count same bipartition twice
     for pe in reftre.edge
         hwc = hardwiredCluster(pe,taxa) # not very efficient, but human readable
-        if skipone && refnet.node[refnet.root] ≡ getParent(pe) && sum(hwc)>1
+        if skipone && refnet.node[refnet.root] ≡ getparent(pe) && sum(hwc)>1
             skipone = false             # wrong algo for trivial 2-taxon rooted tree (A,B);
             println("skip edge $(pe.number)")
         else
             push!(clade, hwc)
             push!(treeedge, pe.number)
-            cn = getChild(pe) # child node of pe
+            cn = getchild(pe) # child node of pe
             push!(treenode, cn.number)
             push!(leafname, (cn.leaf ? cn.name : ""))
         end
@@ -691,11 +691,11 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
         push!(minsisedge, hemin.number)
         for sis in ["min","maj"]
           he = (sis=="min" ? hemin : hemaj)
-          pn = getParent(he) # parent node of sister (origin of gene flow if minor)
+          pn = getparent(he) # parent node of sister (origin of gene flow if minor)
           atroot = (!rooted && pn ≡ net0.node[net0.root]) # polytomy at root pn of degree 3: will exclude one child edge
           hwc = zeros(Bool,ntax) # new binding each time. pushed to clade below.
           for ce in pn.edge    # important if polytomy
-            if ce ≢ he && pn ≡ getParent(ce)
+            if ce ≢ he && pn ≡ getparent(ce)
                 hw = hardwiredCluster(ce,taxa)
                 if atroot && any(hw .& clade[ic]) # sister clade intersects child clade
                     (hw .& clade[ic]) == clade[ic] ||
@@ -714,7 +714,7 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
           if sis=="min"  # need to get clade not in main tree: hybrid + minor sister
             pe = nothing # looking for the (or one) parent edge of pn
             for ce in pn.edge
-              if pn ≡ getChild(ce)
+              if pn ≡ getchild(ce)
                   pe=ce
                   break
               end
@@ -792,13 +792,13 @@ function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwo
             hardwiredCluster!(hwcChi,hemin,taxa)
             for sis in ["min","maj"]
                 he = (sis=="min" ? hemin : hemaj)
-                pn = getParent(he) # parent of hybrid edge
+                pn = getparent(he) # parent of hybrid edge
                 atroot = (!rooted && pn ≡ net1.node[net1.root])
                 # if at root: exclude the child edge in the same cycle as he.
                 # its cluster includes hwcChi. all other child edges do not interest hwcChi.
                 # if (atroot) @show i; @warn "$(sis)or edge is at the root!"; end
                 for ce in pn.edge
-                  if ce ≢ he && pn ≡ getParent(ce)
+                  if ce ≢ he && pn ≡ getparent(ce)
                     hwc = hardwiredCluster(ce,taxa)
                     if !atroot || sum(hwc .& hwcChi) == 0 # empty intersection
                       if (sis=="maj") hwcSib .|= hwc;

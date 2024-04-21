@@ -25,6 +25,7 @@ module PhyloNetworks
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
     using FASTX
+    using Functors: fmap
     using GLM # for the lm function
     using NLopt # for branch lengths optimization
     using StaticArrays
@@ -34,6 +35,7 @@ module PhyloNetworks
 
     import Base: show
     import GLM: ftest
+    import StatsModels: coefnames
 
     const DEBUGC = false # even more debug messages
     global CHECKNET = false # for debugging only
@@ -51,6 +53,10 @@ module PhyloNetworks
         writeSubTree!,
         hybridlambdaformat,
         deleteleaf!,
+        deleteaboveLSA!,
+        removedegree2nodes!,
+        shrink2cycles!,
+        shrink3cycles!,
         printEdges,
         printNodes,
         sorttaxa!,
@@ -63,16 +69,31 @@ module PhyloNetworks
         readPhylip2CF,
         mapAllelesCFtable,
         readInputTrees,
-        readNexusTrees,
+        readnexus_treeblock,
         summarizeDataCF,
         snaq!,
         readSnaqNetwork,
         topologyMaxQPseudolik!,
         topologyQPseudolik!,
+        ## getters
+        # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
+        getroot,
+        isrootof,
+        isleaf,
+        isexternal,
+        isparentof,
+        ischildof,
+        hassinglechild,
+        getchild,
+        getchildren,
+        getchildedge,
+        getparent,
+        getparents,
+        getparentminor,
+        getparentedge,
+        getparentedgeminor,
+        getpartneredge,
         ## Network Manipulation
-        # getParent, getParents, getMajorParentEdge, getMinorParentEdge, getChildren,
-        # functions above: first rename them throughout to be consistent with other packages, like:
-        # parent child parents children parentmajor parentminor ancestor sibling offspring
         rootatnode!,
         rootonedge!,
         directEdges!,
@@ -94,7 +115,6 @@ module PhyloNetworks
         biconnectedComponents,
         blobDecomposition!,
         blobDecomposition,
-        mapindividuals,
         nni!,
         checkroot!,
         treeedgecomponents,

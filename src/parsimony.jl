@@ -179,14 +179,14 @@ function parsimonyBottomUpSoftwired!(node::Node, blobroot::Node, nchar::Integer,
         return nothing # isExtBadTriangle=dummy leaf: root of another blob
     end
     for e in node.edge
-        if (e.hybrid && e.fromBadDiamondI) || getChild(e) == node continue; end # fromBadDiamondI= edge switched off
-        son = getChild(e)
+        if (e.hybrid && e.fromBadDiamondI) || getchild(e) == node continue; end # fromBadDiamondI= edge switched off
+        son = getchild(e)
         parsimonyBottomUpSoftwired!(son, blobroot, nchar, w, parsimonyscore)
     end
     for s in 1:nchar
         for e in node.edge
-            if (e.hybrid && e.fromBadDiamondI) || getChild(e) == node continue; end
-            son = getChild(e)
+            if (e.hybrid && e.fromBadDiamondI) || getchild(e) == node continue; end
+            son = getchild(e)
             bestMin = Inf # best score from to this one child starting from s at the node
             for sf in 1:nchar # best assignement for the son
                 minpars = parsimonyscore[son.number,sf]
@@ -371,26 +371,31 @@ function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetw
     end
 end
 
-function readFastaToArray(filename::String)
+"""
+    readFastaToArray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
+
+Read a fasta-formatted file. Return a tuple `species, sequences`
+where `species` is a vector of Strings with identifier names, and
+`sequences` is a vector of BioSequences, each of type `sequencetype`
+(DNA by default).
+
+**Warnings**:
+- assumes a *semi-sequential* format, *not interleaved*. More specifically,
+  each taxon name should appear only once. For this one time, the corresponding
+  sequence may be broken across several lines though.
+- fails if all sequences aren't of the same length
+"""
+function readFastaToArray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
     reader = FASTX.FASTA.Reader(open(filename))
-    #dat = Dict{String, }()
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
     for record in reader
-        #push!(dat, FASTA.identifier(record) => sequence(record))
-        push!(sequences, sequence(record))
-        push!(species, FASTA.identifier(record))
+        push!(sequences, FASTX.sequence(sequencetype, record))
+        push!(species, FASTX.identifier(record))
     end
     seqlengths = [length(s) for s in sequences] # values(dat)
     nsites, tmp = extrema(seqlengths)
     nsites == tmp || error("sequences not of same lengths: from $nsites to $tmp sites")
-    """
-    fixit:
-    - deleteat!(seq::BioSequence, i::Integer) to delete all but 1 site with identical patterns
-    - calculate and output the weights
-    - also delete invariant sites
-    - clever: change AACC to 0011 because score AACC=AATT=CCTT etc. Sort, keep uniques.
-    """
     return species, sequences
 end
 
@@ -406,6 +411,10 @@ Return a tuple containing:
    followed by a column for each site pattern, in columns 2-npatterns;
 2. array of weights, one weight for each of the site columns.
    The length of the weight vector is equal to npatterns.
+
+**Warning**: assumes a *semi-sequential* format, *not interleaved*,
+where each taxon name appears only once. For this one time, the corresponding
+sequence may be broken across several lines though.
 """
 function readfastatodna(fastafile::String, countPatterns=false::Bool)
     reader = FASTX.FASTA.Reader(open(fastafile))
@@ -414,18 +423,20 @@ function readfastatodna(fastafile::String, countPatterns=false::Bool)
     firstspecies = Bool(true)
     nsites = 0
     for record in reader #by species (row)
+        myseq = FASTX.sequence(BioSequences.LongDNA{4}, record)
+        seqlen = length(myseq)
         if firstspecies
-            nsites = length(sequence(record))
-            for site in 1:nsites # initialize an array for each site
+            nsites = seqlen
+            for _ in 1:nsites # initialize an array for each site
                 push!(siteList, Vector{BioSequences.DNA}(undef, 0))
             end
             firstspecies = false
         end
-        push!(species, FASTA.identifier(record)) #adds species name to end of species vector
-        length(sequence(record)) == nsites || error("sequences of different length: current sequences is ", 
-            length(sequence(record)), " long while first sequence is ", nsites, " long")
+        push!(species, FASTA.identifier(record))
+        seqlen == nsites || error("sequences of different length: current sequences is ",
+                seqlen, " long while first sequence is ", nsites, " long")
         for site in 1:nsites
-            push!(siteList[site], sequence(record)[site])
+            push!(siteList[site], myseq[site])
         end
     end
 
@@ -670,11 +681,11 @@ function parsimonyGF(net::HybridNetwork, species::Array{String},
     for melist in minorEdges # minor edge list for one single blob + loop over blobs
         guessedparentBlob = Node[]
         for e in melist
-            p = getParent(e)
+            p = getparent(e)
             if p ∉ guessedparentBlob
               push!(guessedparentBlob, p)
               for e2 in p.edge
-                p == getParent(e2) || continue
+                p == getparent(e2) || continue
                 e2.fromBadDiamondI = true # cut the edge: not followed in recursive call
               end
             end
@@ -696,14 +707,14 @@ function parsimonyGF(net::HybridNetwork, species::Array{String},
     # first: calculate inCycle = # of detached parents
     for e in net.edge
         e.fromBadDiamondI || continue # to next edge if current edge not cut
-        n = getChild(e)
+        n = getchild(e)
         n.inCycle += 1
     end
     # second: make inCycle = 0 if node has a non-detached parent
     for n in net.node
         n.inCycle > 0 || continue # to next node if inCycle = 0 already
         for e in n.edge
-            n == getChild(e) || continue
+            n == getchild(e) || continue
             !e.fromBadDiamondI || continue
             n.inCycle = 0 # if e parent of n and e not cut: make inCycle 0
             break
@@ -868,14 +879,14 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     if !node.leaf && (!node.isExtBadTriangle || node == blobroot)
     # isExtBadTriangle=dummy leaf: root of another blob
     for e in node.edge # post-order traversal according to major tree: detached edges were minor.
-        if !e.isMajor || getChild(e) == node continue; end # Even if we didn't visit one parent (yet),
-        son = getChild(e) # that parent is a minor parent with an assigned guessed state.
+        if !e.isMajor || getchild(e) == node continue; end # Even if we didn't visit one parent (yet),
+        son = getchild(e) # that parent is a minor parent with an assigned guessed state.
         parsimonyBottomUpGF!(son, blobroot, nchar, w, parsimonyscore, costmatrix1, costmatrix2)
     end
     # check to see if "node" has guessed value: by checking to see if all its children edges were cut
     cutparent = false
     for e in node.edge
-        if getChild(e) == node continue; end
+        if getchild(e) == node continue; end
         if e.fromBadDiamondI # if true: one child edge is cut, so all are cut
             cutparent = true
             break
@@ -883,13 +894,13 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     end
     if !cutparent # look at best assignment of children, to score each assignment at node
         for e in node.edge # avoid edges that were cut: those for which fromBadDiamondI is true
-            son = getChild(e)
+            son = getchild(e)
             if son == node continue; end
             bestpars = [Inf for s in 1:nchar] # best score, so far, for state s at node.
             # calculate cost to go from each s (and from parents' guesses, stored in w) to son state:
             if son.hybrid
                 # find potential other parent of son, detached with guessed states
-                p2 = getMinorParent(son)
+                p2 = getparentminor(son)
                 k = findfirst(isequal(0.0), w[p2.number, 1:nchar]) # guess made for parent p2
                 for sfinal in 1:nchar
                     pars = parsimonyscore[son.number, sfinal] .+ costmatrix2[k][1:nchar,sfinal]
@@ -926,7 +937,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     cost = 0.0 # variable external to 'for' loops below
     if node.inCycle == 1 # 1 detached parent, no non-detached parents
         for e in node.edge
-            par = getParent(e)
+            par = getparent(e)
             if par == node continue; end
             # now 'par' is the single detached parent
             k = findfirst(isequal(0.0), w[par.number, 1:nchar]) # guess at parent
@@ -938,7 +949,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     else # node.inCycle should be 2: 2 detached parents
         k1 = 0 # guess made on first detached parent
         for e in node.edge
-            par = getParent(e)
+            par = getparent(e)
             if par == node continue; end
             # now 'par' is one of the 2 guessed parents
             if k1 == 0
@@ -992,7 +1003,7 @@ All return their optimized network. Only maxParsimonyNet returns a rooted networ
   to modify the topology according to random NNI/move origin/move target moves. It then calls maxParsimonyNetRun1!
   on the modified network
 - maxParsimonyNetRun1! proposes new network with various moves (same moves as snaq), and stops when it finds the
-  most parsimonious network, using [`parsimonyGF`](@ref).
+  most parsimonious network, using [`parsimonyGF`](@ref PhyloNetworks.parsimonyGF).
 
 None of these functions allow for multiple alleles yet.
 
@@ -1044,7 +1055,7 @@ function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Inte
             flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,false) #N=10 because with 1 it never finds an edge for nni
             newTr = deepcopy(newT) ##rooted version only to compute parsimony
             try
-                rootatnode!(newTr,outgroup; verbose=false)
+                rootatnode!(newTr,outgroup)
             catch
                 flag = false
             end

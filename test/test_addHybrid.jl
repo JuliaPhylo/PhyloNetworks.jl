@@ -13,19 +13,19 @@ Random.seed!(5432);
 @test tree.numHybrids == 1
 @test !isnothing(PhyloNetworks.addhybridedge!(tree, true, true)) # should be able to add a hybrid
 @test tree.numHybrids == 2
-@test !any([n.hybrid for n in PhyloNetworks.getParents(tree.hybrid[2])]) # tests if network is treechild
+@test !any([n.hybrid for n in PhyloNetworks.getparents(tree.hybrid[2])]) # tests if network is treechild
 
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 netl1 = readTopology(str_level1)
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, true, true))
 @test netl1.numHybrids == 3
-@test !any([n.hybrid for n in PhyloNetworks.getParents(netl1.hybrid[3])]) # tests if network has no hybrid ladder
+@test !any([n.hybrid for n in PhyloNetworks.getparents(netl1.hybrid[3])]) # tests if network has no hybrid ladder
 
 netl1 = readTopology(str_level1)
 newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
 @test netl1.numHybrids == 3
-PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getMinorParentEdge(newhybridnode))
+PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getparentedgeminor(newhybridnode))
 @test hardwiredClusterDistance(netl1, readTopology(str_level1), true) == 0
 end # of addhybridedge! top function
 
@@ -35,8 +35,8 @@ str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 netl1 = readTopology(str_level1)
 newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, netl1.edge[3], netl1.edge[9], true, 0.0, 0.2)
 @test newhybridnode.hybrid
-@test PhyloNetworks.getMajorParentEdge(newhybridnode).gamma == 0.8
-@test PhyloNetworks.getMinorParentEdge(newhybridnode).gamma == 0.2
+@test PhyloNetworks.getparentedge(newhybridnode).gamma == 0.8
+@test PhyloNetworks.getparentedgeminor(newhybridnode).gamma == 0.2
 netl1 = readTopology(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[15], netl1.edge[3], true))
 @test writeTopology(netl1) == "(((((((S1,S4),(S5)#H1),(#H1,(S6,S7))),#H3))#H2,((S8,S9))#H3),(#H2,S10));"
@@ -69,12 +69,12 @@ netl1 = readTopology(str_level1);
 
 # directional: throws error if the new network would not be a DAG, e.g. if edge 1 is a directed descendant of edge 2
 # case 6
-nodeS145 = PhyloNetworks.getParent(netl1.edge[6])
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[15], true)
+nodeS145 = PhyloNetworks.getparent(netl1.edge[6])
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[15], true)
 # case 2
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[18], true)
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[18], true)
 # case 3 (bad hybrid edge choice leads to a nonDAG)
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[20], true)
-@test PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[4], false)
-@test !PhyloNetworks.directionalconflict(netl1, nodeS145, netl1.edge[4], true)
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[20], true)
+@test PhyloNetworks.directionalconflict(nodeS145, netl1.edge[4], false)
+@test !PhyloNetworks.directionalconflict(nodeS145, netl1.edge[4], true)
 end # of edge checking functions

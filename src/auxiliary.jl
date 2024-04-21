@@ -148,45 +148,204 @@ function setNode!(edge::Edge,node::Array{Node,1})
 end
 
 """
-    getChild(edge::Edge)
+    getroot(net)
 
-Return child node using the `isChild1` attribute of the edge.
-"""
-@inline function getChild(edge::Edge)
-    edge.node[edge.isChild1 ? 1 : 2]
-end
+Node used to root `net`. If `net` is to be considered as semi-directed or
+unrooted, this root node is used to write the networks' Newick parenthetical
+description or for network traversals.
 
-# getParents defined in manipulateNet.jl
+See also: [`isrootof`](@ref)
 """
-    getParent(e::Edge)
-
-Return parent node of edge `e` using the `isChild1` attribute of the edge.
-To get parents of nodes: see [`getParents`](@ref).
-"""
-@inline function getParent(edge::Edge)
-    edge.node[edge.isChild1 ? 2 : 1]
-end
+getroot(net::HybridNetwork) = net.node[net.root]
 
 """
-    getPartner(edge::Edge)
-    getPartner(edge::Edge, node::Node)
+    isrootof(node, net)
 
-Return hybrid partner of edge, that is, hybrid edge pointing to the same
-child as `edge`. Assumptions (not checked):
+`true` if `node` is the root of `net` (or used as such for network traversals
+in case the network is considered as semi-directed); `false` otherwise.
 
-- correct `isChild1` field for `edge` and for hybrid edges
-- no in-coming polytomy: a node has 0, 1 or 2 parents, no more
+    isleaf(node)
+    isexternal(edge)
 
-When `node` is given, it is assumed to be the child of `edge`
-(the first form calls the second).
+`true` if `node` is a leaf or `edge` is adjacent to a leaf, `false` otherwise.
+
+See also: [`getroot`](@ref),
+[`getparent`](@ref), [`getchild`](@ref)
 """
-@inline function getPartner(edge)
-    node = getChild(edge)
-    getPartner(edge, node)
-end
-@inline function getPartner(edge::Edge, node::Node)
+isrootof(node::Node, net::HybridNetwork) = node === getroot(net)
+
+@doc (@doc isrootof) isleaf
+isleaf(node::Node) = node.leaf
+
+@doc (@doc isrootof) isexternal
+isexternal(edge::Edge) = any(isleaf.(edge.node))
+
+"""
+    isparentof(node, edge)
+    ischildof(node, edge)
+
+`true` if `node` is the tail / head, or parent / child, of `edge`; `false` otherwise.
+Assumes that the edge's direction is correct, meaning it's field `isChild1` is
+reliable (in sync with the rooting).
+
+See also: [`getparent`](@ref), [`getchild`](@ref), [`isrootof`](@ref)
+"""
+isparentof(node::Node, edge::Edge) = node === getparent(edge)
+@doc (@doc isparentof) ischildof
+ischildof( node::Node, edge::Edge) = node === getchild(edge)
+
+"""
+    hassinglechild(node)
+
+`true` if `node` has a single child, based on the edges' `isChild1` field;
+`false` otherwise.
+
+See also: [`getchild`](@ref), [`getparent`](@ref)
+"""
+hassinglechild(node::Node) = sum(e -> getparent(e) === node, node.edge) == 1
+
+"""
+    getchild(edge)
+    getchild(node)
+    getchildren(node)
+
+Get child(ren) **node(s)**.
+- `getchild`: single child node of `edge`, or of `node` after checking that
+  `node` has a single child.
+- `getchildren`: vector of all children *nodes* of `node`.
+
+
+    getchildedge(node)
+
+Single child **edge** of `node`. Checks that it's a single child.
+
+*Warning*: these functions rely on correct edge direction, via their `isChild1` field.
+
+See also:
+[`getparent`](@ref),
+[`getpartneredge`](@ref),
+[`isparentof`](@ref),
+[`hassinglechild`](@ref).
+"""
+getchild(edge::Edge) = edge.node[edge.isChild1 ? 1 : 2]
+getchild(node::Node) = getchild(getchildedge(node))
+
+@doc (@doc getchild) getchildren
+function getchildren(node::Node)
+    children = Node[]
     for e in node.edge
-        if e.hybrid && e !== edge && node === getChild(e)
+        if isparentof(node, e)
+            push!(children, getchild(e))
+        end
+    end
+    return children
+end
+
+@doc (@doc getchild) getchildedge
+function getchildedge(node::Node)
+    ce_ind = findall(e -> isparentof(node, e), node.edge)
+    length(ce_ind) == 1 || error("node number $(node.number) has $(length(ce_ind)) children instead of 1 child")
+    return node.edge[ce_ind[1]]
+end
+
+"""
+    getparent(edge)
+    getparent(node)
+    getparentminor(node)
+    getparents(node)
+
+Get parental **node(s)**.
+- `getparent`: **major** (or only) parent node of `edge` or `node`
+- `getparentminor`: minor parent node of `node`
+- `getparents`: vector of all parent nodes of `node`.
+
+
+    getparentedge(node)
+    getparentedgeminor(node)
+
+Get one parental **edge** of a `node`.
+- `getparentedge`: major parent edge. For a tree node, it's its only parent edge.
+- `getparentedgeminor`: minor parent edge, if `node` is hybrid
+  (with an error if `node` has no minor parent).
+If `node` has multiple major (resp. minor) parent edges, the first one would be
+returned without any warning or error.
+
+*Warning*: these functions use the field `isChild1` of edges.
+
+See also: [`getchild`](@ref),
+[`getpartneredge`](@ref).
+"""
+getparent(edge::Edge) = edge.node[edge.isChild1 ? 2 : 1]
+@inline function getparent(node::Node)
+    for e in node.edge
+        if e.isMajor && ischildof(node, e)
+            return getparent(e)
+        end
+    end
+    error("could not find major parent of node $(node.number)")
+end
+
+@doc (@doc getparent) getparentminor
+@inline function getparentminor(node::Node)
+    for e in node.edge
+        if !e.isMajor && node == getchild(e)
+            return getparent(e)
+        end
+    end
+    error("could not find minor parent of node $(node.number)")
+end
+
+@doc (@doc getparent) getparents
+@inline function getparents(node::Node)
+    parents = Node[]
+    for e in node.edge
+        if ischildof(node, e)
+            push!(parents, getparent(e))
+        end
+    end
+    return parents
+end
+
+@doc (@doc getparent) getparentedge
+@inline function getparentedge(n::Node)
+    for ee in n.edge
+        if ee.isMajor && ischildof(n,ee)
+            return ee
+        end
+    end
+    error("node $(n.number) has no major parent")
+end
+@doc (@doc getparent) getparentedgeminor
+@inline function getparentedgeminor(n::Node)
+    for ee in n.edge
+        if !ee.isMajor && n == ee.node[(ee.isChild1 ? 1 : 2)]
+            return ee
+        end
+    end
+    error("node $(n.number) has no minor parent")
+end
+
+"""
+    getpartneredge(edge::Edge)
+    getpartneredge(edge::Edge, node::Node)
+
+Edge that is the hybrid partner of `edge`, meaning that is has the same child
+`node` as `edge`. This child `node` is given as an argument in the second method.
+Assumptions, not checked:
+
+- no in-coming polytomy: a node has 0, 1 or 2 parents, no more
+- when `node` is given, it is assumed to be the child of `edge`
+  (the first method calls the second).
+
+See also: [`getparent`](@ref), [`getchild`](@ref)
+"""
+@inline function getpartneredge(edge)
+    node = getchild(edge)
+    getpartneredge(edge, node)
+end
+@inline function getpartneredge(edge::Edge, node::Node)
+    for e in node.edge
+        if e.hybrid && e !== edge && node === getchild(e)
             return e
         end
     end
@@ -215,7 +374,7 @@ childindices = findall( isequal(:child), labs)  # vector. could be empty
 ```
 """
 function edgerelation(ee::Edge, n::Node, origin::Edge)
-    (ee===origin ? :origin : (n===getChild(ee) ? :parent : :child))
+    (ee===origin ? :origin : (n===getchild(ee) ? :parent : :child))
 end
 
 # -------------- NODE -------------------------#
@@ -229,48 +388,7 @@ function getOtherNode(edge::Edge, node::Node)
   edge.node[1] === node ? edge.node[2] : edge.node[1]
 end
 
-# get[Major|Minor]ParentEdge and getChildren: defined in manipulateNet.jl
-"""
-    getMajorParent(node)
-    getMinorParent(node)
 
-Return major or minor parent of a node using the `isChild1` field of edges
-(and assuming correct `isMajor` field).
-See also [`getMajorParentEdge`](@ref) and [`getMinorParentEdge`](@ref)
-"""
-@inline function getMajorParent(node::Node)
-    for e in node.edge
-        if e.isMajor && node == getChild(e)
-            return getParent(e)
-        end
-    end
-    error("could not find major parent of node $(node.number)")
-end
-@doc (@doc getMajorParent) getMinorParent
-@inline function getMinorParent(node::Node)
-    for e in node.edge
-        if !e.isMajor && node == getChild(e)
-            return getParent(e)
-        end
-    end
-    error("could not find minor parent of node $(node.number)")
-end
-"""
-    getChildEdge(node::Node)
-
-Return child edge below a hybrid node.
-
-Warning: Does not check that the node is a hybrid.
-If not a hybrid, returns the first child edge.
-"""
-@inline function getChildEdge(node::Node)
-    for e in node.edge
-        if node === getParent(e)
-            return e
-        end
-    end
-    error("could not find child edge of node $(node.number)")
-end
 
 # -------------- NETWORK ----------------------- #
 
@@ -371,17 +489,6 @@ function getIndexHybrid(node::Node, net::Network)
     return i
 end
 
-# function that given a hybrid node, it gives you the minor hybrid edge
-# warning: assumes level-1 network: see getMinorParentEdge for a general network
-function getHybridEdge(node::Node)
-    node.hybrid || error("node $(node.number) is not hybrid node, cannot get hybrid edges")
-    a = nothing;
-    for e in node.edge
-        (e.hybrid && !e.isMajor) ? a = e : nothing; # assumes level-1: child of hybrid node must be a tree edge
-    end
-    isa(a,Nothing) ? error("hybrid node $(node.number) does not have minor hybrid edge, edges: $([e.number for e in node.edge])") : return a
-end
-
 
 # function that given two nodes, it gives you the edge that connects them
 # returns error if they are not connected by an edge
@@ -466,11 +573,13 @@ end
 
 """
     deleteNode!(net::HybridNetwork, n::Node)
+    deleteNode!(net::QuartetNetwork, n::Node)
 
 Delete node `n` from a network, i.e. removes it from
 net.node, and from net.hybrid or net.leaf as appropriate.
 Update attributes `numNodes`, `numTaxa`, `numHybrids`.
-Warning: `net.names` is *not* updated.
+Warning: `net.names` is *not* updated, and this is a feature (not a bug)
+for networks of type QuartetNetwork.
 
 Warning: if the root is deleted, the new root is arbitrarily set to the
 first node in the list. This is intentional to save time because this function
@@ -496,13 +605,6 @@ function deleteNode!(net::HybridNetwork, n::Node)
     end
 end
 
-# function to delete a Node in net.node and
-# update numNodes and numTaxa for QuartetNetwork
-# if hybrid node, it deletes also from net.hybrid
-# and updates numHybrids
-# note that net.names is never updated to keep it
-# accurate
-# if n is leaf, we delete from qnet.leaf
 function deleteNode!(net::QuartetNetwork, n::Node)
     index = findfirst(no -> no.number == n.number, net.node)
     # isEqual (from above) checks for more than node number
@@ -521,7 +623,7 @@ function deleteNode!(net::QuartetNetwork, n::Node)
 end
 
 """
-    deleteEdge!(net::HybridNetwork,  e::Edge, part=true)
+    deleteEdge!(net::HybridNetwork,  e::Edge; part=true)
     deleteEdge!(net::QuartetNetwork, e::Edge)
 
 Delete edge `e` from `net.edge` and update `net.numEdges`.
@@ -579,36 +681,24 @@ end
 # function to delete an internal node with only 2 edges
 function deleteIntNode!(net::Network, n::Node)
     size(n.edge,1) == 2 || error("node $(n.number) does not have only two edges")
-#    isEqual(n,net.node[net.root]) && println("deleting the root $(n.number) because it has only two edges attached")
     index = n.edge[1].number < n.edge[2].number ? 1 : 2;
-    edge1 = n.edge[index];
-    edge2 = n.edge[index==1 ? 2 : 1];
-    if(!edge1.hybrid && !edge2.hybrid)
-        node1 = getOtherNode(edge1,n);
-        node2 = getOtherNode(edge2,n);
-        removeEdge!(node2,edge2);
-        removeNode!(n,edge1);
-        setEdge!(node2,edge1);
-        setNode!(edge1,node2);
-        deleteNode!(net,n);
-        deleteEdge!(net,edge2);
-    else
-        @warn "the two edges $([edge1.number,edge2.number]) attached to node $(n.number) must be tree edges to delete node"
-        if(edge1.hybrid)
-            hybedge = edge1
-            otheredge = edge2
-        elseif(edge2.hybrid)
-            hybedge = edge2
-            otheredge = edge1
+    edge1 = n.edge[index]; # edge1 will be kept
+    edge2 = n.edge[index==1 ? 2 : 1] # we will delete edge2 and n, except if edge2 is hybrid
+    if edge2.hybrid
+        (edge2, edge1) = (edge1, edge2)
+        if getchild(edge1) === n || edge2.hybrid
+            @error "node with incoming hybrid edge or incident to 2 hybrid edges: will not be removed"
+            return nothing
         end
-        othernode = getOtherNode(otheredge,n)
-        removeNode!(n,hybedge)
-        removeEdge!(othernode,otheredge)
-        setEdge!(othernode,hybedge)
-        setNode!(hybedge,othernode)
-        deleteNode!(net,n)
-        deleteEdge!(net,otheredge)
     end
+    node2 = getOtherNode(edge2,n)
+    removeEdge!(node2,edge2)
+    removeNode!(n,edge1)
+    setEdge!(node2,edge1)
+    setNode!(edge1,node2)
+    deleteNode!(net,n)
+    deleteEdge!(net,edge2)
+    return nothing
 end
 
 
@@ -651,7 +741,7 @@ function printEdges(io::IO, net::HybridNetwork)
     miss = ""
     println(io, "edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable")
     for e in net.edge
-        @printf(io, "%-4d %-6d %-6d ", e.number, getParent(e).number, getChild(e).number)
+        @printf(io, "%-4d %-6d %-6d ", e.number, getparent(e).number, getchild(e).number)
         if e.length==-1.0 @printf(io, "%-7s ", miss); else @printf(io, "%-7.3f ", e.length); end
         @printf(io, "%-6s %-7s ", e.hybrid, e.isMajor)
         if e.gamma==-1.0  @printf(io, "%-7s ", miss); else @printf(io, "%-7.4g ", e.gamma); end
@@ -662,7 +752,7 @@ end
 function printEdges(io::IO, net::QuartetNetwork)
     println(io, "edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable")
     for e in net.edge
-        @printf(io, "%-4d %-6d %-6d ", e.number, getParent(e).number, getChild(e).number)
+        @printf(io, "%-4d %-6d %-6d ", e.number, getparent(e).number, getchild(e).number)
         @printf(io, "%-7.3f %-6s %-7s ", e.length, e.hybrid, e.isMajor)
         @printf(io, "%-7.4g %-11s %-7d %-5s\n", e.gamma, e.containRoot, e.inCycle, e.istIdentifiable)
     end
@@ -897,12 +987,12 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
-    node = getChild(edge) # child of hybrid edge
+    node = getchild(edge) # child of hybrid edge
     node.hybrid || @warn "hybrid edge $(edge.number) not pointing at hybrid node"
     # @debug (node.isBadDiamondI ? "bad diamond situation: gamma not identifiable" : "")
     partner = Edge[] # list of other hybrid parents of node, other than edge
     for e in node.edge
-        if e.hybrid && e != edge && node == getChild(e)
+        if e.hybrid && e != edge && node == getchild(e)
             push!(partner, e)
         end
     end
@@ -1460,11 +1550,54 @@ This makes the network not treechild, assuming it is fully resolved.
 """
 function hashybridladder(net::HybridNetwork)
     for h in net.hybrid
-        if any(n.hybrid for n in getParents(h))
+        if any(n.hybrid for n in getparents(h))
             return true
         end
     end
     return false
+end
+
+"""
+    shrinkedge!(net::HybridNetwork, edge::Edge)
+
+Delete `edge` from net, provided that it is a non-external tree edge.
+Specifically: delete its child node (as determined by `isChild1`) and connect
+all edges formerly incident to this child node to the parent node of `edge`,
+thus creating a new polytomy, unless the child was of degree 2.
+
+Warning: it's best for `isChild1` to be in sync with the root for this. If not,
+the shrinking may fail (if `edge` is a tree edge but its "child" is a hybrid)
+or the root may change arbitrarily (if the child of `edge` is the root).
+
+Output: true if the remaining node (parent of `edge`) becomes a hybrid node with
+more than 1 child after the shrinking; false otherwise (e.g. no polytomy was
+created, or the new polytomy is below a tree node)
+"""
+function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
+    edge2shrink.hybrid && error("cannot shrink hybrid edge number $(edge2shrink.number)")
+    cn = getchild(edge2shrink)
+    cn.hybrid && error("cannot shrink tree edge number $(edge2shrink.number): its child node is a hybrid. run directEdges! ?")
+    pn = getparent(edge2shrink)
+    isexternal(edge2shrink) &&  # (isleaf(cn) || isleaf(pn)) &&
+      error("won't shrink edge number $(edge2shrink.number): it is incident to a leaf")
+    removeEdge!(pn,edge2shrink)
+    empty!(edge2shrink.node) # should help gc
+    for ee in cn.edge
+        ee !== edge2shrink || continue
+        cn_index = findfirst(x -> x === cn, ee.node)
+        ee.node[cn_index] = pn # ee.isChild1 remains synchronized
+        push!(pn.edge, ee)
+    end
+    pn.hasHybEdge = any(e -> e.hybrid, pn.edge)
+    empty!(cn.edge) # should help to garbage-collect cn
+    deleteEdge!(net, edge2shrink; part=false)
+    deleteNode!(net, cn)
+    badpolytomy = false
+    if pn.hybrid # count the number of pn's children, without relying on isChild1 of tree edges
+        nc = sum((!e.hybrid || getchild(e) !== pn) for e in pn.edge)
+        badpolytomy = (nc > 1)
+    end
+    return badpolytomy
 end
 
 @doc raw"""
@@ -1501,10 +1634,10 @@ function shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
     ih = nh # hybrids deleted from the end
     while ih > 0
         h = net.hybrid[ih]
-        minor = getMinorParentEdge(h)
-        major = getMajorParentEdge(h)
-        pmin = getParent(minor)  # minor parent node
-        pmaj = getMajorParent(h) # major parent node
+        minor = getparentedgeminor(h)
+        major = getparentedge(h)
+        pmin = getparent(minor) # minor parent node
+        pmaj = getparent(major) # major parent node
         if pmin !== pmaj # no 2-cycle
             ih -= 1
             continue
@@ -1561,10 +1694,10 @@ function shrink3cycles!(net::HybridNetwork, unroot=false::Bool)
     ih = nh # hybrids deleted from the end
     while ih > 0
         h = net.hybrid[ih]
-        minor = getMinorParentEdge(h)
-        major = getMajorParentEdge(h)
-        pmin = getParent(minor)  # minor parent node
-        pmaj = getMajorParent(h) # major parent node
+        minor = getparentedgeminor(h)
+        major = getparentedge(h)
+        pmin = getparent(minor) # minor parent node
+        pmaj = getparent(major) # major parent node
         if pmin === pmaj # 2-cycle
             foundcycle = true
             shrink2cycleat!(net, minor, major, unroot)
@@ -1651,7 +1784,7 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
     # identify case type
     if edge3.hybrid # one of the parent nodes is a hybrid
         # to shrink this, delete edge connecting these two nodes (edge3 here)
-        if getChild(edge3) === node1
+        if getchild(edge3) === node1
             node1, node2 = node2, node1
             edge1, edge2 = edge2, edge1
         end # now: node1 --edge3--> node2
@@ -1699,7 +1832,6 @@ end
     adjacentedges(centeredge::Edge)
 
 Vector of all edges that share a node with `centeredge`.
-Warning: assumes that there aren't "duplicated" edges, that is, no 2-cycles.
 """
 function adjacentedges(centeredge::Edge)
     n = centeredge.node
@@ -1707,7 +1839,7 @@ function adjacentedges(centeredge::Edge)
     @inbounds edges = copy(n[1].edge) # shallow copy, to avoid modifying the first node
     @inbounds for ei in n[2].edge
         ei === centeredge && continue # don't add the center edge again
-        # a second edge between nodes n[1] and n[2] would appear twice
+        getOtherNode(ei, n[2]) === n[1] && continue # any parallel edge would have been in `edges` already
         push!(edges, ei)
     end
     return edges
@@ -1715,36 +1847,8 @@ end
 
 #------------------------------------
 function citation()
-    println("If you use PhyloNetworks, please cite:")
-    println("@article{phylonetworks,")
-    println("author = {Sol\'{i}s-Lemus, C. and Bastide, P. and An\'{e}, C.},")
-    println("year = {2017},")
-    println("title = {{PhyloNetworks: a package for phylogenetic networks}},")
-    println("journal = {Molecular Biology and Evolution},")
-    println("volume = {34},")
-    println("number = {12},")
-    println("pages = {3292--3298},")
-    println("pmid = {28961984}}")
-    println("\n")
-    println("If you use SNaQ, please also cite:")
-    println("@article{snaq,")
-    println("author = {Sol\'{i}s-Lemus, C. AND An\'{e}, C.},")
-    println("journal = {PLOS Genetics},")
-    println("title = {Inferring Phylogenetic Networks with Maximum Pseudolikelihood under Incomplete Lineage Sorting},")
-    println("year = {2016},")
-    println("volume = {12},")
-    println("pages = {1--21},")
-    println("number = {3},")
-    println("pmc = {PMC4780787}}")
-    println("\n")
-    println("If you use trait models in networks, please also cite:")
-    println("@article {traits,")
-    println("author = {Bastide, Paul and Sol\'{i}s-Lemus, Claudia and Kriebel, Ricardo and Sparks, Kenneth William and An{\'e}, C{\'e}cile},")
-    println("title = {Phylogenetic Comparative Methods on Phylogenetic Networks with Reticulations},")
-    println("journal = {Systematic Biology},")
-    println("volume = {67},")
-    println("number = {5},")
-    println("pages = {800--820},")
-    println("year = {2018},")
-    println("doi = {10.1093/sysbio/syy033}}")
+    bibfile = joinpath(@__DIR__, "..", "CITATION.bib")
+    out = readlines(bibfile)
+    println("Bibliography in bibtex format also in CITATION.bib")
+    println(join(out,'\n'))
 end

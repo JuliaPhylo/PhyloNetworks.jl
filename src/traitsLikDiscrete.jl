@@ -133,7 +133,7 @@ The `rvsymbol` should be as required by [`RateVariationAcrossSites`](@ref).
 The network's gamma values are modified if they are missing. After that,
 a deep copy of the network is passed to the inner constructor.
 """
-function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::String,
+function StatisticalSubstitutionModel(net::HybridNetwork, fastafile::AbstractString,
         modsymbol::Symbol, rvsymbol=:noRV::Symbol, ratecategories=4::Int;
         maxhybrid=length(net.hybrid)::Int)
     for e in net.edge # check for missing or inappropriate γ values
@@ -449,14 +449,14 @@ end
 
 #species, dat version, no ratemodel
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
-    species::Array{String}, dat::DataFrame; kwargs...)
+    species::Array{<:AbstractString}, dat::DataFrame; kwargs...)
     ratemodel = RateVariationAcrossSites(ncat=1)
     fitdiscrete(net, model, ratemodel, species, dat; kwargs...)
 end
 
 #species, dat version with ratemodel
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
-    ratemodel::RateVariationAcrossSites, species::Array{String},
+    ratemodel::RateVariationAcrossSites, species::Array{<:AbstractString},
     dat::DataFrame; kwargs...)
     dat2 = traitlabels2indices(dat, model) # vec of vec, indices
     o, net = check_matchtaxonnames!(copy(species), dat2, net)
@@ -465,7 +465,7 @@ end
 
 #wrapper: species, dat version with model symbol
 function fitdiscrete(net::HybridNetwork, modSymbol::Symbol,
-    species::Array{String}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
+    species::Array{<:AbstractString}, dat::DataFrame, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     labels = learnlabels(modSymbol, dat)
     if modSymbol == :JC69
@@ -498,7 +498,7 @@ end
 #dnadata with dnapatternweights version with ratemodel
 function fitdiscrete(net::HybridNetwork, model::SubstitutionModel,
     ratemodel::RateVariationAcrossSites,dnadata::DataFrame,
-    dnapatternweights::Array{Float64}; kwargs...)
+    dnapatternweights::Array{<:AbstractFloat}; kwargs...)
     dat2 = traitlabels2indices(dnadata[!,2:end], model)
     o, net = check_matchtaxonnames!(dnadata[:,1], dat2, net)
     kwargs = (:siteweights => dnapatternweights, kwargs...)
@@ -508,7 +508,7 @@ end
 
 #wrapper for dna data
 function fitdiscrete(net::HybridNetwork, modSymbol::Symbol, dnadata::DataFrame,
-    dnapatternweights::Array{Float64}, rvSymbol=:noRV::Symbol; kwargs...)
+    dnapatternweights::Array{<:AbstractFloat}, rvSymbol=:noRV::Symbol; kwargs...)
     rate = startingrate(net)
     if modSymbol == :JC69
         model = JC69([1.0], true)  # 1.0 instead of rate because relative version
@@ -580,7 +580,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         return obj
     end
     if optimizeQ
-        function loglikfun(x::Vector{Float64}, grad::Vector{Float64}) # modifies obj
+        function loglikfun(x::Vector{<:AbstractFloat}, grad::Vector{<:AbstractFloat}) # modifies obj
             setrates!(obj.model, x)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, model rates: $x")
@@ -609,7 +609,7 @@ function fit!(obj::SSM; optimizeQ=true::Bool, optimizeRVAS=true::Bool,
         verbose && println("got $(round(fmax, digits=5)) at $(round.(xmax, digits=5)) after $(optQ.numevals) iterations (return code $(ret))")
     end
     if optimizeRVAS
-        function loglikfunRVAS(alpha::Vector{Float64}, grad::Vector{Float64})
+        function loglikfunRVAS(alpha::Vector{<:AbstractFloat}, grad::Vector{<:AbstractFloat})
             setparameters!(obj.ratemodel, alpha)
             res = discrete_corelikelihood!(obj)
             verbose && println("loglik: $res, rate variation model shape parameter alpha: $(alpha[1])")
@@ -765,7 +765,7 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
             end
         else # forward likelihood = product of direct likelihood over all children edges
             for e in n.edge
-                n == getParent(e) || continue # to next edge if n is not parent of e
+                n == getparent(e) || continue # to next edge if n is not parent of e
                 forwardlik[:,nnum] .+= view(directlik, :,e.number)
             end
         end
@@ -776,7 +776,7 @@ function discrete_corelikelihood_trait!(obj::SSM, t::Integer, ci::Integer, ri::I
         # if we keep going, n is not the root
         # calculate direct likelihood on the parent edge of n
         for e in n.edge
-            if n == getChild(e)
+            if n == getchild(e)
                 lt = view(obj.logtrans, :,:,e.number, ri)
                 for i in 1:k # state at parent node
                     directlik[i,e.number] = logsumexp(view(lt,i,:) + view(forwardlik,:,nnum))
@@ -791,10 +791,14 @@ end
 """
     posterior_logtreeweight(obj::SSM, trait = 1)
 
-Return an array A such that A[t] = log of P(tree `t` and trait `trait`)
-if a single `trait` is requested, or A[i,t]= log of P(tree `t` and trait `i`)
+Array A of log-posterior probabilities for each tree displayed in the network:
+such that A[t] = log of P(tree `t` | trait `trait`)
+if a single `trait` is requested, or A[t,i]= log of P(tree `t` | trait `i`)
 if `trait` is a vector or range (e.g. `trait = 1:obj.nsites`).
 These probabilities are conditional on the model parameters in `obj`.
+
+Displayed trees are listed in the order in which they are stored in the fitted
+model object `obj`.
 
 **Precondition**: `_loglikcache` updated by [`discrete_corelikelihood!`](@ref)
 
@@ -833,6 +837,58 @@ function posterior_logtreeweight(obj::SSM, trait = 1)
     siteliks = mapslices(logsumexp, ts, dims=1) # 1 x ntraits array (or 1-element vector)
     ts .-= siteliks
     return ts
+end
+
+"""
+    posterior_loghybridweight(obj::SSM, hybrid_name, trait = 1)
+    posterior_loghybridweight(obj::SSM, edge_number, trait = 1)
+
+Log-posterior probability for all trees displaying the minor parent edge
+of hybrid node named `hybrid_name`, or displaying the edge number `edge_number`.
+That is: log of P(hybrid minor parent | trait) if a single `trait` is requested,
+or A[i]= log of P(hybrid minor parent | trait `i`)
+if `trait` is a vector or range (e.g. `trait = 1:obj.nsites`).
+These probabilities are conditional on the model parameters in `obj`.
+
+**Precondition**: `_loglikcache` updated by [`discrete_corelikelihood!`](@ref)
+
+# examples
+
+```jldoctest
+julia> net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);");
+
+julia> m1 = BinaryTraitSubstitutionModel([0.1, 0.1], ["lo", "hi"]); # arbitrary rates
+
+julia> using DataFrames
+
+julia> dat = DataFrame(species=["C","A","B","D"], trait=["hi","lo","lo","hi"]);
+
+julia> fit = fitdiscrete(net, m1, dat); # optimized rates: α=0.27 and β=0.35
+
+julia> plhw = PhyloNetworks.posterior_loghybridweight(fit, "H1");
+
+julia> round(exp(plhw), digits=5) # posterior probability of going through minor hybrid edge
+0.08017
+
+julia> hn = net.node[3]; getparentedgeminor(hn).gamma # prior probability
+0.1
+```
+"""
+function posterior_loghybridweight(obj::SSM, hybridname::String, trait = 1)
+    hn_index = findfirst(n -> n.name == hybridname, obj.net.node)
+    isnothing(hn_index) && error("node named $hybridname not found")
+    hn = obj.net.node[hn_index]
+    hn.hybrid || error("node named $hybridname is not a hybrid node")
+    me = getparentedgeminor(hn)
+    posterior_loghybridweight(obj, me.number, trait)
+end
+function posterior_loghybridweight(obj::SSM, edgenum::Integer, trait = 1)
+    tpp = posterior_logtreeweight(obj, trait) # size: (ntree,) or (ntree,ntraits)
+    hasedge = tree -> any(e.number == edgenum for e in tree.edge)
+    tokeep = map(hasedge, obj.displayedtree)
+    tppe = view(tpp, tokeep, :) # makes it a matrix
+    epp = dropdims(mapslices(logsumexp, tppe, dims=1); dims=2)
+    return (size(epp)==(1,) ? epp[1] : epp) # scalar or vector
 end
 
 """
@@ -1011,7 +1067,7 @@ julia> asr = ancestralStateReconstruction(fit1)
 
 julia> using PhyloPlots
 
-julia> plot(fit1.net, :R, nodeLabel = asr[!,[:nodenumber, :lo]], tipOffset=0.2); # pp for "lo" state
+julia> plot(fit1.net, nodelabel = asr[!,[:nodenumber, :lo]], tipoffset=0.2); # pp for "lo" state
 ```
 """
 function ancestralStateReconstruction(obj::SSM, trait::Integer = 1)
@@ -1082,11 +1138,11 @@ function discrete_backwardlikelihood_trait!(obj::SSM, t::Integer, ri::Integer)
         if ni == 1 # n is the root
             backwardlik[:,nnum] = logprior
         else
-            pe = getMajorParentEdge(n)
-            pn = getParent(pe)
+            pe = getparentedge(n)
+            pn = getparent(pe)
             bkwtmp[:] = backwardlik[:,pn.number] # use bktmp's original memory
             for se in pn.edge
-                if se != pe && pn == getParent(se) # then se is sister edge to pe
+                if se != pe && pn == getparent(se) # then se is sister edge to pe
                     bkwtmp .+= view(directlik, :,se.number)
                 end
             end

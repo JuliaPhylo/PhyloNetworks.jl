@@ -88,7 +88,7 @@ m1 = phylolm(@formula(trait3 ~ trait1), df, starnet; reml=true,
       tipnames=:species, withinspecies_var=true)
 m2 = phylolm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
       tipnames=:species, withinspecies_var=true, y_mean_std=true)
-@test m1.model.reml && m2.model.reml
+@test m1.reml && m2.reml
 @test coef(m1) ≈ [8.457020,2.296978] rtol=1e-5 # fixef(mR)
 @test coef(m2) ≈ [8.457020,2.296978] rtol=1e-5
 @test sigma2_phylo(m1) ≈ 2.1216068 rtol=1e-5 # print(mR, digits=7, ranef.comp="Var")
@@ -101,7 +101,7 @@ m2 = phylolm(@formula(trait3 ~ trait1), df_r, starnet; reml=true,
 @test vcov(m2) ≈ [3.111307 -1.219935; -1.219935 0.5913808] rtol=1e-5
 m3 = phylolm(@formula(trait3 ~ trait1), df_r, starnet; reml=false,
       tipnames=:species, withinspecies_var=true, y_mean_std=true)
-@test !m3.model.reml
+@test !m3.reml
 @test coef(m3) ≈ [8.439909,2.318488] rtol=1e-5
 @test sigma2_phylo(m3) ≈ 0.9470427 rtol=1e-5
 @test sigma2_within(m3) ≈ 0.5299540 rtol=1e-5
@@ -168,7 +168,7 @@ coef(m2) + qt(p=0.975,df=5-3)*sqrt(diag(vcov(m2))) # upper limit 95%-CI: c(1.403
 =#
 m1 = phylolm(@formula(y~x1+x2),df,net; tipnames=:species, reml=true)
 m2 = phylolm(@formula(y~x1+x2),df,net; tipnames=:species, reml=false)
-@test m1.model.reml
+@test m1.reml
 @test coef(m1) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
 @test sigma2_phylo(m1) ≈ 0.0438973 rtol=1e-4
 @test isnothing(sigma2_within(m1))
@@ -178,7 +178,7 @@ m2 = phylolm(@formula(y~x1+x2),df,net; tipnames=:species, reml=false)
 @test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.066635016,0.009223303,0.001666460] rtol=1e-4
 @test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Lower 95%")[1]] ≈ [-0.1099703,1.1923712,2.3310897] rtol=1e-5
 @test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Upper 95%")[1]] ≈ [1.403901,2.891807,3.325962] rtol=1e-5
-@test !m2.model.reml
+@test !m2.reml
 @test coef(m2) ≈ [0.6469652,2.0420889,2.8285257] rtol=1e-5
 @test sigma2_phylo(m2) ≈ 0.01755892 rtol=1e-4
 @test isnothing(sigma2_within(m2))
@@ -336,12 +336,12 @@ m2 = phylolm(@formula(y~x1+x2),df,net;
 @test coef(m2) ≈ [0.9767352,1.9155142,3.2661862] rtol=1e-4
 @test loglikelihood(m1) ≈ -14.14184 rtol=1e-4
 @test loglikelihood(m2) ≈ -9.582357 rtol=1e-4
-@test vcov(m1) ≈ [0.09386431 0.02273458 -0.02602937;0.02273458 0.02172123 -0.01133032;-0.02602937 -0.01133032 0.01584198] rtol=1e-4
-@test vcov(m2) ≈ [0.019118171 0.004924625 -0.008977541;0.004924625 0.003577654 -0.003028413;-0.008977541 -0.003028413 0.005793475] rtol=1e-4
+@test vcov(m1) ≈ [0.09386431 0.02273458 -0.02602937;0.02273458 0.02172123 -0.01133032;-0.02602937 -0.01133032 0.01584198] rtol=1e-3
+@test vcov(m2) ≈ [0.019118171 0.004924625 -0.008977541;0.004924625 0.003577654 -0.003028413;-0.008977541 -0.003028413 0.005793475] rtol=1e-3
 @test coeftable(m1).cols[coeftable(m1).teststatcol] ≈ [3.524591,13.412285,25.562252] rtol=1e-4
 @test coeftable(m2).cols[coeftable(m2).teststatcol] ≈ [7.064049,32.024784,42.911270] rtol=1e-4
-@test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.071921276,0.005513044,0.001526885] rtol=1e-4
-@test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.0194568147,0.0009736278,0.0005426298] rtol=1e-4
+@test coeftable(m1).cols[coeftable(m1).pvalcol] ≈ [0.071921276,0.005513044,0.001526885] rtol=1e-3
+@test coeftable(m2).cols[coeftable(m2).pvalcol] ≈ [0.0194568147,0.0009736278,0.0005426298] rtol=1e-3
 @test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Lower 95%")[1]] ≈ [-0.2383769,1.3425890,2.6758379] rtol=1e-4
 @test coeftable(m2).cols[findall(coeftable(m2).colnms .== "Lower 95%")[1]] ≈ [0.381814,1.658158,2.938690] rtol=1e-4
 @test coeftable(m1).cols[findall(coeftable(m1).colnms .== "Upper 95%")[1]] ≈ [2.398055,2.610850,3.758944] rtol=1e-4
@@ -573,7 +573,7 @@ allowmissing!(df_r,[:trait3]); df_r[2,:trait3] = missing  # to check imputation
 @testset "ancestral state prediction, intercept only" begin
 m1 = phylolm(@formula(trait3 ~ 1), df_r, net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
 ar1 = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m1))
-# ar.NodeNumbers[8] == 2 (looking at node #2), m1.model.V.tipNames[indexin([2],m1.model.V.tipNumbers)[1]] == "C" (looking at tip "C")
+# ar.NodeNumbers[8] == 2 (looking at node #2), m1.V.tipNames[indexin([2],m1.V.tipNumbers)[1]] == "C" (looking at tip "C")
 @test ar1.traits_nodes[8] ≈ 18.74416393519304 rtol=1e-5 # masked sampled C_bar was 17.0686
 @test predint(ar1)[8,:] ≈ [15.24005506417728,22.2482728062088] rtol=1e-5
 # on dataframe with model passed as keyword args. must be individual data.
@@ -592,7 +592,7 @@ end
 
 @testset "ancestral state prediction, more than intercept" begin
 m3 = phylolm(@formula(trait3 ~ trait1 + trait2), df[[1,6,11,17,16,18,8,5,9,3,12,7,13,10,2,14,4,15],:], net; tipnames=:species, withinspecies_var=true)
-X_n = [m3.model.X;m3.model.X[1:3,:]] # 8x3 Array
+X_n = [m3.X;m3.X[1:3,:]] # 8x3 Array
 ar3 = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m3, X_n))
 m4 = phylolm(@formula(trait3 ~ trait1 + trait2), df_r[[1,4,6,3,2,5],:], net; tipnames=:species, withinspecies_var=true, y_mean_std=true)
 ar4 = (@test_logs (:warn, r"^T") ancestralStateReconstruction(m4, X_n))

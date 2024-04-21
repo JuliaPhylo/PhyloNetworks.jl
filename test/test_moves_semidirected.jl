@@ -16,13 +16,6 @@ net_nontreechild = readTopology(str_nontreechild);
 str_hybridladder = "(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);"
 net_hybridladder = readTopology(str_hybridladder);
 
-#=
-using PhyloPlots
-plot(net_level1, :R, showNodeNumber=true, showEdgeNumber=true)
-plot(net_nontreechild, :R, showNodeNumber=true, showEdgeNumber=true)
-plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
-=#
-
 @test isnothing(nni!(net_level1, net_level1.edge[1], 0x01, true, true)) # external edge
 
 @testset "level1 edge 3: BB undirected move $move" for move in 0x01:0x08
@@ -44,10 +37,10 @@ plot(net_hybridladder, :R, showNodeNumber=true, showEdgeNumber=true)
     # check directionality
     if move in [3, 4, 5, 7] 
         # keeping α, β or flipping uv keeps node -4 as child of edge 3
-        @test PhyloNetworks.getChild(net_level1.edge[3]).number == -4
+        @test PhyloNetworks.getchild(net_level1.edge[3]).number == -4
     else 
         # switching α, β AND flipping uv or doing neither makes node -3 child of edge 3
-        @test PhyloNetworks.getChild(net_level1.edge[3]).number == -3
+        @test PhyloNetworks.getchild(net_level1.edge[3]).number == -3
     end
     # undo move
     nni!(undoinfo...);
@@ -66,7 +59,7 @@ end # of level1 edge 3: BB undirected
         @test 8 in nodes # check that edge α connected to v
         nodes = [n.number for n in net_level1.edge[11].node]
         @test !(-11 in nodes)
-        @test PhyloNetworks.getChild(net_level1.edge[13]).number == -11
+        @test PhyloNetworks.getchild(net_level1.edge[13]).number == -11
         nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
         # confirm we're back to original topology (but now with 0.0 branch lengths)
@@ -87,7 +80,7 @@ end # of level1 edge 3: BB undirected
             @test !(-11 in nodes)
         end
         # check directionality
-        @test PhyloNetworks.getChild(net_level1.edge[13]).number == 8
+        @test PhyloNetworks.getchild(net_level1.edge[13]).number == 8
         nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"# confirm we're back to original topology
     end
@@ -105,7 +98,7 @@ end # of level1 edge 13: BR directed
         @test -11 in nodes
     end
     # check directionality node -11 child of edge 16 in both cases
-    @test PhyloNetworks.getChild(net_level1.edge[16]).number == -11
+    @test PhyloNetworks.getchild(net_level1.edge[16]).number == -11
     nni!(undoinfo...); # undo move
     @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
         # confirm we're back to original topology
@@ -127,7 +120,7 @@ end #of level1 edge 16: BB directed
         #check that edge γ connected to v
         @test -11 in nodes
         # check directionality node -6 child of edge 17 in both cases
-        @test PhyloNetworks.getChild(net_level1.edge[17]).number == -6
+        @test PhyloNetworks.getchild(net_level1.edge[17]).number == -6
         nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
     else
@@ -139,7 +132,7 @@ end #of level1 edge 16: BB directed
         #check that edge γ connected to u
         @test -6 in nodes
         # check directionality node -11 child of edge 17 in both cases
-        @test PhyloNetworks.getChild(net_level1.edge[17]).number == -6
+        @test PhyloNetworks.getchild(net_level1.edge[17]).number == -6
         nni!(undoinfo...); # undo move
         @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
     end
@@ -162,7 +155,7 @@ end # of level1 edge 17: BB directed
         @test !(11 in nodes)
     end
     #check directionality (should point toward u, node 11)
-    @test PhyloNetworks.getChild(net_level1.edge[18]).number == 11
+    @test PhyloNetworks.getchild(net_level1.edge[18]).number == 11
     nni!(undoinfo...);
         # edge constrained at 0.0 now
     @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))):0.0)#H2),(#H2,S10));"
@@ -188,7 +181,7 @@ end # of level1 edge 18: RR (directed)
         @test !(3 in nodes)
     end
     #check directionality (should point toward u, node 3)
-    @test PhyloNetworks.getChild(net_nontreechild.edge[3]).number == 3
+    @test PhyloNetworks.getchild(net_nontreechild.edge[3]).number == 3
     #undo move
     nni!(undoinfo...);
         # keep constrained edges at 0.0, but otherwise topology completely restored
@@ -214,7 +207,7 @@ end #of non tree child net edge 5: RB (directed)
         nodes = [n.number for n in net_hybridladder.edge[4].node] # δ's connections
         @test -2 in nodes # check that edge δ is connected to u
         # check directionality (edge should point toward u, node -2)
-        @test PhyloNetworks.getChild(net_hybridladder.edge[1]).number == 1
+        @test PhyloNetworks.getchild(net_hybridladder.edge[1]).number == 1
         nni!(undoinfo...);
         @test writeTopology(net_hybridladder)== "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
     elseif move == 0x02
@@ -224,7 +217,7 @@ end #of non tree child net edge 5: RB (directed)
         nodes = [n.number for n in net_hybridladder.edge[4].node] # δ's connections
         @test -2 in nodes # δ connected to u
         # check directionality (edge should point toward u, node -2)
-        @test PhyloNetworks.getChild(net_hybridladder.edge[1]).number == 1
+        @test PhyloNetworks.getchild(net_hybridladder.edge[1]).number == 1
         nni!(undoinfo...);
         @test writeTopology(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
     end
@@ -244,7 +237,7 @@ end # of hybrid ladder net edge 1: BR undirected
     nodes = [n.number for n in net_hybridladder.edge[3].node]
     @test 1 in nodes
     #check directionality (should point toward u, node 1)
-    @test PhyloNetworks.getChild(net_hybridladder.edge[4]).number == 1
+    @test PhyloNetworks.getchild(net_hybridladder.edge[4]).number == 1
     #undo move
     nni!(undoinfo...);
     @test writeTopology(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
@@ -278,9 +271,9 @@ end #of hybrid ladder net edge 4: RR (directed)
     #check directionality 
     if move in [0x01, 0x05]
         #(edge should point toward u, node -4)
-        @test PhyloNetworks.getChild(net_hybridladder.edge[5]).number == -4
+        @test PhyloNetworks.getchild(net_hybridladder.edge[5]).number == -4
     else
-        @test PhyloNetworks.getChild(net_hybridladder.edge[5]).number == 1
+        @test PhyloNetworks.getchild(net_hybridladder.edge[5]).number == 1
     end
     #undo move
     nni!(undoinfo...);
@@ -309,7 +302,7 @@ end #of hybrid ladder net edge 5: BR undirected
         @test !(-2 in nodes)
     end
     #check directionality
-    @test PhyloNetworks.getChild(net_hybridladder.edge[12]).number == -3
+    @test PhyloNetworks.getchild(net_hybridladder.edge[12]).number == -3
     #undo move
     nni!(undoinfo...);
     @test writeTopology(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
@@ -340,9 +333,6 @@ end # of testset on unconstrained NNIs
 @testset "species constraints" begin # multiple individuals from each species
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net_level1_s = readTopology(str_level1_s)
-#=
-plot(net_level1_s, :R, showNodeNumber=true, showEdgeNumber=true)
-=#
 
 # test breakedge! function
 newnode, newedge = PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s);
@@ -350,8 +340,8 @@ newnode, newedge = PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s);
 @test length(net_level1_s.edge) == 21
 @test newnode.edge[1].number == 4
 @test newnode.edge[2].number == 21
-@test PhyloNetworks.getParent(net_level1_s.edge[4]) === newnode
-@test PhyloNetworks.getChild(newedge) === newnode
+@test PhyloNetworks.getparent(net_level1_s.edge[4]) === newnode
+@test PhyloNetworks.getchild(newedge) === newnode
 
 # test addleaf! function
 net_level1_s = readTopology(str_level1_s)
@@ -361,8 +351,8 @@ PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1B");
 PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1C");
 @test net_level1_s.edge[21].containRoot == false # check containRoot on edge 4 and exterior edges
 @test net_level1_s.edge[22].containRoot == false
-@test PhyloNetworks.getChild(net_level1_s.edge[21]).name == "S1A"
-@test PhyloNetworks.getChild(net_level1_s.edge[22]).name == "S1B"
+@test PhyloNetworks.getchild(net_level1_s.edge[21]).name == "S1A"
+@test PhyloNetworks.getchild(net_level1_s.edge[22]).name == "S1B"
 # test addleaf! on edge
 net_level1_s = readTopology(str_level1_s)
 PhyloNetworks.addleaf!(net_level1_s, net_level1_s.edge[4], "S1A");
@@ -380,7 +370,7 @@ net_level1_s = readTopology(str_level1_s)
 @test writeTopology(net_level1_s) == str_level1_s # network unchanged
 @test_logs (:warn, r"^Spaces in \"S1 A\" may cause errors") PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1 A", "S1B", "S1C"])
 @test writeTopology(net_level1_s) == "(((S8,S9),(((((S1_A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
-# # test mapindividuals! function
+# test mapindividuals function
 net_level1_s = readTopology(str_level1_s)
 # in net env
 filename = joinpath(@__DIR__, "..","examples","mappingIndividuals.csv")
@@ -549,7 +539,6 @@ netc = readTopology(tangledstring) # hybrid 1: H2, number 4
 @test  isnothing(PhyloNetworks.fliphybrid!(netc, netc.hybrid[1],false, true))
 @test !isnothing(PhyloNetworks.fliphybrid!(netc, netc.hybrid[1],false))
 @test writeTopology(netc) == "((a:0.01,(#H2:0.01)#H1:0.01::0.8):0.01,e:0.01,((#H1:0.01::0.2,d:0.01):0.005,(c:0.005,(b:0.01)#H2:0.005)):0.005);"
-# plot(netc, :R, showEdgeNumber=true, showNodeNumber=true);
 
 # case when the new hybrid edge = child edge of the new hybrid node
 net_ex = readTopology("(((c:0.01,(a:0.005,#H1):0.005):0.01,(b:0.005)#H1:0.005):0.01,d:0.01);")

@@ -27,16 +27,37 @@
 
 
 @testset "test: reading nexus file" begin
+# with translate table, hybrids, failed γ in net 2, bad net 3, v2 format in net 4
+nexusfile = joinpath(@__DIR__, "..", "examples", "test_reticulatetreeblock.nex")
+# nexusfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","test_reticulatetreeblock.nex")
+vnet = (@test_logs (:warn, r"^hybrid edge") (:warn,r"^skipped") readnexus_treeblock(nexusfile));
+@test length(vnet) == 3
+@test writeTopology(vnet[1]) == "((tax4,(tax3,#H7:0.001::0.08):0.3):0.6,(tax2,(tax1:0.1)#H7:0.9::0.92):10.0);"
+@test writeTopology(vnet[3]) == "((tax1:1.13,((tax2:0.21)#H1:0.89::0.72,(tax3:1.03,(#H1:0.3::0.28,tax4:0.51)S3:0.51)S4:0.08)S5:0.2):0.6,tax5:1.14);"
+# example without translate table and without reticulations
 nexusfile = joinpath(@__DIR__, "..", "examples", "test.nex")
 # nexusfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","test.nex")
-vnet = readNexusTrees(nexusfile);
-@test length(vnet) == 10
-@test length(vnet[10].edge) == 10
-@test vnet[10].edge[7].length ≈ 0.00035
-vnet = readNexusTrees(nexusfile, PhyloNetworks.readTopologyUpdate, false, false);
+vnet = readnexus_treeblock(nexusfile, PhyloNetworks.readTopologyUpdate, false, false; reticulate=false);
 @test length(vnet) == 10
 @test length(vnet[10].edge) == 9
 @test vnet[10].edge[7].length ≈ 0.00035
+end
+
+@testset "readMultiTopology" begin
+    multitreepath = joinpath(@__DIR__, "..", "examples", "multitrees.newick")
+    # methods that take a file name
+    multi1 = readMultiTopology(multitreepath, false) # slow but safe
+    multi2 = readMultiTopology(multitreepath)
+    @test typeof(multi1) == typeof(multi2)
+    @test writeTopology.(multi1) == writeTopology.(multi2)
+    # methods that take newick strings
+    multitree = readlines(multitreepath)
+    multi1s = readMultiTopology(multitree, false)
+    multi2s = readMultiTopology(multitree)
+    @test writeTopology.(multi1s) == writeTopology.(multi1)
+    @test writeTopology.(multi1s) == writeTopology.(multi2s)
+    @test typeof(multi1s) == typeof(multi1)
+    @test typeof(multi1s) == typeof(multi2s)
 end
 
 @testset "test: calculate quartet CF from input gene trees" begin
@@ -46,7 +67,7 @@ sixtrees = readTopology.(sixtreestr)
 df1 = writeTableCF(countquartetsintrees(sixtrees)...)
 df2 = writeTableCF(readTrees2CF(sixtrees, writeTab=false, writeSummary=false))
 o = [1,2,4,7,11,3,5,8,12,6,9,13,10,14,15]
-@test df1 == df2[o,:]
+@test select!(df1, Not(:qind)) == df2[o,:]
 q,t = countquartetsintrees(sixtrees, Dict("A"=>"AB", "B"=>"AB"); showprogressbar=false);
 df1 = writeTableCF(q,t)
 @test df1[!,:CF12_34] ≈ [0,0,2/3,2/3,1]
@@ -85,6 +106,33 @@ df2 = writeTableCF(q) # 45×8 DataFrames.DataFrame
 nCk = PhyloNetworks.nchoose1234(5)
 oneQ = PhyloNetworks.QuartetT(1,3,4,6, [.92,.04,.04, 100], nCk)
 @test string(oneQ) == "4-taxon set number 8; taxon numbers: 1,3,4,6\ndata: [0.92, 0.04, 0.04, 100.0]"
+end
+
+@testset "convert QuartetT vector to dataframe" begin
+SVector = PhyloNetworks.StaticArrays.SVector
+MVector = PhyloNetworks.StaticArrays.MVector
+MMatrix = PhyloNetworks.StaticArrays.MMatrix
+# without taxon names, length-3 vector of boolean data
+qlist = [
+  PhyloNetworks.QuartetT(1, SVector{4}(1,2,3,4), MVector{3,Bool}(0,1,0)),
+  PhyloNetworks.QuartetT(2, SVector{4}(1,2,3,5), MVector{3,Bool}(0,0,1)),
+]
+@test writeTableCF(qlist) == DataFrame(qind=[1,2],t1=[1,1],t2=[2,2],t3=[3,3],
+    t4=[4,5],CF12_34=[false,false],CF13_24=[true,false],CF14_23=[false,true])
+# with taxon names
+@test writeTableCF(qlist, ["a","b","c","d","e"]) == DataFrame(
+  qind=[1,2],t1=["a","a"],t2=["b","b"],t3=["c","c"],t4=["d","e"],
+  CF12_34=[false,false],CF13_24=[true,false],CF14_23=[false,true])
+# 3x2 data, Int8-valued
+qlist = [PhyloNetworks.QuartetT(1, SVector{4}(1,2,3,4), MMatrix{3,2,Int8}(1:6))]
+@test writeTableCF(qlist) == DataFrame(qind=1,t1=1,t2=2,t3=3,t4=4,
+    CF12_34=Int8[1], CF13_24=Int8[2], CF14_23=Int8[3],
+    V2_12_34=Int8[4],V2_13_24=Int8[5],V2_14_23=Int8[6])
+# custom column names
+@test_logs (:error, r"^'colnames'") writeTableCF(qlist, colnames=["v1","v2"])
+@test writeTableCF(qlist, colnames=["v1","v2","v3","w1","w2","w3"]) ==
+  DataFrame(qind=1,t1=1,t2=2,t3=3,t4=4, v1=Int8[1],v2=Int8[2],v3=Int8[3],
+    w1=Int8[4],w2=Int8[5],w3=Int8[6])
 end
 
 if false # was used to time `countquartetsintrees` vs `readTrees2CF`

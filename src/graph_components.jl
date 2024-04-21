@@ -1,18 +1,24 @@
 """
     biconnectedComponents(network, ignoreTrivial=false)
 
-Calculate biconnected components (aka "blobs") using Tarjan's algorithm:
-the output is an array of arrays of edges.
+Calculate biconnected components (aka "blobs") using Tarjan's algorithm.
+
+Output: array of arrays of edges.
+- the length of the array is the number of blobs
+- each element is an array of all the edges inside a given blob.
+
 These blobs are returned in post-order, but within a blob,
 edges are *not* necessarily sorted in topological order.
 If `ignoreTrivial` is true, trivial components (of a single edge)
 are not returned.
 The network is assumed to be connected.
 
-**Warnings**: for nodes, fields `k`, `inCycle`, and `prev`
+*Warnings*: for nodes, fields `k` and `inCycle`
 are modified during the algorithm. They are used to store the
 node's "index" (time of visitation), "lowpoint", and the node's
 "parent", as defined by the order in which nodes are visited.
+For edges, field `fromBadDiamondI` is modified, to store whether
+the edge has been already been visited or not.
 
 References:
 - p. 153 of [Tarjan (1972)](http://epubs.siam.org/doi/pdf/10.1137/0201010).
@@ -28,25 +34,17 @@ References:
 """
 function biconnectedComponents(net, ignoreTrivial=false::Bool)
     for n in net.node
-        n.inCycle = -1 # -1 for missing, node not visited yet
-        n.k = -1       # inCycle = lowpoint
-        n.prev = nothing # parent: will be a node later
+        n.inCycle = -1 # inCycle = lowpoint. -1 for missing, until the node is visited
+        n.k = -1       # k = index, order of visit during depth-first search
+    end
+    for e in net.edge
+        e.fromBadDiamondI = false # true after edge is visited, during depth-first search
     end
     S = Edge[] # temporary stack
     blobs = Vector{Edge}[] # will contain the blobs
     biconnectedComponents(net.node[net.root], [0], S, blobs, ignoreTrivial)
     # if stack not empty: create last connected component
-    if length(S)>0
-        #println("stack not empty at the end.")
-        bb = Edge[]
-        while length(S)>0
-            e2 = pop!(S)
-            push!(bb, e2)
-        end
-        if !ignoreTrivial || length(bb)>1
-            push!(blobs, bb)
-        end
-    end
+    length(S) == 0 || @error("stack of edges not empty at the end: $S")
     return blobs
 end
 
@@ -70,9 +68,9 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
     for e in node.edge # each (v, w) in E do
         w = (e.node[1] == node) ? e.node[2] : e.node[1]
         #println(" w: $(w.number) along edge $(e.number)")
-        if w.k == -1 # w not yet visited
-            w.prev = node # set parent of w to current node
-            #println(" w's parent = $(w.prev.number)")
+        if w.k == -1 # w not yet visited, therefore e not yet visited either
+            #println(" w's parent = $(node.number)")
+            e.fromBadDiamondI = true
             children += 1
             push!(S, e)
             #println(" edge $(e.number) on stack, intermediate step for node=$(node.number)")
@@ -84,23 +82,23 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
             #print(" case 1, low=$(node.inCycle) for node $(node.number); ")
             #println("low=$(w.inCycle) for w $(w.number)")
             # if node is an articulation point: pop until e
-            if (node.prev === nothing && children > 1) ||
-               (node.prev !== nothing && w.inCycle >= node.k)
-                # node is either root or an articulation point
+            if w.inCycle >= node.k
+                # @info "found root or articulation: node number $(node.number), entry to new blob."
                 # start a new strongly connected component
                 bb = Edge[]
                 while length(S)>0
                     e2 = pop!(S)
                     #println(" popping: edge $(e2.number)")
                     push!(bb, e2)
-                    e2 != e || break
+                    e2 !== e || break
                 end
                 if !ignoreTrivial || length(bb)>1
                     push!(blobs, bb)
                 end
             end
-        elseif w != node.prev && node.k > w.k
+        elseif !e.fromBadDiamondI && node.k > w.k
             # e is a back edge, not cross edge. Case 2 in article.
+            e.fromBadDiamondI = true
             node.inCycle = min(node.inCycle, w.k)
             #println(" case 2, node $(node.number): low=$(node.inCycle)")
             push!(S, e)
@@ -110,6 +108,81 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
         end
     end
     return nothing
+end
+
+"""
+    biconnectedcomponent_entrynodes(net, bcc, preorder=true)
+
+Array containing the entry node of the each biconnected component in `bcc`.
+`bcc` is supposed to contain the biconnected components as output by
+[`biconnectedComponents`](@ref), that is, an array of array of edges.
+
+These entry nodes depend on the rooting (whereas the BCC only depend on the
+unrooted graph). They are either the root of the network or cut node
+(articulation points).
+"""
+function biconnectedcomponent_entrynodes(net, bcc, preorder=true::Bool)
+    if preorder
+        directEdges!(net)
+        preorder!(net)
+    end
+    entrynode = Node[] # one entry node for each blob: cut node or root
+    for bicomp in bcc
+        jmin = length(net.node)
+        for edge in bicomp
+            n = getparent(edge)
+            j = findfirst(x -> x===n, net.nodes_changed)
+            isnothing(j) && error("node not found in net's pre-ordering 'nodes_changed'")
+            jmin = min(j, jmin)
+        end
+        push!(entrynode, net.nodes_changed[jmin])
+    end
+    return entrynode
+end
+
+"""
+    biconnectedcomponent_exitnodes(net, bcc, preorder=true)
+
+Array containing an array of the exit node(s) of the each biconnected component
+in `bcc`. `bcc` is supposed to contain the biconnected components as output by
+[`biconnectedComponents`](@ref), that is, an array of array of edges.
+
+These exit nodes depend on the rooting (whereas the BCC only depend on the
+unrooted graph). The degree of a blob is the number of exit nodes + 1 if
+the blob doesn't contain the root (its entry node is a cut node), or + 0 if
+the blob contains the root (which enters into the blob but isn't a cut node).
+
+*Warning* (or positive side effect?): the edge `.inCycle` attribute is modified.
+It stores the index (in `bcc`) of the biconnected component that an edge belongs to.
+If an edge doesn't belong in any (e.g. if trivial blobs are ignored),
+then its `.inCycle` is set to -1.
+"""
+function biconnectedcomponent_exitnodes(net, bcc, preorder=true::Bool)
+    if preorder
+        directEdges!(net)
+        preorder!(net)
+    end
+    exitnode = Vector{Node}[]  # one array of exit cut nodes for each blob
+    for edge in net.edge edge.inCycle = -1; end # in case trivial blobs are ignored
+    for (i,bicomp) in enumerate(bcc)
+        for edge in bicomp edge.inCycle = i; end
+    end
+    for (i,bicomp) in enumerate(bcc)
+        exitnode_blobi = Node[]
+        for edge in bicomp
+            edge.isMajor || continue # skip minor edges to avoid duplicating exit node
+            n = getchild(edge)
+            for e in n.edge
+                e !== edge || continue
+                if e.inCycle != i # then n is a cut point, incident to another blob
+                    push!(exitnode_blobi, n)
+                    break
+                end
+            end
+        end
+        push!(exitnode, exitnode_blobi)
+    end
+    return exitnode
 end
 
 """
@@ -137,6 +210,9 @@ If `ignoreTrivial` is true, trivial components are ignored.
 keyword argument: `checkPreorder`, true by default. If false,
 the `isChild1` edge field and the `net.nodes_changed` network field
 are supposed to be correct.
+
+**warning**: see [`biconnectedComponents`](@ref) for node
+attributes modified during the algorithm.
 """
 function blobInfo(net, ignoreTrivial=true::Bool;
     checkPreorder=true::Bool)
@@ -145,34 +221,27 @@ function blobInfo(net, ignoreTrivial=true::Bool;
       preorder!(net) # creates / updates net.nodes_changed
     end
     bcc = biconnectedComponents(net, ignoreTrivial)
-    bccRoots = Node[]         # one root node for each blob
+    bccRoots = biconnectedcomponent_entrynodes(net, bcc, false) # 1 entry node for each blob
     bccMajor = Vector{Edge}[] # one array for each blob
     bccMinor = Vector{Edge}[]
     for bicomp in bcc
         bccMa = Edge[]
-        jmin = length(net.node)
+        bccmi = Edge[] # find minor hybrid edges, in same order
         for edge in bicomp
-            n = getParent(edge)
-            j = something(findfirst(x -> x===n, net.nodes_changed), 0)
-            jmin = min(j, jmin)
             if edge.hybrid && edge.isMajor
                 push!(bccMa, edge)
+                e = getpartneredge(edge)
+                !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
+                push!(bccmi, e)
             end
         end
-        push!(bccRoots, net.nodes_changed[jmin])
         push!(bccMajor, bccMa)
-        bccmi = Edge[] # find minor hybrid edges, in same order
-        for edge in bccMa
-            e = getPartner(edge)
-            !e.isMajor || @warn "major edge $(edge.number) has a major partner: edge $(e.number)"
-            push!(bccmi, e)
-        end
         push!(bccMinor, bccmi)
     end
     # add the network root, if it was in a trivial bi-component (no hybrids)
-    # blobs in post-order, so if there the root is there, it's the last blob
-    if length(bcc)==0 || bccRoots[end]!=net.node[net.root]
-        push!(bccRoots,net.node[net.root])
+    rootnode = getroot(net)
+    if !any(n -> n === rootnode, bccRoots)
+        push!(bccRoots, rootnode)
         push!(bccMajor, Edge[])
         push!(bccMinor, Edge[])
     end
@@ -197,7 +266,15 @@ the number of the blob's root is given to the newly created leaf.
 
 The first (bang) version modifies the network and returns
 the array of blob roots. The second version copies the network
-then returns a tuple: the forest and the blob roots.
+then returns a tuple: the forest and the array of blob roots.
+
+Warnings:
+- the forest is represented by a single HybridNetwork object,
+  on which most functions don't work (like `writeTopology`, plotting etc.)
+  because the network is disconnected (to make the forest).
+  Revert back to low-level functions, e.g. `printEdges` and `printNodes`.
+- see [`biconnectedComponents`](@ref) for node
+  attributes modified during the algorithm.
 """
 function blobDecomposition(net)
     net2 = deepcopy(net)
@@ -223,6 +300,50 @@ function blobDecomposition!(net)
         end
     end
     return blobR
+end
+
+"""
+    leaststableancestor(net, preorder=true::Bool)
+
+Return `(lsa, lsa_index)` where `lsa` is the least stable ancestor node (LSA)
+in `net`, and `lsa_index` is the index of `lsa` in `net.nodes_changed`.
+The LSA the lowest node `n` with the following property: *any* path
+between *any* leaf and the root must go through `n`. All such nodes with this
+property are ancestral to the LSA (and therefore must have an index that is
+lower or equal to `lsa_index`).
+
+Exception: if the network has a single leaf, the output `lsa` is the
+leaf's parent node, to maintain one external edge between the root and the leaf.
+
+*Warning*:
+uses [`biconnectedComponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
+therefore share the same caveats regarding the use of
+fields `.inCycle` (for edges and nodes), `.k` (for nodes) etc.
+As a positivie side effect, the biconnected components can be recovered
+via the edges' `.inCycle` field --including the trivial blobs (cut edges).
+
+See also: [`deleteaboveLSA!`](@ref)
+"""
+function leaststableancestor(net, preorder=true::Bool)
+    net.node[net.root].leaf && error("The root can't be a leaf to find the LSA.")
+    if preorder
+        directEdges!(net)
+        preorder!(net)
+    end
+    bcc = biconnectedComponents(net, false)
+    entry = biconnectedcomponent_entrynodes(net, bcc, false)
+    entryindex = indexin(entry, net.nodes_changed)
+    exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)
+    bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
+    function atlsa(ib) # is bcc[ib] below the LSA?
+        # above LSA if 1 exit and 1 entry that's not an entry to another blob
+        # (0 exits: trivial blob (cut-edge) to a leaf)
+        length(exitnodes[ib]) != 1 || sum(isequal(entryindex[ib]), entryindex) > 1
+    end
+    lsaindex_j = findfirst(atlsa, bloborder)
+    isnothing(lsaindex_j) && error("strange: couldn't find the LSA...")
+    ib = bloborder[lsaindex_j]
+    return entry[ib], entryindex[ib]
 end
 
 """
@@ -283,7 +404,7 @@ function treeedgecomponents(net::HybridNetwork)
                         end
                     end
                 else # for hybrid edge, check there is at most one entry node into the TEC
-                    if curnode === getChild(e)
+                    if curnode === getchild(e)
                         if isnothing(entrynode)
                             entrynode = curnode
                         elseif entrynode !== curnode
@@ -407,7 +528,7 @@ function checkroot!(net::HybridNetwork, membership::Dict{Node,Int})
     if membership[curroot] == tec_root
         # update containRoot only: true for edges in or out of the root TEC
         for e in net.edge
-            e.containRoot = (membership[getParent(e)] == tec_root)
+            e.containRoot = (membership[getparent(e)] == tec_root)
         end
     else
         net.root = findfirst(n -> (!n.leaf && membership[n] == tec_root), nodes)

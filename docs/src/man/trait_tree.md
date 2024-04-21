@@ -27,7 +27,7 @@ using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)"
 R"svg(name('truenet.svg'), width=8, height=4)"
 R"par"(mar=[0,0,0,0])
-plot(truenet, :R, useEdgeLength=true, showGamma=true);
+plot(truenet, useedgelength=true, showgamma=true);
 R"dev.off()"
 nothing # hide
 ```
@@ -168,12 +168,12 @@ stderror(ancTrait1) # associated standard errors
 predint(ancTrait1, level=0.9) # prediction interval (with level 90%)
 ```
 We can plot the ancestral states or prediction intervals on the tree, using the
-`nodeLabel` argument of the `plot` function.
+`nodelabel` argument of the `plot` function.
 ```@example tree_trait
 ancExpe = expectationsPlot(ancTrait1); # format expected ancestral states for the plot
 R"svg(name('ancestral_expe.svg'), width=8, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(truenet, :R, nodeLabel = ancExpe);
+plot(truenet, nodelabel = ancExpe);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -183,7 +183,7 @@ nothing # hide
 ancInt = predintPlot(ancTrait1) # format the prediction intervals for the plot
 R"svg(name('ancestral_predint.svg'), width=8, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(truenet,:R, nodeLabel = ancInt);
+plot(truenet, nodelabel = ancInt);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -198,7 +198,7 @@ on the same plot, using the optional keyword argument `withExp`.
 As shown below, we could also use the `RCall` method from the
 [`plot`](https://cecileane.github.io/PhyloPlots.jl/stable/lib/public/) function.
 ```@example tree_trait
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait1, withExp=true));
+plot(truenet, nodelabel = predintPlot(ancTrait1, withExp=true));
 nothing # hide
 ```
 These plots tend to be quite busy, even for small networks.
@@ -234,7 +234,7 @@ and the same extractors can be applied to it:
 ```@example tree_trait
 R"svg(name('ancestral1.svg'), width=8, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(truenet, :R, nodeLabel = expectationsPlot(ancTrait1Approx));
+plot(truenet, nodelabel = expectationsPlot(ancTrait1Approx));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -252,7 +252,7 @@ nothing # hide
 ```@example tree_trait
 R"svg(name('ancestral2.svg'), width=8, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx, level=0.9));
+plot(truenet, nodelabel = predintPlot(ancTrait1Approx, level=0.9));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -277,7 +277,7 @@ nothing # hide
 ```@example tree_trait
 R"svg(name('ancestral3.svg'), width=8, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait1Approx));
+plot(truenet, nodelabel = predintPlot(ancTrait1Approx));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -311,7 +311,7 @@ nothing # hide
 ```@example tree_trait
 R"svg(name('ancestral4.svg'), width=8, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(truenet, :R, nodeLabel = predintPlot(ancTrait3));
+plot(truenet, nodelabel = predintPlot(ancTrait3));
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -438,7 +438,7 @@ numbers.
 ```@example tree_trait
 R"svg(name('truenet_with_numbers.svg'), width=8, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(truenet, :R, useEdgeLength=true, showEdgeNumber=true);
+plot(truenet, useedgelength=true, showedgenumber=true);
 R"dev.off()" # hide
 nothing # hide
 ```

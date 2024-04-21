@@ -40,7 +40,7 @@ julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
 julia> using Random
 
-julia> Random.seed!(75);
+julia> Random.seed!(170);
 
 julia> PhyloNetworks.addhybridedge!(net, true, true)
 (PhyloNetworks.Node:
@@ -48,10 +48,10 @@ julia> PhyloNetworks.addhybridedge!(net, true, true)
  name:H3
  hybrid node
  attached to 3 edges, numbered: 5 16 17
-, PhyloNetworks.Edge:
+, PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:17
  length:0.01
- minor hybrid edge with gamma=0.32946795808423734
+ minor hybrid edge with gamma=0.32771460911632916
  attached to 2 node(s) (parent first): 8 9
 )
 
@@ -77,8 +77,8 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
             continue           # if (e1,e2) was already attempted
         nattempts += 1
         ## check that constraints are met
-        p1 = getParent(edge1)
-        p2 = getParent(edge2)
+        p1 = getparent(edge1)
+        p2 = getparent(edge2)
         constraintsmet = true
         for con in constraints
             if con.type == 1 # forbid going out of (edge1) or into (edge2) the species group
@@ -97,19 +97,19 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
         end
         ## check for no hybrid ladder, if requested:
          # edge2 cannot be a hybrid edge or the child of a hybrid node
-        if nohybridladder && (edge2.hybrid || getParent(edge2).hybrid)
+        if nohybridladder && (edge2.hybrid || getparent(edge2).hybrid)
             push!(blacklist, (e1,e2))
             continue
         end
         hybridpartnernew = (fixroot ? true : rand() > 0.2) # if true: partner hybrid = new edge above edge 2
         ## check that the new network will be a DAG: no directional conflict
-        if directionalconflict(net, p1, edge2, hybridpartnernew)
+        if directionalconflict(p1, edge2, hybridpartnernew)
             if fixroot # don't try to change the direction of edge2
                 push!(blacklist, (e1,e2))
                 continue
             end # else: try harder: change direction of edge2 and move root
             hybridpartnernew = !hybridpartnernew # try again with opposite
-            if directionalconflict(net, p1, edge2, hybridpartnernew)
+            if directionalconflict(p1, edge2, hybridpartnernew)
                 push!(blacklist, (e1,e2))
                 continue
             end # else: switching hybridpartnernew worked
@@ -151,7 +151,7 @@ julia> hybnode, hybedge = PhyloNetworks.addhybridedge!(net, net.edge[13], net.ed
  name:H3
  hybrid node
  attached to 3 edges, numbered: 8 16 17
-, PhyloNetworks.Edge:
+, PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  number:17
  length:0.0
  minor hybrid edge with gamma=0.2
@@ -182,7 +182,7 @@ function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpart
             edgeabovee2.isMajor = false
         end
     else
-        c2 = getChild(edge2) # child of edge2 before we switch its direction
+        c2 = getchild(edge2) # child of edge2 before we switch its direction
         i2 = findfirst(isequal(c2), net.node)
         net.root = i2 # makes c2 the new root node
         edge2.hybrid = true
@@ -231,8 +231,7 @@ function hybrid3cycle(edge1::Edge, edge2::Edge)
 end
 
 """
-    directionalconflict(net::HybridNetwork, parent::Node, edge::Edge,
-                        hybridpartnernew::Bool)
+    directionalconflict(parent::Node, edge::Edge, hybridpartnernew::Bool)
 
 Check if creating a hybrid edge down of `parent` node into the middle of `edge`
 would create a directed cycle in `net`, i.e. not a DAG. The proposed hybrid
@@ -243,15 +242,15 @@ Does *not* modify the network.
 
 Output: `true` if a conflict would arise (non-DAG), `false` if no conflict.
 """
-function directionalconflict(net::HybridNetwork, parent::Node, edge2::Edge, hybridpartnernew::Bool)
+function directionalconflict(parent::Node, edge2::Edge, hybridpartnernew::Bool)
     if hybridpartnernew # all edges would retain their directions: use isChild1 fields
-        c2 = getChild(edge2)
+        c2 = getchild(edge2)
         return parent === c2 || isdescendant(parent, c2)
     else # after hybrid addition, edge 2 would be reversed: "up" toward its own parent
         if !edge2.containRoot || edge2.hybrid
             return true # direction of edge2 cannot be reversed
         else # net would be a DAG with reversed directions, could even be rooted on edge2
-            p2 = getParent(edge2)
+            p2 = getparent(edge2)
             return parent === p2 || isdescendant_undirected(parent, p2, edge2)
         end
     end

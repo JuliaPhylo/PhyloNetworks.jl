@@ -200,7 +200,7 @@ rate matrix Q:
        T  0.3226  0.2419  0.4839       *
 
 julia> PhyloNetworks.P(m1, 0.2)
-4×4 StaticArrays.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
+4×4 StaticArraysCore.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
  0.81592    0.0827167  0.0462192  0.0551445
  0.0551445  0.831326   0.0827167  0.0308128
  0.0308128  0.0827167  0.831326   0.0551445
@@ -212,7 +212,7 @@ Juke-Cantor example:
 julia> m1 = JC69([1.]);
 
 julia> PhyloNetworks.P(m1, 0.2)
-4×4 StaticArrays.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
+4×4 StaticArraysCore.MMatrix{4, 4, Float64, 16} with indices SOneTo(4)×SOneTo(4):
  0.824446   0.0585179  0.0585179  0.0585179
  0.0585179  0.824446   0.0585179  0.0585179
  0.0585179  0.0585179  0.824446   0.0585179
@@ -501,7 +501,7 @@ Binary Trait Substitution Model:
 rate 0→1 α=1.0
 rate 1→0 β=2.0
 
-julia> using Random; Random.seed!(12345);
+julia> using Random; Random.seed!(13);
 
 julia> randomTrait(m1, 0.2, [1,2,1,2,2])
 5-element Vector{Int64}:
@@ -554,7 +554,7 @@ julia> m1 = BinaryTraitSubstitutionModel(1.0, 2.0, ["low","high"]);
 
 julia> net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);");
 
-julia> using Random; Random.seed!(235);
+julia> using Random; Random.seed!(95);
 
 julia> trait, lab = randomTrait(m1, net)
 ([1 2 … 1 1], ["-2", "D", "-3", "-6", "C", "-4", "H1", "B", "A"])

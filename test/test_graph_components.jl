@@ -2,6 +2,80 @@
 # using PhyloPlots
 # using Debugger
 
+@testset "Testing Tarjan's biconnected components" begin
+
+net = readTopology("(A,(B,(C,D)));");
+a = biconnectedComponents(net);
+@test [[e.number for e in b] for b in a] == [[1],[2],[3],[4],[5],[6],]
+net = readTopology("(((A,(((C,(D)#H2),(E,#H2)))#H1),(B,#H1)),F);");
+a = biconnectedComponents(net);
+@test [[e.number for e in b] for b in a] == [[1],[2],[3],[6],
+  [8, 7, 4, 5],[9],[12],[14, 13, 10, 11],[15],[16]]
+net = readTopology("(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));");
+a = biconnectedComponents(net);
+@test [[e.number for e in b] for b in a] == [[1],
+  [2],[5],[6],[12],[10, 14, 13, 7, 8, 9, 3, 4, 11]]
+net = readTopology("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
+a = biconnectedComponents(net);
+@test [[e.number for e in b] for b in a] == [[1],[2],[5],[6],[12],
+  [10, 14, 13, 7, 8, 9, 3, 4, 11],[15],[16],[20],[18],
+  [22, 21, 17, 19],[23]]
+a = biconnectedComponents(net, true);
+@test [[e.number for e in b] for b in a] == [[10, 14, 13, 7, 8, 9, 3, 4, 11],
+  [22, 21, 17, 19]]
+# net with hybrid ladder; 3 degree-2 nodes; root edge above LSA
+net = readTopology("((((((((((((Ae_caudata))#H1,#H2),(Ae_umbellulata,#H1)),Ae_comosa),((((Ae_searsii)#H2,#H3),#H4)))),(((Ae_speltoides_Tr223,Ae_speltoides_Tr251))#H3,(Ae_mutica)#H4))),S_vavilovii)));")
+a = biconnectedComponents(net, false);
+a = [sort!([e.number for e in b]) for b in a]
+@test length(a) == 14
+@test a[14] == [31] # root edge
+@test a[10] == [3,4,5, 7,8,9, 11, 13,14,15,16,17,18,19,20, 24, 26,27]
+
+net = readTopology("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
+r,major,minor = PhyloNetworks.blobInfo(net, false);
+@test [n.number for n in r] == [-5, 3, -8, 6, -10, -3, -2, 9, -14, -12, -11, -2]
+r,major,minor = PhyloNetworks.blobInfo(net);
+@test [n.number for n in r] == [-3,-11,-2]
+@test [[e.number for e in h] for h in major] == [[7, 3],[17],[]]
+@test [[e.number for e in h] for h in minor] == [[13,9],[21],[]]
+forest, blobs = blobDecomposition(net);
+@test length(blobs)==3
+@test writeTopology(forest) == "(dummy -3,dummy -11);"
+s = IOBuffer()
+writeSubTree!(s, blobs[1], nothing, false, true)
+@test String(take!(s)) == "(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));"
+writeSubTree!(s, blobs[2], nothing, false, true)
+@test String(take!(s)) == "(((F)#H3,G),(H,#H3));"
+writeSubTree!(s, blobs[3], nothing, false, true)
+@test String(take!(s)) == "(dummy -3,dummy -11);"
+
+# h=2, 2 non-trivial blobs above the LSA, LSA = the single tip
+net = readTopology("((((t1)#H22:::0.8,#H22))#H10:::0.7,#H10);")
+a = biconnectedComponents(net,true);
+@test [[e.number for e in b] for b in a] == [[3,2], [6,5]]
+lsa, lsaind = PhyloNetworks.leaststableancestor(net)
+@test (lsa.number,lsaind) == (2,4)
+
+# h=3, one level-1 blob above the LSA, one level-2 blob below including a 2-cycle
+net = readTopology("((((((t2,#H25:::0.3))#H22:::0.8,#H22),(t1)#H25:::0.7))#H10:::0.6,#H10);")
+a = biconnectedComponents(net,true);
+[[e.number for e in b] for b in a] == [ [5,8,2,3,4,6], [11,10]]
+
+aentry = PhyloNetworks.biconnectedcomponent_entrynodes(net, a)
+@test [n.number for n in aentry] == [-4,-2]
+aexit = PhyloNetworks.biconnectedcomponent_exitnodes(net, a)
+@test [[n.number for n in ae] for ae in aexit] == [[2,-7],[5]]
+
+# balanced tree + extra root edge
+net = readTopology("((((t1,t2),(t3,t4))));")
+_, lsaindex = PhyloNetworks.leaststableancestor(net)
+@test net.nodes_changed[lsaindex].number == -4
+# LSA = root & entry to non-trivial blob
+lsa, _ = PhyloNetworks.leaststableancestor(readTopology("(#H2:::0.2,((b)#H2,a));"))
+@test lsa.number == -2
+
+end
+
 @testset "tree component" begin
 
     treestr = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);"
@@ -20,7 +94,6 @@
     @test sort(compsize) == [1,2,3]
     rcompID = checkroot!(net, node2comp)
     @test compsize[rcompID] == 3
-    # plot(net, :R, showNodeNumber=true, showEdgeNumber=true);
     rcomp = keys(filter(p -> p.second == rcompID, node2comp))
     @test Set(n.number for n in rcomp) == Set([-2 -3 4])
     @test Set(e.number for e in net.edge if e.containRoot) == Set([7 6 5 2 1])

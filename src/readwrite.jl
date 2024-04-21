@@ -4,7 +4,9 @@
 # removes white spaces from the IOStream/IOBuffer
 # see skipchars(predicate, io::IO; linecomment=nothing) in io.jl
 # https://github.com/JuliaLang/julia/blob/3b02991983dd47313776091720871201f75f644a/base/io.jl#L971
-ncodeunits(c::Char) = write(devnull, c) # for Julia v0.7. Remove for Julia v1.0.3+
+# replace "while !eof ... read(io, Char)" by readeach(io, Char)
+# when ready to require Julia v1.6
+# https://docs.julialang.org/en/v1/base/io-network/#Base.skipchars
 function peekskip(io::IO, linecomment=nothing)
     c = missing
     while !eof(io)
@@ -42,16 +44,44 @@ function advance!(s::IO, numLeft::Array{Int,1})
     return c
 end
 
+"""
+    readnexuscomment(s::IO, c::Char)
 
-# auxiliary function to read a taxon name.
-# allows names with letters and numbers: treats numbers as strings
-# it also reads # as part of the name and returns pound=true
-# it returns the node name as string as well to check if it exists already (as hybrid)
-function readnodename(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
-    if !isValidSymbol(c)
-        a = read(s, String);
-        error("Expected digit, alphanum or # at the start of taxon name, but received $(c). remaining: $(a).");
+Read (and do nothing with) nexus-style comments: `[& ... ]`  
+Assumption: 'c' is the next character to be read from s.  
+Output: nothing.
+
+Comments can appear after (or instead of) a node or leaf name,
+before or after an edge length, and after another comment.
+"""
+function readnexuscomment(s::IO, c::Char)
+    while c == '[' # a comment could be followed by another
+        # [ should be followed by &, otherwise bad newick string
+        # read [ and next character: don't skip spaces
+        read(s, Char) == '[' || error("I was supposed to read '['")
+        read(s, Char) == '&' || error("read '[' but not followed by &")
+        skipchars(!isequal(']'), s)
+        eof(s) && error("comment without ] to end it")
+        read(s, Char) # to read ] and advance s
+        c = peekskip(s)
     end
+    return
+end
+
+"""
+    readnodename(s::IO, c::Char, net, numLeft)
+
+Auxiliary function to read a taxon name during newick parsing.
+output: tuple (number, name, pound_boolean)
+
+Names may have numbers: numbers are treated as strings.
+Accepts `#` as part of the name (but excludes it from the name), in which
+case `pound_boolean` is true. `#` is used in extended newick to flag
+hybrid nodes.
+
+Nexus-style comments following the node name, if any, are read and ignored.
+"""
+function readnodename(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
     pound = 0
     name = ""
     while isValidSymbol(c)
@@ -76,6 +106,7 @@ function readnodename(s::IO, c::Char, net::HybridNetwork, numLeft::Array{Int,1})
         a = read(s, String);
         error("strange node name with $(pound) # signs: $name. remaining: $(a).")
     end
+    readnexuscomment(s,c)
     return size(net.names,1)+1, name, pound == 1
 end
 
@@ -249,6 +280,9 @@ end
 
 Helper function for `parseEdgeData!`.
 Read a single floating point edge data value in a tree topology.
+Ignore (and skip) nexus-style comments before & after the value
+(see [`readnexuscomment`](@ref)).
+
 Return -1.0 if no value exists before the next colon, return the value as a float otherwise.
 Modifies s by advancing past the next colon character.
 Only call this function to read a value when you know a numerical value exists!
@@ -258,10 +292,18 @@ Only call this function to read a value when you know a numerical value exists!
               "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
               "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
     c = peekskip(s)
-
-    # Value is present
-    if isdigit(c) || c == '.'
+    if c == '[' # e.g. comments only, no value, but : after
+        readnexuscomment(s,c)
+        c = peekskip(s)
+    end
+    if isdigit(c) || c == '.' || c == '-'
+        # value is present: read it, and any following comment(s)
         val = readFloat(s, c)
+        if val < 0.0
+            @error "expecting non-negative value but read '-', left parenthesis $(numLeft[1]-1). will set to 0."
+            val = 0.0
+        end
+        readnexuscomment(s,peekskip(s))
         return val
     # No value
     elseif c == ':'
@@ -275,11 +317,12 @@ end
 """
     parseEdgeData!(s::IO, edge, numberOfLeftParentheses::Array{Int,1})
 
-Helper function for readSubtree!, fixes a bug from using setGamma
+Helper function for readSubtree!.
 Modifies `e` according to the specified edge length and gamma values in the tree topology.
 Advances the stream `s` past any existing edge data.
 Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
 where edgeLen, bootstrap, and gamma are decimal values.
+Nexus-style comments `[&...]`, if any, are ignored.
 """
 @inline function parseEdgeData!(s::IO, e::Edge, numLeft::Array{Int,1})
     read(s, Char); # to read the first ":"
@@ -316,7 +359,7 @@ nor that `n` is the child of `e`.
 @inline function synchronizePartnersData!(e::Edge, n::Node)
     partners = Edge[] # The edges having n as a child, other than e
     for e2 in n.edge
-        if e2.hybrid && e2!=e && n==getChild(e2)
+        if e2.hybrid && e2!=e && n==getchild(e2)
             push!(partners, e2)
         end
     end
@@ -396,15 +439,19 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
         # read the rest of the subtree (perform the recursive step!)
         n = parseRemainingSubtree!(s, numLeft, net, hybrids)
         c = peekskip(s);
-        if isValidSymbol(c) # internal node has name
+        # read potential internal node name (and skip comments)
+        num, name, pound = readnodename(s, c, net, numLeft);
+        if name != ""
             hasname = true;
-            num, name, pound = readnodename(s, c, net, numLeft);
             n.number = num; # n was given <0 number by parseRemainingSubtree!, now >0
-            c = peekskip(s);
         end
     else # leaf, it should have a name
         hasname = true;
         num, name, pound = readnodename(s, c, net, numLeft)
+        if name == ""
+            a = read(s, String);
+            error("Expected digit, alphanum or # at the start of taxon name, but received $(c). remaining: $(a).");
+        end
         n = Node(num, true); # positive node number to leaves in the newick-tree description
         # @debug "creating node $(n.number)"
     end
@@ -453,6 +500,7 @@ end
 """
     readTopology(file name)
     readTopology(parenthetical description)
+    readTopology(IO)
 
 Read tree or network topology from parenthetical format (extended Newick).
 If the root node has a single child: ignore (i.e. delete from the topology)
@@ -461,6 +509,8 @@ the root node and its child edge.
 Input: text file or parenthetical format directly.
 The file name may not start with a left parenthesis, otherwise the file
 name itself would be interpreted as the parenthetical description.
+Nexus-style comments (`[&...]`) are ignored, and may be placed
+after (or instead) of a node name, and before/after an edge length.
 
 A root edge, not enclosed within a pair a parentheses, is ignored.
 If the root node has a single edge, this one edge is removed.
@@ -491,13 +541,14 @@ function readTopology(s::IO,verbose::Bool)
             elseif c == ','
                 continue;
             elseif c == ')'
+                # read potential root name (or comments)
                 c = peekskip(s);
-                if isValidSymbol(c) # the root has a name
-                    num, name, pound = readnodename(s, c, net, numLeft);
+                num, name, pound = readnodename(s, c, net, numLeft)
+                if name != ""
                     n.name = name
                     # log warning or error if pound > 0?
-                    c = peekskip(s);
                 end
+                c = peekskip(s)
                 if(c == ':') # skip information on the root edge, if it exists
                     # @warn "root edge ignored"
                     while c != ';'
@@ -564,7 +615,7 @@ function checkNumHybEdges!(net::HybridNetwork)
         elseif hyb >=2 # check: exactly 2 incoming, no more.
             nhybparents = 0
             for e in n.edge
-                if n == getChild(e)
+                if n == getchild(e)
                     if e.hybrid
                         nhybparents += 1
                     else @error "node $(n.number) has parent tree edge $(e.number): wrong isChild1 for this edge?"
@@ -699,16 +750,11 @@ function cleanAfterRead!(net::HybridNetwork, leaveRoot::Bool)
     nodes = copy(net.node)
     for n in nodes
         if isNodeNumIn(n,net.node) # very important to check
-            if size(n.edge,1) == 2
-                if !n.hybrid
-                    if !leaveRoot || !isEqual(net.node[net.root],n) #if n is the root
-                        deleteIntNode!(net,n);
-                    end
-                else
-                    hyb = count([e.hybrid for e in n.edge]);
-                    if hyb == 1
-                        deleteIntNode!(net,n);
-                    end
+            if size(n.edge,1) == 2 # delete n if:
+                if (!n.hybrid && (!leaveRoot || !isEqual(net.node[net.root],n)) ||
+                    (n.hybrid && sum(e.hybrid for e in n.edge) == 1))
+                    deleteIntNode!(net,n)
+                    continue # n was deleted: skip the rest
                 end
             end
             if !n.hybrid
@@ -933,7 +979,7 @@ Use `internallabel=false` to suppress the labels of internal nodes.
 """
 function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, namelabel::Bool,
                        roundBL::Bool, digits::Integer, internallabel::Bool)
-    rootnode = net.node[net.root]
+    rootnode = getroot(net)
     if net.numNodes > 1
         print(s,"(")
         degree = length(rootnode.edge)
@@ -988,9 +1034,9 @@ function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
         for e in n.edge
             e != parent || continue # skip parent edge where we come from
             if parent == nothing    # skip if n = child of e
-                n != getChild(e) || continue
+                n != getchild(e) || continue
             end
-            (e.hybrid && getChild(e)==n) && continue # no going up minor hybrid
+            (e.hybrid && getchild(e)==n) && continue # no going up minor hybrid
             firstchild || print(s, ",")
             firstchild = false
             child = getOtherNode(e,n)
@@ -1264,13 +1310,42 @@ function readMultiTopologyLevel1(file::AbstractString)
 end
 
 """
-`readMultiTopology(file)`
+    readMultiTopology(filename::AbstractString, fast=true)
+    readMultiTopology(newicktrees_list::Vector{<:AbstractString})
 
-Read a text file with a list of networks in parenthetical format (one per line).
+
+Read a list of networks in parenthetical format, either from a file
+(one network per line) if the input is a string giving the path
+to the file, or from a vector of strings with each string corresponding to
+a newick-formatted topology.
+By default (`fast=true`), `Functors.fmap` is used for repeatedly
+reading the newick trees into of HybridNetwork-type objects.
+The option `fast=false` corresponds to the behavior up until v0.14.3:
+with a file name as input, it prints a message (without failing) when a
+phylogeny cannot be parsed, and allows for empty lines.
 Each network is read with [`readTopology`](@ref).
-Return an array of HybridNetwork object.
+
+Return an array of HybridNetwork objects.
+
+# Examples
+
+```julia
+julia> multitreepath = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "multitrees.newick");
+julia> multitree = readMultiTopology(multitreepath) # vector of 25 HybridNetworks
+julia> multitree = readMultiTopology(multitreepath, false) # same but slower & safer
+julia> treestrings = readlines(multitreepath) # vector of 25 strings
+julia> multitree = readMultiTopology(treestrings)
+julia> readMultiTopology(treestrings, false) # same, but slower
+```
+
 """
-function readMultiTopology(file::AbstractString)
+function readMultiTopology(topologies::Vector{<:AbstractString}, fast::Bool=true)
+    return (fast ? fmap(readTopology, topologies) : map(readTopology, topologies))
+end
+function readMultiTopology(file::AbstractString, fast::Bool=true)
+    if fast
+        return readMultiTopology(readlines(file), true)
+    end
     s = open(file)
     numl = 1
     vnet = HybridNetwork[];
@@ -1291,6 +1366,207 @@ function readMultiTopology(file::AbstractString)
     return vnet
 end
 
+
+@doc raw"""
+    readnexus_treeblock(filename, treereader=readTopology, args...;
+                        reticulate=true, stringmodifier=[r"#(\d+)" => s"#H\1"])
+
+Read the *first* "trees" block of a nexus-formatted file, using the translate
+table if present, and return a vector of `HybridNetwork`s.
+Information inside `[&...]` are interpreted as comments and are discarded by the
+default tree reader. Optional arguments `args` are passed to the tree reader.
+
+For the nexus format, see
+[Maddison, Swofford & Maddison (1997)](https://doi.org/10.1093/sysbio/46.4.590).
+
+Unless `reticulate` is false, the following is done to read networks with reticulations.
+
+Prior to reading each phylogeny, each instance of `#number` is replaced by
+`#Hnumber` to fit the standard extended Newick format at hybrid nodes.
+This behavior can be changed with option `stringmodifier`, which should be a
+vector of pairs accepted by `replace`.
+
+Inheritance γ values are assumed to be given within "comment" blocks at *minor*
+hybrid edges (cut as tips to form the extended Newick) like this for example,
+as output by bacter ([Vaughan et al. 2017](http://dx.doi.org/10.1534/genetics.116.193425)):
+
+    #11[&conv=0, relSize=0.08, ...
+
+or like this, as output by SpeciesNetwork
+([Zhang et al. 2018](https://doi.org/10.1093/molbev/msx307)):
+
+    #H11[&gamma=0.08]
+
+In this example, the corresponding edge to hybrid H11 has γ=0.08.
+"""
+function readnexus_treeblock(file::AbstractString, treereader=readTopology::Function, args...;
+            reticulate=true, stringmodifier=[r"#(\d+)\b" => s"#H\1"]) # add H
+    vnet = HybridNetwork[]
+    rx_start = r"^\s*begin\s+trees\s*;"i
+    rx_end = r"^\s*end\s*;"i
+    rx_tree = r"^\s*tree\s+[^(]+(\([^;]*;)"i
+    treeblock = false
+    translate = false
+    id2name = nothing
+    open(file) do s
+        numl = 0
+        for line in eachline(s)
+            numl += 1
+            if treeblock
+                occursin(rx_end, line) && break # exit if end of tree block
+            elseif occursin(rx_start, line)     # start reading tree block
+                    treeblock = true
+                    line, translate, id2name = readnexus_translatetable(s)
+            else continue
+            end
+            # now we are inside the treeblock
+            m = match(rx_tree, line)
+            isnothing(m) && continue
+            phy = m.captures[1]
+            if reticulate # fix #Hn and extract γ from #Hn[&conv=n, relSize=γ]
+                phy = replace(phy, stringmodifier...)
+                id2gamma = readnexus_extractgamma(phy)
+            end
+            net = nothing
+            try
+                net = treereader(phy, args...)
+            catch err
+                warnmsg = "skipped phylogeny on line $(numl) of file\n$file\n" *
+                    (:msg in fieldnames(typeof(err)) ? err.msg : string(typeof(err)))
+                @warn warnmsg
+                continue # don't push to vnet
+            end
+            reticulate && readnexus_assigngammas!(net, id2gamma)
+            if translate
+                for tip in net.leaf
+                    id = parse(Int, tip.name)
+                    tip.name = id2name[id]
+                end
+            end
+            push!(vnet, net)
+        end
+    end
+    return vnet
+end
+
+"""
+    readnexus_translatetable(io)
+
+Read translate table from IO object `io`, whose first non-empty line should contain
+"translate". Then each line should have "number name" and the end of the table
+is indicated by a ;. Output tuple:
+- line that was last read, and is not part of the translate table, taken from `io`
+- translate: boolean, whether a table was successfully read
+- id2name: dictionary mapping number to name.
+"""
+function readnexus_translatetable(io)
+    rx_translate = r"^\s*translate"i
+    rx_emptyline = r"^\s*$"
+    line = readline(io)
+    translate = false
+    id2name = Dict{Int,String}()
+    while true
+        if occursin(rx_translate, line)
+            translate = true
+            break
+        elseif occursin(rx_emptyline, line)
+            line = readline(io)
+        else
+            translate = false
+            break
+        end
+    end
+    if translate # then read the table
+        rx_end = r"^\s*;"
+        rx_idname = r"\s*(\d+)\s+(\w+)\s*([,;]?)"
+        while true
+            line = readline(io)
+            occursin(rx_emptyline, line) && continue
+            if occursin(rx_end, line)
+                line = readline(io)
+                break
+            end
+            m = match(rx_idname, line)
+            if isnothing(m)
+                @warn "problem reading the translate table at line $line.\nnumbers won't be translated to names"
+                translate = false
+                break
+            end
+            push!(id2name, parse(Int,m.captures[1]) => String(m.captures[2]))
+            if m.captures[3] == ";"
+                line = readline(io)
+                break
+            end
+        end
+    end
+    return line, translate, id2name
+end
+
+"""
+    readnexus_extractgamma(nexus_string)
+
+Extract γ from comments and return a dictionary hybrid number ID => γ, from
+one single phylogeny given as a string.
+The output from BEAST2 uses this format for reticulations at *minor* edges,
+as output by bacter ([Vaughan et al. 2017](http://dx.doi.org/10.1534/genetics.116.193425)):
+
+    #11[&conv=0, relSize=0.08, ...
+
+or as output by SpeciesNetwork ([Zhang et al. 2018](https://doi.org/10.1093/molbev/msx307)):
+
+    #H11[&gamma=0.08]
+
+The function below assumes that the "H" was already added back if not present
+already (from bacter), like this:
+
+    #H11[&conv=0, relSize=0.19, ...
+
+The bacter format is tried first. If this format doesn't give any match,
+then the SpeciesNetwork format is tried next.  
+See [`readnexus_assigngammas!`](@ref).
+"""
+function readnexus_extractgamma(nexstring)
+    rx_gamma_v1 = r"#H(\d+)\[&conv=\d+,\s*relSize=(\d+\.\d+)"
+    rx_gamma_v2 = r"#H(\d+)\[&gamma=(\d+\.\d+)"
+    id2gamma = Dict{Int,Float64}()
+    # first: try format v1
+    for m in eachmatch(rx_gamma_v1, nexstring)
+        push!(id2gamma, parse(Int, m.captures[1]) => parse(Float64,m.captures[2]))
+    end
+    if isempty(id2gamma) # then try format v2
+      for m in eachmatch(rx_gamma_v2, nexstring)
+        push!(id2gamma, parse(Int, m.captures[1]) => parse(Float64,m.captures[2]))
+      end
+    end
+    return id2gamma
+end
+
+"""
+    readnexus_assigngammas!(net, d::Dict)
+
+Assign d[i] as the `.gamma` value of the minor parent edge of hybrid "Hi",
+if this hybrid node name is found, and if its minor parent doesn't already
+have a non-missing γ. See [`readnexus_extractgamma`](@ref)
+"""
+function readnexus_assigngammas!(net::HybridNetwork, id2gamma::Dict)
+    for (i,gam) in id2gamma
+        nam = "H$i"
+        j = findfirst(n -> n.name == nam, net.hybrid)
+        if isnothing(j)
+            @warn "didn't find any hybrid node named $nam."
+            continue
+        end
+        hn = net.hybrid[j]
+        he = getparentedgeminor(hn)
+        if he.gamma == -1.0
+            setGamma!(he, gam)
+        else
+            @warn "hybrid edge number $(he.number) has γ=$(he.gamma). won't erase with $gam."
+        end
+    end
+    return net
+end
+
 """
     writeMultiTopology(nets, file_name; append=false)
     writeMultiTopology(nets, IO)
@@ -1301,7 +1577,7 @@ file or overwrite it, if it already existed.
 Each network is written with `writeTopology`.
 
 # Examples
-```
+```julia
 julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
               readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
 
@@ -1393,7 +1669,7 @@ function writeTopology(net::HybridNetwork, s::IO,
         for e in net.edge
           # parents of hybrid edges should be sufficient, but gives weird look
           #if e.hybrid
-            i = getIndex(getParent(e), net)
+            i = getIndex(getparent(e), net)
             net.root = i
             try
                 directEdges!(net)
@@ -1428,7 +1704,8 @@ end
 Output `net` as a string in the format that the
 [Hybrid-Lambda](https://github.com/hybridLambda/hybrid-Lambda)
 simulator expects, namely:
-- all internal nodes are named, including the root
+- all internal nodes are named, including the root, with names
+  that are unique and start with a letter.
 - hybrid nodes are written as `H6#γ1:length1` and `H6#γ1:length2`
   instead of `#H6:length1::γ1` and `#H6:length2::γ2`
   (note the samme γ value expected by Hybrid-Lambda)
@@ -1436,9 +1713,11 @@ simulator expects, namely:
 This is a modified version of the
 [extended Newick](https://doi.org/10.1186/1471-2105-9-532) format.
 
-Optional keyword argument: `prefix`, "I" by default.
-Internal nodes without a name will be given names like "I1", "I2", etc.
-See [`nameinternalnodes!`](@ref) to add node names (modifies the input network).
+Optional keyword argument `prefix`: must start with a letter, other than "H".
+Internal nodes are given names like "I1", "I2", etc. Existing internal non-hybrid
+node names are **replaced**, which is crucial if some of them don't start with a
+letter (e.g. in case node names are bootstrap values).
+See [`nameinternalnodes!`](@ref) to add node names.
 
 # examples
 
@@ -1448,7 +1727,7 @@ julia> net = readTopology("((a:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);");
 julia> hybridlambdaformat(net) # net is unchanged here
 "((a:1.0,(b:1.0)H1#0.8:1.0)I1:5.0,(H1#0.8:0.0,c:1.0)I2:1.0)I3;"
 
-julia> # using PhyloPlots; plot(net, :R, showNodeNumber=true) # shows that node -2 is the root
+julia> # using PhyloPlots; plot(net, shownodenumber=true) # shows that node -2 is the root
 
 julia> rotate!(net, -2)
 
@@ -1468,7 +1747,20 @@ julia> hybridlambdaformat(net; prefix="int")
 ```
 """
 function hybridlambdaformat(net::HybridNetwork; prefix="I")
+  startswith(prefix, r"[a-zA-GI-Z]") || error("unsafe prefix $prefix: please start with a letter, but not H")
+  leafnames = tipLabels(net)
+  length(Set(leafnames)) == length(leafnames) || error("taxon names must be unique: $(sort(leafnames))")
   net = deepcopy(net) # binding to new object
+  for e in net.edge
+    if e.hybrid && e.isMajor && e.gamma == -1.0
+      @error("edge number $(e.number) is missing gamma: will use 0.5")
+      setGamma!(e, 0.5)
+    end
+  end
+  for no in net.node
+    (no.leaf || no.hybrid) && continue # skip leaves & hybrid nodes
+    no.name = "" # erase any exisiting name: especially bootstrap values
+  end
   nameinternalnodes!(net, prefix)
   str1 = writeTopology(net, round=true, digits=15) # internallabels=true by default
   rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
@@ -1496,7 +1788,7 @@ end
     nameinternalnodes!(net::HybridNetwork, prefix)
 
 Add names to nodes in `net` that don't already have a name.
-Leaves already have names; but if not, they will be give names as well.
+Leaves already have names; but if not, they will be given names as well.
 New node names will be of the form "prefixI" where I is an integer.
 
 # examples

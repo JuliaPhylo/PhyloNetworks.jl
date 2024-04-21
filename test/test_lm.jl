@@ -6,20 +6,18 @@ global net
 tree_str= "(A:2.5,((B:1,#H1:0.5::0.1):1,(C:1,(D:0.5)#H1:0.5::0.9):1):0.5);"
 net = readTopology(tree_str)
 preorder!(net)
-# printEdges(net)
-# plot(net, useEdgeLength = true,  showEdgeLength=true, showGamma=true)
 
 # Rk: Is there a way to check that the branch length are coherent with
 # one another (Especialy for hybrids) ?
-# Not yet (CA, 2016-12-01).
-# Would be great to add functions to calculate distance node - root.
-# several such distances depending on path: 2 parent choices at each hybrid
+# see QuartetNetworkGoodnessFit.ultrametrize! which can detect if the network is
+# time-consistent: all paths from the root to a given node have the same length
+# https://github.com/cecileane/QuartetNetworkGoodnessFit.jl
 
 # Ancestral state reconstruction with ready-made matrices
 params = ParamsBM(10, 1)
-Random.seed!(2468); # sets the seed for reproducibility, to debug potential error
-sim = simulate(net, params)
-Y = sim[:Tips]
+Random.seed!(2468); # simulates the Y values below under julia v1.6
+sim = simulate(net, params) # tests that the simulation runs, but results not used
+Y = [11.239539657364706,8.600423079191044,10.559841251147608,9.965748423156297] # sim[:Tips]
 X = ones(4, 1)
 phynetlm = phylolm(X, Y, net; reml=false)
 @test_logs show(devnull, phynetlm)
@@ -64,18 +62,19 @@ nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat)
 @test aic(phynetlm) ≈ -2*loglik+2*(length(betahat)+1)
 @test aicc(phynetlm) ≈ -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
 @test bic(phynetlm) ≈ -2*loglik+(length(betahat)+1)*log(ntaxa)
+@test hasintercept(phynetlm)
 
 # with data frames
-dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
+dfr = DataFrame(trait = Y, tipNames = ["A","B","C","D"]) # sim.M.tipNames
 fitbis = phylolm(@formula(trait ~ 1), dfr, net; reml=false)
 #@show fitbis
 
 @test coef(phynetlm) ≈ coef(fitbis)
 @test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
-@test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(phynetlm)[fitbis.ind] ≈ residuals(fitbis)
+@test response(phynetlm)[fitbis.ind] ≈ response(fitbis)
+@test predict(phynetlm)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_phylo(phynetlm) ≈ sigma2_phylo(fitbis)
 @test stderror(phynetlm) ≈ stderror(fitbis)
@@ -92,6 +91,7 @@ fitbis = phylolm(@formula(trait ~ 1), dfr, net; reml=false)
 @test bic(phynetlm) ≈ bic(fitbis)
 tmp = (@test_logs (:warn, r"^You fitted the data against a custom matrix") mu_phylo(phynetlm))
 @test tmp ≈ mu_phylo(fitbis)
+@test hasintercept(phynetlm)
 
 ## fixed values parameters
 fitlam = phylolm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0, reml=false)
@@ -101,9 +101,9 @@ fitlam = phylolm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0
 @test coef(fitlam) ≈ coef(fitbis)
 @test vcov(fitlam) ≈ vcov(fitbis)
 @test nobs(fitlam) ≈ nobs(fitbis)
-@test residuals(fitlam)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(fitlam)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(fitlam)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(fitlam)[fitbis.ind] ≈ residuals(fitbis)
+@test response(fitlam)[fitbis.ind] ≈ response(fitbis)
+@test predict(fitlam)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(fitlam) ≈ dof_residual(fitbis)
 @test sigma2_phylo(fitlam) ≈ sigma2_phylo(fitbis)
 @test stderror(fitlam) ≈ stderror(fitbis)
@@ -119,10 +119,17 @@ fitlam = phylolm(@formula(trait ~ 1), dfr, net, model = "lambda", fixedValue=1.0
 #@test aicc(fitlam) ≈ aicc(fitbis)
 @test bic(fitlam) ≈ bic(fitbis) + log(nobs(fitbis))
 @test mu_phylo(fitlam) ≈ mu_phylo(fitbis)
+@test hasintercept(fitlam)
 
 fitSH = phylolm(@formula(trait ~ 1), dfr, net, model="scalingHybrid", fixedValue=1.0, reml=false)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
 @test aic(fitlam) ≈ aic(fitSH)
+
+@test modelmatrix(fitlam) == reshape(ones(4), (4,1))
+s = IOBuffer(); show(s, formula(fitlam))
+@test String(take!(s)) == "trait ~ 1"
+PhyloNetworks.lambda!(fitlam, 0.5)
+@test PhyloNetworks.lambda(fitlam) == 0.5
 
 ## Pagel's Lambda
 fitlam = (@test_logs (:info, r"^Maximum lambda value") match_mode=:any phylolm(@formula(trait ~ 1), dfr, net, model="lambda", reml=false))
@@ -145,8 +152,10 @@ preorder!(net)
 ## Simulate
 params = ParamsBM(10, 0.1, shiftHybrid([3.0, -3.0],  net))
 Random.seed!(2468); # sets the seed for reproducibility, to debug potential error
-sim = simulate(net, params)
-Y = sim[:Tips]
+sim = simulate(net, params) # checks for no error, but not used.
+# values simulated using julia v1.6.4's RNG hardcoded below.
+# Y = sim[:Tips]
+Y = [11.640085037749985, 9.498284887480622, 9.568813792749083, 13.036916724865296, 6.873936265709946, 6.536647349405742, 5.95771939864956, 10.517318306450647, 9.34927049737206, 10.176238483133424, 10.760099940744308, 8.955543827353837]
 
 ## Construct regression matrix
 dfr_shift = regressorShift(net.edge[[8,17]], net)
@@ -158,7 +167,7 @@ dfr_hybrid = regressorHybrid(net)
 @test dfr_shift[!,:sum] ≈ dfr_hybrid[!,:sum]
 
 ## Data
-dfr = DataFrame(trait = Y, tipNames = sim.M.tipNames)
+dfr = DataFrame(trait = Y, tipNames = ["Ag","Ak","E","M","Az","Ag2","As","Ap","Ar","P","20","165"]) # sim.M.tipNames
 dfr = innerjoin(dfr, dfr_hybrid, on=:tipNames)
 
 ## Simple BM
@@ -190,6 +199,7 @@ fitlam = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net, model="lambda",
 #@test aicc(fitlam)  ≈ aicc(fitShift)
 @test bic(fitlam) ≈ bic(fitShift) + log(nobs(fitShift))
 @test mu_phylo(fitlam)  ≈ mu_phylo(fitShift)
+@test hasintercept(fitlam)
 
 fitSH = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net, model="scalingHybrid", fixedValue=1.0, reml=false)
 @test loglikelihood(fitlam) ≈ loglikelihood(fitSH)
@@ -207,6 +217,7 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 @test table1.fstat[3] ≈ table2[1,:F]
 @test table1.pval[2] ≈ table2[2,Symbol("Pr(>F)")]
 @test table1.pval[3] ≈ table2[1,Symbol("Pr(>F)")]
+@test hasintercept(modnull) && hasintercept(modhom) && hasintercept(modhet)
 # ## Replace next 4 lines with previous ones when GLM.ftest available
 # @test table1[:F][2] ≈ table2[:F][2]
 # @test table1[:F][1] ≈ table2[:F][1]
@@ -234,6 +245,56 @@ table3 = (@test_logs lrtest(modhet, modhom, modnull))
 
 end
 
+#################
+### No intercept
+#################
+@testset "No Intercept" begin
+global net
+net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
+preorder!(net)
+
+## data
+Y = [11.640085037749985, 9.498284887480622, 9.568813792749083, 13.036916724865296, 6.873936265709946, 6.536647349405742, 5.95771939864956, 10.517318306450647, 9.34927049737206, 10.176238483133424, 10.760099940744308, 8.955543827353837]
+X = [9.199418112245104, 8.641506886650749, 8.827105915999073, 11.198420342332025, 5.8212242346434655, 6.130520100788492, 5.846098148463377, 9.125593652542882, 10.575371612483897, 9.198463833849347, 9.090317561636194, 9.603570747653789]
+dfr = DataFrame(trait = Y, reg = X, tipNames = ["Ag","Ak","E","M","Az","Ag2","As","Ap","Ar","P","20","165"]) # sim.M.tipNames
+phynetlm = phylolm(@formula(trait ~ -1 + reg), dfr, net; reml=false)
+# Naive version (GLS): most of it hard-coded, but code shown below
+ntaxa = length(Y)
+X = phynetlm.X
+# Vy = phynetlm.Vy; Vyinv = inv(Vy); XtVyinv = X' * Vyinv; logdetVy = logdet(Vy)
+betahat = [1.073805579608655] # inv(XtVyinv * X) * XtVyinv * Y
+fittedValues =  X * betahat
+resids = Y - fittedValues
+# sigma2hat = 1/ntaxa * (resids' * Vyinv * resids)
+# loglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(sigma2hat) + logdetVy)
+#= null model: no X, and not even an intercept
+nullX = zeros(ntaxa, 1); nullresids = Y; nullXtVyinv = nullX' * Vyinv
+nullsigma2hat = 1/ntaxa * (nullresids' * Vyinv * nullresids) # 6.666261935713196
+nullloglik = - 1 / 2 * (ntaxa + ntaxa * log(2 * pi) + ntaxa * log(nullsigma2hat) + logdetVy) # -38.01145980802529
+=#
+@test coef(phynetlm) ≈ betahat
+@test nobs(phynetlm) ≈ 12 # ntaxa
+@test residuals(phynetlm) ≈ resids
+@test response(phynetlm) ≈ Y
+@test predict(phynetlm) ≈ fittedValues
+@test dof_residual(phynetlm) ≈ 11 # ntaxa-length(betahat)
+@test sigma2_phylo(phynetlm) ≈ 0.1887449836519979 # sigma2hat
+@test loglikelihood(phynetlm) ≈ -16.6249533603196 # loglik
+@test vcov(phynetlm) ≈ [0.003054397019042955;;] # sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)
+@test stderror(phynetlm) ≈ [0.05526659948868715] # sqrt.(diag(sigma2hat*ntaxa/(ntaxa-length(betahat))*inv(XtVyinv * X)))
+@test dof(phynetlm) ≈ 2 # length(betahat)+1
+@test deviance(phynetlm, Val(true)) ≈ 2.264939803823975 # sigma2hat * ntaxa
+@test nulldeviance(phynetlm) ≈ 79.99514322855836 # nullsigma2hat * ntaxa
+@test nullloglikelihood(phynetlm) ≈ -38.01145980802529 # nullloglik
+@test r2(phynetlm) ≈ 0.9716865335517596 # 1-sigma2hat / nullsigma2hat
+@test adjr2(phynetlm) ≈ 0.9716865335517596  atol=1e-15 # 1 - (1 - (1-sigma2hat/nullsigma2hat))*(ntaxa-1)/(ntaxa-length(betahat))
+@test aic(phynetlm) ≈ 37.2499067206392 # -2*loglik+2*(length(betahat)+1)
+@test aicc(phynetlm) ≈ 38.58324005397254 # -2*loglik+2*(length(betahat)+1)+2(length(betahat)+1)*((length(betahat)+1)+1)/(ntaxa-(length(betahat)+1)-1)
+@test bic(phynetlm) ≈ 38.219720020215206 # -2*loglik+(length(betahat)+1)*log(ntaxa)
+@test !hasintercept(phynetlm)
+
+end
+
 ###############################################################################
 #### Other Network
 ###############################################################################
@@ -242,7 +303,6 @@ global net
 # originally: "(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);"
 # followed by changes in net.edge[?].length values to make the network ultrametric
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
-# plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 #= Simulate correlated data in data frames
 b0 = 1
@@ -326,6 +386,11 @@ phynetlm = phylolm(@formula(trait ~ pred), dfr, net; reml=false)
 @test aicc(phynetlm) ≈ aicc(fit_mat)
 @test bic(phynetlm) ≈ bic(fit_mat)
 
+# Deprecated methods
+@test (@test_logs (:warn,r"^accessing") phynetlm.model) === phynetlm
+@test (@test_logs (:warn,r"^accessing") phynetlm.mf.f) == formula(phynetlm)
+@test (@test_logs (:warn,r"^accessing") phynetlm.mm.m) == modelmatrix(phynetlm)
+
 # unordered data
 dfr = dfr[[2,6,10,5,12,7,4,11,1,8,3,9], :]
 fitbis = phylolm(@formula(trait ~ pred), dfr, net; reml=false)
@@ -333,9 +398,9 @@ fitbis = phylolm(@formula(trait ~ pred), dfr, net; reml=false)
 @test coef(phynetlm) ≈ coef(fitbis)
 @test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
-@test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(phynetlm)[fitbis.ind] ≈ residuals(fitbis)
+@test response(phynetlm)[fitbis.ind] ≈ response(fitbis)
+@test predict(phynetlm)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_phylo(phynetlm) ≈ sigma2_phylo(fitbis)
 @test stderror(phynetlm) ≈ stderror(fitbis)
@@ -488,8 +553,8 @@ phynetlm = phylolm(@formula(trait~1), dfr2, net)
 blup2 = (@test_logs (:warn, r"^These prediction intervals show uncertainty in ancestral values") ancestralStateReconstruction(phynetlm))
 
 @test expectations(blup)[1:length(blup.NodeNumbers),:condExpectation] ≈ expectations(blup2)[1:length(blup.NodeNumbers),:condExpectation]
-@test blup.traits_tips[phynetlm.model.ind] ≈ blup2.traits_tips
-@test blup.TipNumbers[phynetlm.model.ind] ≈ blup2.TipNumbers
+@test blup.traits_tips[phynetlm.ind] ≈ blup2.traits_tips
+@test blup.TipNumbers[phynetlm.ind] ≈ blup2.TipNumbers
 @test predint(blup)[1:length(blup.NodeNumbers), :] ≈ predint(blup2)[1:length(blup.NodeNumbers), :]
 
 # With unknown tips
@@ -524,7 +589,6 @@ end
 @testset "lambda when no signal" begin
 global net
 net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);");
-# plot(net, useEdgeLength = true,  showEdgeNumber=true)
 
 #= Simulate correlated data in data frames
 b0 = 1
@@ -565,6 +629,31 @@ lmSH = phylolm(@formula(trait ~ pred), dfr, net, model="scalingHybrid", reml=fal
 lmSH = phylolm(@formula(trait ~ pred), dfr, net, model="scalingHybrid")
 @test lambda_estim(lmSH) ≈ 24.61373831478016 atol=1e-5
 # λ so large?? largest γ = 0.056, so λγ = 1.34 is > 1...
+end
+
+###############################################################################
+### Undefined branch lengths
+###############################################################################
+@testset "Undefined branch length" begin
+    ## No branch length
+    net = readTopology("(A:2.5,((B,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);");
+    dfr = DataFrame(trait = [11.6,8.1,10.3,9.1], tipNames = ["A","B","C","D"]);
+    @test_throws ErrorException("""Branch(es) number 2 have no length.
+        The variance-covariance matrix of the network is not defined.
+        A phylogenetic regression cannot be done.""") phylolm(@formula(trait ~ 1), dfr, net);
+    ## Negative branch length
+    net.edge[2].length = -0.5;
+    @test_throws ErrorException("""Branch(es) number 2 have negative length.
+        The variance-covariance matrix of the network is not defined.
+        A phylogenetic regression cannot be done.""") phylolm(@formula(trait ~ 1), dfr, net);
+    ## Zero branch length: allowed
+    net.edge[2].length = 0.0;
+    fit = phylolm(@formula(trait ~ 1), dfr, net);
+    @test loglikelihood(fit) ≈ -6.245746681512051
+    net.edge[2].length = 0.1; # back to non-zero
+    ## Illicit zero length for 1st edge: from root to single "outgroup" taxon
+    net.edge[1].length = 0.0;
+    @test_throws PosDefException phylolm(@formula(trait ~ 1), dfr, net);
 end
 
 ############################
@@ -624,9 +713,9 @@ fitbis = phylolm(@formula(trait ~ -1), dfr, net)
 #@test coef(phynetlm) ≈ coef(fitbis)
 #@test vcov(phynetlm) ≈ vcov(fitbis)
 @test nobs(phynetlm) ≈ nobs(fitbis)
-@test residuals(phynetlm)[fitbis.model.ind] ≈ residuals(fitbis)
-@test response(phynetlm)[fitbis.model.ind] ≈ response(fitbis)
-@test predict(phynetlm)[fitbis.model.ind] ≈ predict(fitbis)
+@test residuals(phynetlm)[fitbis.ind] ≈ residuals(fitbis)
+@test response(phynetlm)[fitbis.ind] ≈ response(fitbis)
+@test predict(phynetlm)[fitbis.ind] ≈ predict(fitbis)
 @test dof_residual(phynetlm) ≈ dof_residual(fitbis)
 @test sigma2_phylo(phynetlm) ≈ sigma2_phylo(fitbis)
 #@test stderror(phynetlm) ≈ stderror(fitbis)

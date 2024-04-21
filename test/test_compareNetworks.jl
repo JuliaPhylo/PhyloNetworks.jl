@@ -53,7 +53,6 @@ net = readTopology(netstr);
 
 if doalltests
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
-# plot(net, showEdgeNumber=true, showNodeNumber=true)
 deletehybridedge!(net, net.edge[11]);
 writeTopologyLevel1(net) == "(4,((1,2):2.069,(6,5):3.423):0.265,3);" ||
  error("deletehybridedge! didn't work on 11th edge")
@@ -77,15 +76,22 @@ deletehybridedge!(net, net.edge[10]);
 println("a warning is expected: \"node -1 being the root is contradicted by isChild1 of its edges.\"")
 writeTopologyLevel1(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
  error("deletehybridedge! didn't work on 10th edge after isChild1 was changed")
-# plot(net, showEdgeNumber=true, showNodeNumber=true)
 end
 
 # example with simplify=false
 net0 = readTopology("((((((a:1)#H1:1::.9)#H2:1::.8)#H3:1::.7,#H3:0.5):1,#H2:1):1,(#H1:1,b:1):1,c:1);")
 net = deepcopy(net0)
-@test writeTopology(deletehybridedge!(net, net.edge[5]), round=true) == "(((a:1.0)#H1:2.0::0.9):1.0,(#H1:1.0::0.1,b:1.0):1.0,c:1.0);"
+@test writeTopology(deletehybridedge!(net, net.edge[5]), round=true) == "((#H1:1.0::0.1,b:1.0):1.0,c:1.0,(a:1.0)#H1:3.0::0.9);"
 @test writeTopology(deletehybridedge!(net0, net0.edge[5],false,true,false,false), round=true) ==
   "((#H2:1.0::0.2,((a:1.0)#H1:1.0::0.9)#H2:3.0::0.8):1.0,(#H1:1.0::0.1,b:1.0):1.0,c:1.0);"
+
+# level-2 degree-2 blob simplifying to parallel edges, + polytomy below
+net0 = readTopology("(africa_east:0.003,((#H3:0::0.003,(non_africa_west:0.2,non_africa_east:0.2)#H1:0.3::1):0.3,(#H1:0::0)#H3:0::0.997)H2:0);");
+PhyloNetworks.deletehybridedge!(net0, net0.edge[2], false, false, false, true, false)
+@test all(!n.hybrid for n in net0.node)
+@test all(e.containRoot for e in net0.edge)
+@test writeTopology(net0) == "(africa_east:0.003,(non_africa_west:0.2,non_africa_east:0.2)H1:0.0);"
+
 end # of testing deletehybridedge!
 
 @testset "testing deleteleaf! and hardwiredClusterDistance" begin
@@ -120,12 +126,10 @@ end
 net2  = readTopology(cui2str);
 @test_logs deleteleaf!(net2,"Xhellerii");
 @test_logs deleteleaf!(net2,"Xsignum");
-# earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
 @test_logs rootatnode!(net2,"Xmayae");
 net3  = readTopology(cui3str);
 @test_logs deleteleaf!(net3,"Xhellerii");
 @test_logs deleteleaf!(net3,"Xsignum");
-# earlier warning: """node 13 is a leaf. Will create a new node if needed, to set taxon "Xmayae" as outgroup."""
 @test hardwiredClusterDistance(net2, net3, true) == 3
 @test_logs rootatnode!(net3,"Xmayae");
 @test hardwiredClusterDistance(net2, net3, true) == 4

@@ -22,7 +22,7 @@ The simplest way is to use a vector of species names with a data frame of traits
 
 ```@repl fitdiscrete_trait
 # read in network
-net = readTopology("(O:4,(A:3,((B:0.4)#H1:1.6::0.92,((C:0.4,#H1:0::0.08):0.6,(D:.2,E:.2):0.8):1):1):1);");
+net = readTopology("(O:4,(A:3,((B:0.4)#H1:1.6::0.92,((#H1:0::0.08,C:0.4):0.6,(D:.2,E:.2):0.8):1):1):1);");
 # read in trait data
 species = ["C","A","D","B","O","E"];
 dat = DataFrame(trait=["hi","lo","lo","hi","lo","lo"])
@@ -43,19 +43,17 @@ Let's plot the network and map the data onto it:
 using RCall, PhyloPlots
 R"svg"(figname("fitdiscrete_trait_net_1.svg"), width=4, height=3); # hide
 R"par"(mar=[0,0,0,0]); # to reduce margins
-res = plot(net, :R; tipOffset=0.3); # the results "res" provides point coordinates, to use for data annotation
+res = plot(net, tipoffset=0.3); # the results "res" provides point coordinates, to use for data annotation
 o = [findfirst(isequal(tax), species) for tax in tipLabels(net)] # 5,2,4,1,3,6: order to match taxa from "species" to tip labels
 isequal(species[o], tipLabels(net)) # true :)
 traitcolor = map(x -> (x=="lo" ? "grey" : "red"), dat.trait[o])
 leaves = res[13][!,:lea]
 R"points"(x=res[13][leaves,:x] .+0.1, y=res[13][leaves,:y], pch=16, col=traitcolor, cex=1.5); # adds grey & red points
-R"legend"(x=1, y=2, legend=["hi","lo"], pch=16, col=["red","grey"],
+R"legend"(x=1, y=7, legend=["hi","lo"], pch=16, col=["red","grey"],
           title="my trait", bty="n",var"title.adj"=0);
-# next: add arrow to show gene flow edge, and proportion γ of genes affected
-hi = findfirst([!e.isMajor for e in net.edge]) # 6 : "h"ybrid "i"ndex: index of gene flow edge (minor hybrid) in net
-(hx1, hx2, hy1, hy2) = (res[i][hi] for i in 9:12); # coordinates for minor hybrid edge; 1=start, 2=end
-R"arrows"(hx1, hy1, hx2, hy2, col="deepskyblue", length=0.08, angle=20); # adds the arrow
-R"text"(res[14][hi,:x]-0.2, res[14][hi,:y]+0.1, res[14][hi,:gam], col="deepskyblue", cex=0.75); # add the γ value
+# next: add to gene flow edge the proportion γ of genes affected
+hi = findfirst([!e.isMajor for e in net.edge]) # 6 : "h"ybrid "i"ndex: index of gene flow edge (minor hybrid) in net: horizontal segment
+R"text"(res[14][hi,:x]-0.3, res[14][hi,:y]-0.1, res[14][hi,:gam], col="deepskyblue", cex=0.75); # add the γ value
 R"dev.off"(); # hide
 nothing # hide
 ```
@@ -146,7 +144,7 @@ taxa with missing data where pruned, and with edges possibly renumbered.
 ```@example fitdiscrete_trait
 R"svg"(figname("fitdiscrete_trait_net_2.svg"), width=4, height=3); # hide
 R"par"(mar=[0,0,0,0]); # hide
-plot(s3.net, :R, showNodeNumber=true, showIntNodeLabel=true, tipOffset=0.2);
+plot(s3.net, shownodenumber=true, shownodelabel=true, tipoffset=0.2);
 R"dev.off"(); # hide
 nothing # hide
 ```
