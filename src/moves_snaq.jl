@@ -283,10 +283,7 @@ end
 function chooseEdgeOriginTarget!(neighbor::Vector{Edge}, node::Node)
     length(neighbor) < 5 || error("neighbor should have at most 4 edges: $([n.number for n in neighbor])")
     while(!isempty(neighbor))
-        ind = 0
-        while(ind == 0 || ind > length(neighbor))
-            ind = round(Integer,rand()*length(neighbor));
-        end
+        ind = rand(1:length(neighbor))
         if(!neighbor[ind].hybrid && (neighbor[ind].inCycle == -1 || neighbor[ind].inCycle == node.number))
             return true, neighbor[ind], ind
         else
