@@ -4,6 +4,15 @@ using PhyloNetworks
 using Random
 =#
 
+@testset "moveTargetUpdate! reject 2-cycle proposal" begin
+net3c_newick = "(1,2,(((3,4))#H1:::0.6,(#H1:::0.4,(5,6))));" # 3-cycle adjacent to 3 cherries
+net3 = readTopologyLevel1(net3c_newick)
+# net3.node[6].isBadTriangle : not isVeryBadTriangle nor isExtBadTriangle
+hn = net3.hybrid[1] # more robust than net3.node[6]
+tmp = PhyloNetworks.moveTargetUpdate!(net3, hn, getparentedge(hn), net3.edge[11])
+@test !any(tmp)
+end
+
 @testset "unconstrained NNI moves" begin
 
 str_level1 = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
