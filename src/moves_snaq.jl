@@ -280,14 +280,13 @@ end
 # it is suitable. if none is suitable, stops
 # vector a is the vector of possible edges: comes from getNeighborsOrigin/Target
 # returns: success (bool), edge, ind
-function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, node::Node)
-    length(neighbor) < 5 || error("aux vector a should have only 4 entries: $([n.number for n in neighbor])")
+function chooseEdgeOriginTarget!(neighbor::Vector{Edge}, node::Node)
+    length(neighbor) < 5 || error("neighbor should have at most 4 edges: $([n.number for n in neighbor])")
     while(!isempty(neighbor))
         ind = 0
         while(ind == 0 || ind > length(neighbor))
             ind = round(Integer,rand()*length(neighbor));
         end
-        #println("ind es $(ind), neighbor edge $(neighbor[ind].number)")
         if(!neighbor[ind].hybrid && (neighbor[ind].inCycle == -1 || neighbor[ind].inCycle == node.number))
             return true, neighbor[ind], ind
         else
@@ -674,7 +673,7 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     #println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
-        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node)
+        success1,newedge,ind = chooseEdgeOriginTarget!(neighbor,node)
         !isa(newedge,Nothing) || return false
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
@@ -691,17 +690,20 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     return true
 end
 
-# ------------------------------ move target of hybridization -------------------------------
+# ----------------- move target of hybridization -------------------------------
+"""
+    getNeighborsTarget(hybrid_node, majoredge)
 
+Vector of edges that are incident to either:
+- the node incident to `majoredge` other than `hybrid_node`, or
+- the tree child of `hybrid_node`.
 
-# function to give the vector of edges neighbor
-# that includes all the suitable neighbors of othermin
-# to move the target
+This vector of edges is used as the list of suitable neighbors of "othermin"
+to move the target of a hybrid edge, in `moveTargetUpdateRepeat!`.
+"""
 function getNeighborsTarget(node::Node,majoredge::Edge)
     node.hybrid || error("node $(node.number) must be the hybrid node to move target")
     major,minor,tree = hybridEdges(node)
-    othermajor = getOtherNode(majoredge,node)
-    #println("othermajor is $(othermajor.number)")
     neighbor = Edge[]
     n1 = getOtherNode(majoredge,node)
     n2 = getOtherNode(tree,node)
@@ -1018,13 +1020,38 @@ end
 moveTarget!(net::HybridNetwork,node::Node, major::Edge, tree::Edge, newedge::Edge) = moveTarget!(net,node, major, tree, newedge, false, false)
 
 # function to move the target of a hybrid edge
-# and update everything that needs update: gammaz, root
-# input: network, hybrid node, othermin, majoredge (chosen with chooseMinorMajor), newedge
-# returns: success (bool), flag2, flag3
-function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, majoredge::Edge, newedge::Edge)
+"""
+    moveTargetUpdate!(net, hybrid_node, majoredge, newedge)
+
+Modify a level-1 network `net` by moving `majoredge`, which should be a
+hybrid edge parent of `hybrid_node`.
+Within SNaQ, `majoredge` is chosen by `chooseMinorMajor`.
+- calls `moveTarget!(net,hybrid_node, majoredge, treeedge_belowhybrid, newedge)`,
+  which does the move but does not update any attributes
+- updates all level-1 attributes needed for SNaQ: gammaz, containRoot
+- un-does the move and updates if the move is invalid,
+  through another call to `moveTarget!` but with the "undo" option.
+
+`newedge` should be a tree edge (enforced by `chooseEdgeOriginTarget!`)
+adjacent to the parent node of `majoredge` or to the tree child of `hybrid_node`
+(enforced by `getNeighborsTarget`)
+
+Output: tuple of 3 booleans `(success, flag_triangle, flag_root)`.
+- `success` is false if the move failed (lead to an invalid network for SNaQ)
+- `flag_triangle` is false if `net.hasVeryBadTriangle`
+- `flag_root` is false if the set of edges to place the root is empty
+If `success` is false, then the flags are not meant to be used downstream.
+"""
+function moveTargetUpdate!(net::HybridNetwork, node::Node, majoredge::Edge, newedge::Edge)
     global CHECKNET
     node.hybrid || error("node $(node.number) is not hybrid, so we cannot delete hybridization event around it")
     @debug "MOVE: move Target for hybrid node $(node.number)"
+    # reject the move if `node` is in a 3-cycle and `newedge` is in that cycle
+    if node.k == 3 && newedge.inCycle == node.number
+        # then invalid move: would create a 2-cycle
+        node.isBadTriangle || @warn "network with a not-nice 3-cycle (at least 1 block has a single taxon)"
+        return false,false,false
+    end
     in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
     major,minor,tree = hybridEdges(node)
     undoGammaz!(node,net);
@@ -1034,10 +1061,10 @@ function moveTargetUpdate!(net::HybridNetwork, node::Node, othermin::Node, major
     #@debug "undoContainRoot for edges $([e.number for e in edgesRoot])"
     newedgeincycle, alreadyNoRoot = moveTarget!(net,node,majoredge,tree,newedge)
     flag2, edgesGammaz = updateGammaz!(net,node)
-    if(flag2)
+    if flag2
 #        flag3,edgesroot = updateContainRoot!(net,node) now in updateContainRootChangeDir
         flag3,edgesroot = updateContainRootChangeDir!(net,node,edgesRoot, alreadyNoRoot)
-        if(flag3)
+        if flag3
             parameters!(net);
             @debug "MOVE: move Target for hybrid node $(node.number) SUCCESSFUL"
             return true,flag2, flag3
@@ -1090,11 +1117,11 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
     #println("neighbors list is $([n.number for n in neighbor])")
     success = false
     while(!isempty(neighbor) && !success)
-        success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node);
+        success1,newedge,ind = chooseEdgeOriginTarget!(neighbor,node);
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
         in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
-        success,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
+        success,flag2 = moveTargetUpdate!(net, node, majoredge,newedge)
         #println("after update, success is $(success)")
         if(!success)
             @debug "move target failed, will delete neighbor and try new one"
@@ -1102,8 +1129,7 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool)
         end
         #println("neighbor list is $([n.number for n in neighbor])")
     end
-    success || return false
-    return true
+    return success
 end
 
 
