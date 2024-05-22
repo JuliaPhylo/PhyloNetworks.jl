@@ -186,7 +186,7 @@ function updateGammaz!(net::HybridNetwork, node::Node, allow::Bool)
     edge_maj, edge_min, tree_edge2 = hybridEdges(node);
     other_maj = getOtherNode(edge_maj,node);
     other_min = getOtherNode(edge_min,node);
-    node.k > 2 || error("cycle with only 2 nodes: parallel edges") # return false, []
+    node.k > 2 || error("cycle with only $(node.k) nodes: parallel edges") # return false, []
     if(node.k == 4) # could be bad diamond I,II
 #        net.numTaxa >= 5 || return false, [] #checked inside optTopRuns now
         edgebla,edge_min2,tree_edge3 = hybridEdges(other_min);
