@@ -10,8 +10,10 @@ and their use for trait evolution.
 **How to get help**
 
 - the package [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) has a step-by-step
-  tutorial, done for the 2019 MBL workshop, with background on networks and
+  tutorial, done for the MBL workshop (last revised 2022), with background on networks and
   explanations.
+- [tutorial](https://cecileane.github.io/networkPCM-workshop/) for
+  comparative methods, including network calibration (2023 workshop)
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   has answers to common questions.
 - the [Manual](@ref) below has a quick tutorial (navigation on the left).
