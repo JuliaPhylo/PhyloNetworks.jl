@@ -210,7 +210,13 @@ modnull = phylolm(@formula(trait ~ 1), dfr, net)
 @test sigma2_phylo(modnull) ≈ 0.6517876326943942 atol=1e-6 # using REML
 modhom = phylolm(@formula(trait ~ sum), dfr, net)
 modhet = phylolm(@formula(trait ~ sum + shift_8), dfr, net)
-table1 = ftest(modhet, modhom, modnull)
+#= 3 warnings thrown by ftest, one for each model, because after transforming the
+   data to de-correlate the results, the intercept vector is not ∝ 1.
+   Keep the warnings: because incorrect R² values in the ftest output
+=#
+table1 = redirect_stdio(stderr=devnull) do # to avoid seeing the warnings
+    ftest(modhet, modhom, modnull)
+end
 table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 
 @test table1.fstat[2] ≈ table2[2,:F]

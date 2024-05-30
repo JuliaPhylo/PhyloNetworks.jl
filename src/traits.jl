@@ -3019,7 +3019,16 @@ isnested(::Union{PagelLambda,ScalingHybrid}, ::BM) = false
 isnested(::ScalingHybrid,::PagelLambda) = false
 isnested(::PagelLambda,::ScalingHybrid) = false
 
-## ANOVA using ftest from GLM - need version 0.8.1
+#= ANOVA using ftest from GLM - need version 0.8.1
+ As of GLM v1.8, ftest throws a warning on typical BM models, one per model:
+ "Starting from GLM.jl 1.8, null model is defined as having no predictor at all when a model without an intercept is passed."
+ This is because after transforming the data to de-correlate the residuals,
+ the transformed intercept vector is not proportional to the constant vector 1.
+ The warning is from: ftest → r2(phylomodel.lm) → nulldeviance(phylomodel.lm) → warning.
+ But nulldeviance(phylomodel) does *not* call nulldeviance(phylomodel.lm),
+ instead re-implemented here to use the intercept properly.
+ Keep these warnings: because the R² values in the ftest output table are incorrect.
+=#
 function GLM.ftest(objs::PhyloNetworkLinearModel...)
     if !all( isa(o.evomodel,BM) && isnothing(o.model_within) for o in objs)
         throw(ArgumentError("""F test is only valid for the vanilla BM model.

@@ -508,9 +508,21 @@ complex cases, it is possible to do a Fisher F test, thanks to the `GLM`
 function `ftest`.
 ```@example tree_trait
 fit_null = phylolm(@formula(trait ~ 1), dat, truenet) # fit against the null (no shift)
-ftest(fit_sh, fit_null)  # nested models
+ftest(fit_null, fit_sh)  # nested models
 ```
 Here, this test is equivalent to the Fisher F test, and gives the same p-value.
+
+!!! warning "Warnings and incorrect R² columns"
+    A warning may appear, saying
+    "Starting from GLM.jl 1.8, null model is defined as having no predictor at all when a model without an intercept is passed."
+    - Why? `ftest` is inherited from the GLM package, which does not know that
+      the intercept term is not a column of ones after transformation to remove
+      the phylogenetic correlation. This is why `ftest` throws a warning for
+      each model when multiple models are compared.
+    - So what?
+      * no need to worry: the F values and p-values are correct
+      * but: R² values are incorrect (they are calculated assuming *no* intercept)
+        and should be ignored.
 
 Note that models need to be ordered by complexity, when given to `ftest`:
 either from most complex to most simple, or from most simple to most complex.
