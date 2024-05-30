@@ -523,7 +523,7 @@ Here, this test is equivalent to the Fisher F test, and gives the same p-value.
       * no need to worry: the F values and p-values are correct
       * but: R² values are incorrect and should be ignored.
         They are calculated assuming *no* intercept and are based on the
-        transformed de-correlated data anyway: use [`r2`](@ref) instead.
+        transformed de-correlated data anyway: use the `r2` function instead.
 
 Note that models need to be ordered by complexity, when given to `ftest`:
 either from most complex to most simple, or from most simple to most complex.
