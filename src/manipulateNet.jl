@@ -567,6 +567,8 @@ Add a new external edge between `node` or between the "middle" of `edge`
 and a newly-created leaf, of name `leafname`.
 By default, the new edge length is missing (-1).
 
+output: newly created leaf node.
+
 # examples
 
 ```jldoctest
@@ -616,13 +618,12 @@ function addleaf!(net::HybridNetwork, speciesnode::Node, leafname::String, edgel
         net.numTaxa -= 1
     end
     pushNode!(net, newleaf) # push node into network (see auxillary.jl)
-    return net
+    return newleaf
 end
 
 function addleaf!(net::HybridNetwork, startingedge::Edge, leafname::String, edgelength::Float64=-1.0)
-    newnode, newedge = breakedge!(startingedge, net)
-    addleaf!(net, newnode, leafname, edgelength)
-    return net
+    newnode, _ = breakedge!(startingedge, net)
+    return addleaf!(net, newnode, leafname, edgelength)
 end
 
 

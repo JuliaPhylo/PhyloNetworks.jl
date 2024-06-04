@@ -261,7 +261,7 @@ Then log out of the cluster and go for coffee.
 echo "slurm task ID = $SLURM_ARRAY_TASK_ID used as hmax"
 echo "start of SNaQ parallel runs on $(hostname)"
 # finally: launch the julia script, using Julia executable appropriate for slurm, with full paths:
-/workspace/software/bin/julia --history-file=no -- runSNaQ.jl $SLURM_ARRAY_TASK_ID 30 > net$SLURM_ARRAY_TASK_ID_30runs.screenlog 2>&1
+/workspace/software/bin/julia --history-file=no -- runSNaQ.jl $SLURM_ARRAY_TASK_ID 30 > net${SLURM_ARRAY_TASK_ID}_30runs.screenlog 2>&1
 echo "end of SNaQ run ..."
 ```
 

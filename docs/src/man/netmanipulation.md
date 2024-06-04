@@ -36,9 +36,10 @@ To modify a network, for example:
   [`deleteaboveLSA!`](@ref) (the "least stable ancestor" may be different from the root)
 - [`deleteHybridThreshold!`](@ref) to simplify a network by deleting edges with small γ's
 - [`removedegree2nodes!`](@ref), [`shrink3cycles!`](@ref), [`shrink2cycles!`](@ref),
-  [`PhyloNetworks.shrinkedge!`](@ref)]
+  [`PhyloNetworks.shrinkedge!`](@ref)
 - [`PhyloNetworks.addleaf!`](@ref),
-  [`PhyloNetworks.deletehybridedge!`](@ref), [`PhyloNetworks.addhybridedge!`](@ref)
+  [`PhyloNetworks.deletehybridedge!`](@ref),
+  [`PhyloNetworks.addhybridedge!`](@ref)
 - [`nni!`](@ref) (nearest neighbor interchange),
   [`PhyloNetworks.fliphybrid!`](@ref) to flip the direction of a hybrid edge
 - [`PhyloNetworks.unzip_canonical!`](@ref) to "unzip" (or zip down) all
