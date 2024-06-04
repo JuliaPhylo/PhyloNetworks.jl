@@ -3025,9 +3025,12 @@ isnested(::PagelLambda,::ScalingHybrid) = false
  This is because after transforming the data to de-correlate the residuals,
  the transformed intercept vector is not proportional to the constant vector 1.
  The warning is from: ftest → r2(phylomodel.lm) → nulldeviance(phylomodel.lm) → warning.
+ R² by GLM is wrong: assume *no* intercept, and are based on the transformed data.
+ R² corrected them below: r2(phylomodel) reimplemented here.
  But nulldeviance(phylomodel) does *not* call nulldeviance(phylomodel.lm),
  instead re-implemented here to use the intercept properly.
- Keep these warnings: because the R² values in the ftest output table are incorrect.
+ Keep the warnings: unless they can be suppressed with specificity
+ Ideally: modify `ftest` here or in GLM.
 =#
 function GLM.ftest(objs::PhyloNetworkLinearModel...)
     if !all( isa(o.evomodel,BM) && isnothing(o.model_within) for o in objs)
@@ -3035,7 +3038,9 @@ function GLM.ftest(objs::PhyloNetworkLinearModel...)
         Use a likelihood ratio test instead with function `lrtest`."""))
     end
     objslm = [obj.lm for obj in objs]
-    return ftest(objslm...)
+    resGLM = ftest(objslm...)
+    resGLM.r2 = r2.(objs)
+    return resGLM
 end
 ## ANOVA: old version - kept for tests purposes - do not export
 """

@@ -224,11 +224,7 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 @test table1.pval[2] ≈ table2[2,Symbol("Pr(>F)")]
 @test table1.pval[3] ≈ table2[1,Symbol("Pr(>F)")]
 @test hasintercept(modnull) && hasintercept(modhom) && hasintercept(modhet)
-# ## Replace next 4 lines with previous ones when GLM.ftest available
-# @test table1[:F][2] ≈ table2[:F][2]
-# @test table1[:F][1] ≈ table2[:F][1]
-# @test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
-# @test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
+@test all(isapprox.(table1.r2, (0.8398130376214782, 0.006032952123011026, 0), atol=1e-15))
 
 # Check that it is the same as doing shift_8 + shift_17
 modhetbis = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net)
