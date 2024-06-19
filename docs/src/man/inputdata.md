@@ -59,7 +59,7 @@ genetrees = readMultiTopology(raxmltrees);
 genetrees[3]
 ```
 To visualize any of these input trees, use the
-[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl) package:
+[PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl) package:
 ```@example qcf
 using PhyloPlots
 using RCall # hide

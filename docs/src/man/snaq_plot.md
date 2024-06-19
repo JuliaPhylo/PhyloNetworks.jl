@@ -297,7 +297,7 @@ plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
 ## Network Visualization
 
 To visualize the estimated network, we can use the companion package
-[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl).
+[PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl).
 In the example below, julia creates and sends the plot to R
 via [RCall](https://github.com/JuliaInterop/RCall.jl),
 so we can tweak the plot in various ways via commands sent to R.

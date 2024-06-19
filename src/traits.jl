@@ -3125,7 +3125,7 @@ end
 
 Compute and format the expected reconstructed states for the plotting function.
 The resulting dataframe can be readily used as a `nodelabel` argument to
-`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+`plot` from package [`PhyloPlots`](https://github.com/juliaphylo/PhyloPlots.jl).
 Keyword argument `markMissing` is a string that is appended to predicted
 tip values, so that they can be distinguished from the actual datapoints. Default to
 "*". Set to "" to remove any visual cue.
@@ -3181,7 +3181,7 @@ end
 
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodelabel` argument to
-`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+`plot` from package [`PhyloPlots`](https://github.com/juliaphylo/PhyloPlots.jl).
 Keyworks argument `level` control the confidence level of the
 prediction interval. If `withExp` is set to true, then the best
 predicted value is also shown along with the interval.

@@ -11,7 +11,7 @@ preorder!(net)
 # one another (Especialy for hybrids) ?
 # see QuartetNetworkGoodnessFit.ultrametrize! which can detect if the network is
 # time-consistent: all paths from the root to a given node have the same length
-# https://github.com/cecileane/QuartetNetworkGoodnessFit.jl
+# https://github.com/juliaphylo/QuartetNetworkGoodnessFit.jl
 
 # Ancestral state reconstruction with ready-made matrices
 params = ParamsBM(10, 1)

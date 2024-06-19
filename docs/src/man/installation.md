@@ -59,7 +59,7 @@ The PhyloNetworks package has dependencies like
 [DataFrames](http://juliadata.github.io/DataFrames.jl/stable/)
 (see the `Project.toml` file for the full list), but everything is installed automatically.
 
-The companion package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl)
+The companion package [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl)
 has utilities to visualize networks, and for interoperability,
 such as to export networks to R (which can then be plotted via R).
 To install:
