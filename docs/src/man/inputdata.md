@@ -8,7 +8,7 @@ from multiple molecular sequence alignments. There are two alternatives for the 
 
 This [pipeline](https://github.com/nstenz/TICR) can be used to obtain the table of
 quartet CF needed as input for SNaQ
-(see also the [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki/TICR:-from-alignments-to-quartet-concordance-factors).)
+(see also the [wiki](https://github.com/juliaphylo/PhyloNetworks.jl/wiki/TICR:-from-alignments-to-quartet-concordance-factors).)
 It starts from the sequence alignments,
 runs MrBayes and then BUCKy (both parallelized), producing the
 table of estimated CFs and their credibility intervals.
@@ -25,9 +25,9 @@ and run Julia from there.
 Suppose you have a file with a list of gene trees in parenthetical
 format called `raxmltrees.tre`.
 You can access the example file of input trees
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/raxmltrees.tre)
+[here](https://github.com/juliaphylo/PhyloNetworks/blob/master/examples/raxmltrees.tre)
 or
-[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/raxmltrees.tre)
+[here](https://raw.githubusercontent.com/juliaphylo/PhyloNetworks/master/examples/raxmltrees.tre)
 for easier download.
 
 Do not copy-paste into a "smart" text-editor. Instead, save the file
@@ -123,9 +123,9 @@ in a file `buckyCF.csv` in this format
 
 we would read it in one step like this: `readTableCF("buckyCF.csv")`.
 An example file comes with the package, available
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/buckyCF.csv)
+[here](https://github.com/juliaphylo/PhyloNetworks/blob/master/examples/buckyCF.csv)
 or
-[here](https://raw.githubusercontent.com/crsl4/PhyloNetworks/master/examples/buckyCF.csv).
+[here](https://raw.githubusercontent.com/juliaphylo/PhyloNetworks/master/examples/buckyCF.csv).
 
 ```@repl qcf
 buckyCFfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","buckyCF.csv");
@@ -155,7 +155,7 @@ it can be used as a starting point for the optimization.
 From our gene trees, we estimated a species tree with
 [ASTRAL](https://github.com/smirarab/ASTRAL/blob/master/astral-tutorial.md).
 This tree comes with the package in file `astral.tre`
-[here](https://github.com/crsl4/PhyloNetworks/blob/master/examples/astral.tre).
+[here](https://github.com/juliaphylo/PhyloNetworks/blob/master/examples/astral.tre).
 This file has 102 trees: 100 bootstrap species trees,
 followed by their greedy consensus,
 followed by the best tree on the original data.

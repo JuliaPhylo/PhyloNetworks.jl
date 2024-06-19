@@ -19,7 +19,7 @@ bootnet = bootsnaq(startnetwork, df, hmax=1, filename="bootstrap")
 
 The names of all our bootstrap files are listed in "BSlistfiles".
 (ASTRAL can use the same file to do its own bootstrap, see the
-[wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki/Gene-Trees:-RAxML)
+[wiki](https://github.com/juliaphylo/PhyloNetworks.jl/wiki/Gene-Trees:-RAxML)
 for more details).
 The function `readBootstrapTrees` can read this list of file names, then
 read each bootstrap file to get the bootstrap sample for each gene.

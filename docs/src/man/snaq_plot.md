@@ -379,7 +379,7 @@ lower the better. See the section to get the score of [Candidate Networks](@ref)
 ## SNaQ error reporting
 
 Please report any bugs and errors by opening an
-[issue](https://github.com/crsl4/PhyloNetworks.jl/issues/new).
+[issue](https://github.com/juliaphylo/PhyloNetworks.jl/issues/new).
 The easiest way to provide information on the error is by checking the
 `.err` file, which will show the number of runs that
 failed and the corresponding seed to replicate the run.
