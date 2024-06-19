@@ -48,7 +48,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/juliaphylo/PhyloNetworks.jl.git",
+    repo = "github.com/JuliaPhylo/PhyloNetworks.jl.git",
     push_preview = true,
     devbranch = "master",
 )
