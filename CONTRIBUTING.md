@@ -4,7 +4,7 @@ The following guidelines are designed for contributors of `PhyloNetworks`.
 
 ## Reporting Issues and Questions
 
-For reporting a bug, a failed function or requesting a new feature, you can simply open an issue in [the issue tracker](https://github.com/crsl4/PhyloNetworks.jl/issues).
+For reporting a bug, a failed function or requesting a new feature, you can simply open an issue in [the issue tracker](https://github.com/juliaphylo/PhyloNetworks.jl/issues).
 First, seach through existing issues (open or closed) that might have the answer to your question.
 If you are reporting a bug, please also include a minimal code example or all relevant information for us to replicate the issue.
 
@@ -30,7 +30,7 @@ Please use the following steps:
    Make sure that your code passes all the
    [tests](https://pkgdocs.julialang.org/v1/managing-packages/#Testing-packages).
 5. Push your changes to your fork
-6. [Submit a pull request](https://github.com/crsl4/PhyloNetworks.jl/pulls) against the `master` branch in `PhyloNetworks`. Make sure that your code passes all the automatic tests and that it is not in conflict with the current status of `master`
+6. [Submit a pull request](https://github.com/juliaphylo/PhyloNetworks.jl/pulls) against the `master` branch in `PhyloNetworks`. Make sure that your code passes all the automatic tests and that it is not in conflict with the current status of `master`
 
 Please make sure to follow the Julia package guidelines and conventions on your code. `PhyloNetworks` was created before these conventions were catalyzed, but we are attempting to follow them going forward. 
 

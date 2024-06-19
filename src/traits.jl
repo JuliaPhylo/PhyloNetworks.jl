@@ -3125,7 +3125,7 @@ end
 
 Compute and format the expected reconstructed states for the plotting function.
 The resulting dataframe can be readily used as a `nodelabel` argument to
-`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+`plot` from package [`PhyloPlots`](https://github.com/juliaphylo/PhyloPlots.jl).
 Keyword argument `markMissing` is a string that is appended to predicted
 tip values, so that they can be distinguished from the actual datapoints. Default to
 "*". Set to "" to remove any visual cue.
@@ -3181,7 +3181,7 @@ end
 
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodelabel` argument to
-`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+`plot` from package [`PhyloPlots`](https://github.com/juliaphylo/PhyloPlots.jl).
 Keyworks argument `level` control the confidence level of the
 prediction interval. If `withExp` is set to true, then the best
 predicted value is also shown along with the interval.
@@ -3401,7 +3401,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warnin
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3359
+└ @ PhyloNetworks ~/build/juliaphylo/PhyloNetworks.jl/src/traits.jl:3359
 ReconstructedStates:
 ───────────────────────────────────────────────
   Node index      Pred.        Min.  Max. (95%)
@@ -3548,7 +3548,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3166
+└ @ PhyloNetworks ~/build/juliaphylo/PhyloNetworks.jl/src/traits.jl:3166
 
 julia> first(expectations(ancStates), 3) # looking at first 3 nodes only
 3×2 DataFrame

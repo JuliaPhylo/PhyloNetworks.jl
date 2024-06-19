@@ -1,9 +1,9 @@
 # PhyloNetworks: analysis for phylogenetic networks <img src="docs/src/logo_text.png" align=right>
 
-[![doc stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/stable)
-[![doc dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://crsl4.github.io/PhyloNetworks.jl/dev)
-[![Build status](https://github.com/crsl4/PhyloNetworks.jl/workflows/CI/badge.svg?branch=master)](https://github.com/crsl4/PhyloNetworks.jl/actions/workflows/ci.yml)
-[![coverage](https://codecov.io/gh/crsl4/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/crsl4/PhyloNetworks.jl)
+[![doc stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/stable)
+[![doc dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/dev)
+[![Build status](https://github.com/juliaphylo/PhyloNetworks.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaphylo/PhyloNetworks.jl/actions/workflows/ci.yml)
+[![coverage](https://codecov.io/gh/juliaphylo/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/juliaphylo/PhyloNetworks.jl)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 [![PkgEval](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/P/PhyloNetworks.svg)](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/report.html)
@@ -25,14 +25,14 @@ PhyloNetworks is a [Julia](http://julialang.org) package with utilities to:
 - phylogenetic comparative methods for continuous trait evolution
   on species networks / trees
 - plot networks (and trees), via the companion package
-  [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl)
+  [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl)
 
 To get help, check
 
-- the [latest documentation](https://crsl4.github.io/PhyloNetworks.jl/dev)
-- the [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) for a step-by-step tutorial
+- the [latest documentation](https://juliaphylo.github.io/PhyloNetworks.jl/dev)
+- the [wiki](https://github.com/juliaphylo/PhyloNetworks.jl/wiki) for a step-by-step tutorial
   with background on networks (last revised 2022)
-- [tutorial](https://cecileane.github.io/networkPCM-workshop/) for
+- [tutorial](https://juliaphylo.github.io/networkPCM-workshop/) for
   comparative methods, including network calibration (2023 workshop)
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   for common questions. Join the group to post/email your questions,

@@ -1,6 +1,6 @@
 # TICR pipeline
 
-PhyloNetworks' [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki/TICR:-from-alignments-to-quartet-concordance-factors)
+PhyloNetworks' [wiki](https://github.com/juliaphylo/PhyloNetworks.jl/wiki/TICR:-from-alignments-to-quartet-concordance-factors)
 has a step-by-step tutorial,
 to go from multiple sequence alignments
 to a table of quartet gene frequencies (concordance factors: CFs),
@@ -8,7 +8,7 @@ through BUCKy (to integrate out gene tree uncertainty) or through RAxML.
 To get the `raxml.pl` perl script to run RAxML on each gene,
 download the content of that wiki with
 
-`git clone https://github.com/crsl4/PhyloNetworks.jl.wiki.git`
+`git clone https://github.com/juliaphylo/PhyloNetworks.jl.wiki.git`
 
 then go to the `script/` folder.  
 Full information and code is [here](https://github.com/nstenz/TICR).

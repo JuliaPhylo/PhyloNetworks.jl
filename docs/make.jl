@@ -15,7 +15,7 @@ makedocs(
         prettyurls = get(ENV, "CI", nothing) == "true", # easier local build
         size_threshold = 600 * 2^10,
         size_threshold_warn = 500 * 2^10, # 600 KiB
-        canonical="https://crsl4.github.io/PhyloNetworks.jl/stable/",
+        canonical="https://juliaphylo.github.io/PhyloNetworks.jl/stable/",
         edit_link="master",
     ),
     # exception, so warning-only for :missing_docs. List all others:
@@ -48,7 +48,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/crsl4/PhyloNetworks.jl.git",
+    repo = "github.com/JuliaPhylo/PhyloNetworks.jl.git",
     push_preview = true,
     devbranch = "master",
 )
