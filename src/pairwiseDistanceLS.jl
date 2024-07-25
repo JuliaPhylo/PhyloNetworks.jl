@@ -111,7 +111,7 @@ end
 
 function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)
     recursionPreOrder!(net.nodes_changed, M, # updates M in place
-            updateRootSharedPathMatrix!, # does nothing
+            updateRecursion_default!, # does nothing
             updateTreePairwiseTaxonDistanceMatrix!,
             updateHybridPairwiseTaxonDistanceMatrix!,
             nodeAges)
@@ -168,7 +168,7 @@ function pairwiseTaxonDistanceGrad(net::HybridNetwork;
     n = (length(nodeAges)==0 ? net.numEdges : net.numNodes)
     M = zeros(Float64, net.numNodes, net.numNodes, n)
     recursionPreOrder!(net.nodes_changed, M,
-            updateRootSharedPathMatrix!,  # does nothing
+            updateRecursion_default!,  # does nothing
             updateTreePairwiseTaxonDistanceGrad!,
             updateHybridPairwiseTaxonDistanceGrad!,
             nodeAges) # nodeAges assumed pre-ordered, like nodes_changed

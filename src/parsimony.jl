@@ -1095,7 +1095,10 @@ function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Inte
     end
     writelog && write(logfile,"\nEND: found minimizer topology at step $(count) (failures: $(failures)) with parsimony score=$(round(newT.loglik, digits=5))")
     writelog && printCounts(movescount,zeros(Int,13),logfile) ## zeroes in lieu of movesgamma, not used in parsimony
-    setBLGammaParsimony!(newT)
+    #= to use snaq move functions, branch lengths and γ's were set randomly to
+    initialize optimization. Remove them before returning the MP network.
+    =#
+    remove_edgeLengthsGammas!(newT)
     return newT
 end
 

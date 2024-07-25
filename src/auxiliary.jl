@@ -1016,6 +1016,20 @@ end
 end
 
 """
+    remove_edgeLengthsGammas!(net::HybridNetwork)
+
+Reset all edge lengths and all hybrid edge γs to be missing (coded as -1.0).
+"""
+function remove_edgeLengthsGammas!(net::HybridNetwork)
+    for e in net.edge
+        e.length = -1.0
+        if e.hybrid
+            e.gamma = -1.0
+        end
+    end
+end
+
+"""
     setGammaBLfromGammaz!(node, network)
 
 Update the γ values of the two sister hybrid edges in a bad diamond I, given the `gammaz` values

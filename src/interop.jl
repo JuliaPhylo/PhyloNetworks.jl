@@ -9,7 +9,7 @@ Used for branch lengths and γs. `x` needs to accept missing values.
 If not, this can be done with `allowmissing(x)`.
 """
 @inline function makemissing!(x::AbstractVector)
-    for i in 1:length(x)
+    for i in eachindex(x)
         if x[i] == -1.0
             x[i] = missing
         end

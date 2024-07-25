@@ -131,58 +131,20 @@ module PhyloNetworks
         getNodeAges,
         pairwiseTaxonDistanceMatrix,
         calibrateFromPairwiseDistances!,
-        ## Network PCM
-        phylolm,
-        PhyloNetworkLinearModel,
+        # continuous traits
         simulate,
-        TraitSimulation,
-        ParamsBM,
-        ParamsMultiBM,
-        ShiftNet,
-        shiftHybrid,
-        getShiftEdgeNumber,
-        getShiftValue,
-        sharedPathMatrix,
-        descendenceMatrix,
-        regressorShift,
-        regressorHybrid,
-        ancestralStateReconstruction,
-        ReconstructedStates,
-        sigma2_phylo,
-        sigma2_within,
-        mu_phylo,
-        lambda_estim,
-        expectations,
-        expectationsPlot,
-        predint,
-        predintPlot,
-        vcv,
-        ## Discrete Trait PCM
+        #sharedPathMatrix,
+        #descendenceMatrix,
+        # vcv,
+        ## parsimony
         parsimonySoftwired,
         parsimonyGF,
         maxParsimonyNet,
-        TraitSubstitutionModel,
-        EqualRatesSubstitutionModel,
-        BinaryTraitSubstitutionModel,
-        TwoBinaryTraitSubstitutionModel,
-        JC69, HKY85,
-        nstates,
-        Q,
-        getlabels,
-        nparams,
-        RateVariationAcrossSites,
-        randomTrait,
-        randomTrait!,
-        fitdiscrete,
         readfastatodna,
-        stationary,
-        empiricalDNAfrequencies,
-        # phyLiNC,
         # neighbor joining
         nj
 
     include("types.jl")
-    include("nloptsummary.jl")
     include("auxiliary.jl")
     include("generate_topology.jl")
     include("update.jl")
@@ -201,15 +163,13 @@ module PhyloNetworks
     include("bootstrap.jl")
     include("multipleAlleles.jl")
     include("compareNetworks.jl")
-    include("traits.jl")
+    include("recursionroutines.jl")
     include("parsimony.jl")
     include("pairwiseDistanceLS.jl")
     include("interop.jl")
-    include("substitutionModels.jl")
     include("graph_components.jl")
-    include("traitsLikDiscrete.jl")
     include("deprecated.jl")
     include("nj.jl")
-    include("phyLiNCoptimization.jl")
+    # include("phyLiNCoptimization.jl")
 
 end #module
