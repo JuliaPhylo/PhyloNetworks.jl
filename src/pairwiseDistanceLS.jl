@@ -110,7 +110,7 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
 end
 
 function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)
-    recursionPreOrder!(net.nodes_changed, M, # updates M in place
+    recursion_preorder!(net.nodes_changed, M, # updates M in place
             updateRecursion_default!, # does nothing
             updateTreePairwiseTaxonDistanceMatrix!,
             updateHybridPairwiseTaxonDistanceMatrix!,
@@ -167,7 +167,7 @@ function pairwiseTaxonDistanceGrad(net::HybridNetwork;
     end
     n = (length(nodeAges)==0 ? net.numEdges : net.numNodes)
     M = zeros(Float64, net.numNodes, net.numNodes, n)
-    recursionPreOrder!(net.nodes_changed, M,
+    recursion_preorder!(net.nodes_changed, M,
             updateRecursion_default!,  # does nothing
             updateTreePairwiseTaxonDistanceGrad!,
             updateHybridPairwiseTaxonDistanceGrad!,

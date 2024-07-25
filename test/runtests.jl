@@ -86,6 +86,7 @@ tests = [
     "test_perfectData.jl",
     "test_moves_semidirected.jl",
     "test_parsimony.jl",
+    "test_recursion_matrices.jl",
     "test_calibratePairwise.jl", "test_relaxed_reading.jl",
     "test_isMajor.jl", "test_interop.jl",
     # "test_phyLiNCoptimization.jl",

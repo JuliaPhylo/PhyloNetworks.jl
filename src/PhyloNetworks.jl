@@ -131,11 +131,10 @@ module PhyloNetworks
         getNodeAges,
         pairwiseTaxonDistanceMatrix,
         calibrateFromPairwiseDistances!,
-        # continuous traits
-        simulate,
-        #sharedPathMatrix,
-        #descendenceMatrix,
-        # vcv,
+        # recursion
+        sharedPathMatrix,
+        descendenceMatrix,
+        vcv,
         ## parsimony
         parsimonySoftwired,
         parsimonyGF,
@@ -163,7 +162,8 @@ module PhyloNetworks
     include("bootstrap.jl")
     include("multipleAlleles.jl")
     include("compareNetworks.jl")
-    include("recursionroutines.jl")
+    include("recursion_routines.jl")
+    include("recursion_matrices.jl")
     include("parsimony.jl")
     include("pairwiseDistanceLS.jl")
     include("interop.jl")
