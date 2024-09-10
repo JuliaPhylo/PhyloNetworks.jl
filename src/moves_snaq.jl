@@ -293,7 +293,7 @@ function chooseEdgeOriginTarget!(neighbor::Vector{Edge}, node::Node)
     return false, nothing, nothing
 end
 
-function chooseEdgeOriginTarget!(net::HybridNetwork, neighbor::Vector{Edge}, node::Node, d::DataCF)
+function chooseEdgeOriginTarget!(neighbor::Vector{Edge}, node::Node, d::DataCF)
     length(neighbor) < 5 || error("aux vector a should have only 4 entries: $([n.number for n in neighbor])")
     while(!isempty(neighbor))
         ind = 0
@@ -714,9 +714,9 @@ function moveOriginUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool, p
     success = false
     while(!isempty(neighbor) && !success)
         if(probQR>0.0 && rand() < probQR)
-            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor, node, d)
+            success1,newedge,ind = chooseEdgeOriginTarget!(neighbor, node, d)
         else
-            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor, node)
+            success1,newedge,ind = chooseEdgeOriginTarget!(neighbor, node)
         end
         !isa(newedge,Nothing) || return false
         success1 || return false
@@ -1178,9 +1178,9 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool, p
     success = false
     while(!isempty(neighbor) && !success)
         if(probQR>0.0 && rand() < probQR)
-            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node, d);
+            success1,newedge,ind = chooseEdgeOriginTarget!(neighbor,node, d);
         else
-            success1,newedge,ind = chooseEdgeOriginTarget!(net, neighbor,node);
+            success1,newedge,ind = chooseEdgeOriginTarget!(neighbor,node);
         end
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
