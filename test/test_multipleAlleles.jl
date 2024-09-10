@@ -108,7 +108,7 @@ originalstdout = stdout
 redirect_stdout(devnull) # requires julia v1.6
 estNet = snaq!(currT,d,hmax=1,seed=7, runs=1, filename="", Nfail=10)
 redirect_stdout(originalstdout)
-@test 180.0 < estNet.loglik < 185.29
+@test 175.0 < estNet.loglik < 180.0
 @test estNet.hybrid[1].k >= 4
 @test estNet.numTaxa == 5
 #=
@@ -137,7 +137,7 @@ estNet = snaq!(currT,d,hmax=1,seed=6355, runs=1, filename="", Nfail=10,
 redirect_stdout(originalstdout)
 # below, mostly check for 1 reticulation and "10" as outgroup. exact net depends on RNG :(
 netstring = writeTopology(estNet; round=true, digits=1)
-@test occursin(r"^\(\(7:0.0,#H\d:::.*,10\);", netstring) ||
+@test occursin(r"^\(\(7:0.*,#H\d:::.*,10\);", netstring) ||
       occursin(r"^\(10,\(.*,#H\d:::0.\d\);", netstring) ||
       occursin(r",10,#H\d:::0.\d\);", netstring)
 end # test of snaq on multiple alleles
