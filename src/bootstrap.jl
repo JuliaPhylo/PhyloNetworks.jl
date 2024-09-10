@@ -172,7 +172,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
                         hmax::Integer, liktolAbs::Float64, Nfail::Integer, ftolRel::Float64,ftolAbs::Float64,xtolRel::Float64,xtolAbs::Float64,
                         verbose::Bool, closeN::Bool, Nmov0::Vector{Int},
                         runs1::Integer, outgroup::AbstractString, filename::AbstractString, seed::Integer, probST::Float64,
-                        nrep::Integer, runs2::Integer, bestNet::HybridNetwork, quartetfile::AbstractString)
+                        nrep::Integer, runs2::Integer, bestNet::HybridNetwork, quartetfile::AbstractString, probQR::AbstractFloat, propQuartets::AbstractFloat)
     println("BOOTSTRAP OF SNAQ ESTIMATION")
     writelog = true
     if filename != ""
@@ -250,7 +250,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             @debug begin rootname = string(filename,"_",i);
                          "rootname set to $rootname"; end
             net1 = optTopRuns!(currT0, liktolAbs, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs1, outgroup,
-                               rootname,seeds[i],probST)
+                               rootname,seeds[i],probST,probQR,propQuartets)
             if runs2==0
                 net = net1
             end
@@ -263,7 +263,7 @@ function optTopRunsBoot(currT0::HybridNetwork, data::Union{DataFrame,Vector{Vect
             @debug begin rootname = string(filename,"_",i,"_startNet2");
                          "rootname set to $rootname"; end
             net2 = optTopRuns!(bestNet, liktolAbs, Nfail, newd, hmax,ftolRel, ftolAbs, xtolRel, xtolAbs, verbose, closeN, Nmov0, runs2, outgroup,
-                               rootname,seedsOtherNet[i],probST)
+                               rootname,seedsOtherNet[i],probST,probQR,propQuartets)
             if runs1==0
                 net = net2
             end
@@ -340,7 +340,8 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
                   verbose=false::Bool, closeN=true::Bool, Nmov0=numMoves::Vector{Int},
                   runs=10::Integer, outgroup="none"::AbstractString, filename="bootsnaq"::AbstractString,
                   seed=0::Integer, probST=0.3::Float64, nrep=10::Integer, prcnet=0.0::Float64,
-                  otherNet=HybridNetwork()::HybridNetwork, quartetfile="none"::AbstractString)
+                  otherNet=HybridNetwork()::HybridNetwork, quartetfile="none"::AbstractString,
+                  probQR::AbstractFloat=0.0, propQuartets::AbstractFloat=1.0)
 
     inputastrees = isa(data, Vector{Vector{HybridNetwork}})
     inputastrees || isa(data, DataFrame) ||
@@ -400,7 +401,7 @@ function bootsnaq(startnet::HybridNetwork, data::Union{DataFrame,Vector{Vector{H
 
     optTopRunsBoot(startnet,data,hmax, liktolAbs, Nfail,ftolRel, ftolAbs, xtolRel, xtolAbs,
                    verbose, closeN, Nmov0, runs1, outgroup, filename,
-                   seed, probST, nrep, runs2, otherNet, quartetfile)
+                   seed, probST, nrep, runs2, otherNet, quartetfile, probQR, propQuartets)
 end
 
 """
