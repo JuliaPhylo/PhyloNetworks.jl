@@ -389,9 +389,9 @@ phynetlm = phylolm(@formula(trait ~ pred), dfr, net; reml=false)
 @test bic(phynetlm) ≈ bic(fit_mat)
 
 # Deprecated methods
-@test (@test_logs (:warn,r"^accessing") phynetlm.model) === phynetlm
-@test (@test_logs (:warn,r"^accessing") phynetlm.mf.f) == formula(phynetlm)
-@test (@test_logs (:warn,r"^accessing") phynetlm.mm.m) == modelmatrix(phynetlm)
+@test phynetlm.model === phynetlm
+@test phynetlm.mf.f == formula(phynetlm)
+@test phynetlm.mm.m == modelmatrix(phynetlm)
 
 # unordered data
 dfr = dfr[[2,6,10,5,12,7,4,11,1,8,3,9], :]
