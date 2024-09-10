@@ -1052,7 +1052,7 @@ function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Inte
         move = whichMove(newT,hmax,movesfail,Nmov)
         if move != :none
             newT0 = deepcopy(newT) ## to go back if proposed topology conflicts with the outgroup
-            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,false) #N=10 because with 1 it never finds an edge for nni
+            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,false,0.0) #N=10 because with 1 it never finds an edge for nni
             newTr = deepcopy(newT) ##rooted version only to compute parsimony
             try
                 rootatnode!(newTr,outgroup)
@@ -1262,6 +1262,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
             end
             return best
         catch(err)
+            rethrow(err)
             msg = "\nERROR found on Max Parsimony for run $(i) seed $(seeds[i]): $(err)\n"
             logstr = msg * "\n---------------------\n"
             if writelog_1proc
