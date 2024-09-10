@@ -105,6 +105,7 @@ anyerrors = false
 
 for t in tests
     global anyerrors
+    orig_stdout = stdout
     try
         @info "starting $t"
         include(t)
@@ -112,6 +113,8 @@ for t in tests
     catch
         anyerrors = true
         println("\033[1m\033[31mFAILED\033[0m: $t")
+    finally
+        redirect_stdout(orig_stdout)
     end
 end
 println("-------------------------------------")
