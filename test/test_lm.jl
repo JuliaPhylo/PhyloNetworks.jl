@@ -11,7 +11,7 @@ preorder!(net)
 # one another (Especialy for hybrids) ?
 # see QuartetNetworkGoodnessFit.ultrametrize! which can detect if the network is
 # time-consistent: all paths from the root to a given node have the same length
-# https://github.com/cecileane/QuartetNetworkGoodnessFit.jl
+# https://github.com/juliaphylo/QuartetNetworkGoodnessFit.jl
 
 # Ancestral state reconstruction with ready-made matrices
 params = ParamsBM(10, 1)
@@ -210,7 +210,13 @@ modnull = phylolm(@formula(trait ~ 1), dfr, net)
 @test sigma2_phylo(modnull) ≈ 0.6517876326943942 atol=1e-6 # using REML
 modhom = phylolm(@formula(trait ~ sum), dfr, net)
 modhet = phylolm(@formula(trait ~ sum + shift_8), dfr, net)
-table1 = ftest(modhet, modhom, modnull)
+#= 3 warnings thrown by ftest, one for each model, because after transforming the
+   data to de-correlate the results, the intercept vector is not ∝ 1.
+   Keep the warnings: because incorrect R² values in the ftest output
+=#
+table1 = redirect_stdio(stderr=devnull) do # to avoid seeing the warnings
+    ftest(modhet, modhom, modnull)
+end
 table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 
 @test table1.fstat[2] ≈ table2[2,:F]
@@ -218,11 +224,7 @@ table2 = PhyloNetworks.anova(modnull, modhom, modhet)
 @test table1.pval[2] ≈ table2[2,Symbol("Pr(>F)")]
 @test table1.pval[3] ≈ table2[1,Symbol("Pr(>F)")]
 @test hasintercept(modnull) && hasintercept(modhom) && hasintercept(modhet)
-# ## Replace next 4 lines with previous ones when GLM.ftest available
-# @test table1[:F][2] ≈ table2[:F][2]
-# @test table1[:F][1] ≈ table2[:F][1]
-# @test table1[Symbol("Pr(>F)")][1] ≈ table2[Symbol("Pr(>F)")][1]
-# @test table1[Symbol("Pr(>F)")][2] ≈ table2[Symbol("Pr(>F)")][2]
+@test all(isapprox.(table1.r2, (0.8398130376214782, 0.006032952123011026, 0), atol=1e-15))
 
 # Check that it is the same as doing shift_8 + shift_17
 modhetbis = phylolm(@formula(trait ~ shift_8 + shift_17), dfr, net)

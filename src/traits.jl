@@ -3019,14 +3019,28 @@ isnested(::Union{PagelLambda,ScalingHybrid}, ::BM) = false
 isnested(::ScalingHybrid,::PagelLambda) = false
 isnested(::PagelLambda,::ScalingHybrid) = false
 
-## ANOVA using ftest from GLM - need version 0.8.1
+#= ANOVA using ftest from GLM - need version 0.8.1
+ As of GLM v1.8, ftest throws a warning on typical BM models, one per model:
+ "Starting from GLM.jl 1.8, null model is defined as having no predictor at all when a model without an intercept is passed."
+ This is because after transforming the data to de-correlate the residuals,
+ the transformed intercept vector is not proportional to the constant vector 1.
+ The warning is from: ftest → r2(phylomodel.lm) → nulldeviance(phylomodel.lm) → warning.
+ R² by GLM is wrong: assume *no* intercept, and are based on the transformed data.
+ R² corrected them below: r2(phylomodel) reimplemented here.
+ But nulldeviance(phylomodel) does *not* call nulldeviance(phylomodel.lm),
+ instead re-implemented here to use the intercept properly.
+ Keep the warnings: unless they can be suppressed with specificity
+ Ideally: modify `ftest` here or in GLM.
+=#
 function GLM.ftest(objs::PhyloNetworkLinearModel...)
     if !all( isa(o.evomodel,BM) && isnothing(o.model_within) for o in objs)
         throw(ArgumentError("""F test is only valid for the vanilla BM model.
         Use a likelihood ratio test instead with function `lrtest`."""))
     end
     objslm = [obj.lm for obj in objs]
-    return ftest(objslm...)
+    resGLM = ftest(objslm...)
+    resGLM.r2 = r2.(objs)
+    return resGLM
 end
 ## ANOVA: old version - kept for tests purposes - do not export
 """
@@ -3111,7 +3125,7 @@ end
 
 Compute and format the expected reconstructed states for the plotting function.
 The resulting dataframe can be readily used as a `nodelabel` argument to
-`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+`plot` from package [`PhyloPlots`](https://github.com/juliaphylo/PhyloPlots.jl).
 Keyword argument `markMissing` is a string that is appended to predicted
 tip values, so that they can be distinguished from the actual datapoints. Default to
 "*". Set to "" to remove any visual cue.
@@ -3167,7 +3181,7 @@ end
 
 Compute and format the prediction intervals for the plotting function.
 The resulting dataframe can be readily used as a `nodelabel` argument to
-`plot` from package [`PhyloPlots`](https://github.com/cecileane/PhyloPlots.jl).
+`plot` from package [`PhyloPlots`](https://github.com/juliaphylo/PhyloPlots.jl).
 Keyworks argument `level` control the confidence level of the
 prediction interval. If `withExp` is set to true, then the best
 predicted value is also shown along with the interval.
@@ -3387,7 +3401,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM) # Should produce a warnin
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3359
+└ @ PhyloNetworks ~/build/juliaphylo/PhyloNetworks.jl/src/traits.jl:3359
 ReconstructedStates:
 ───────────────────────────────────────────────
   Node index      Pred.        Min.  Max. (95%)
@@ -3534,7 +3548,7 @@ julia> ancStates = ancestralStateReconstruction(fitBM);
 │ assuming that the estimated variance rate of evolution is correct.
 │ Additional uncertainty in the estimation of this variance rate is
 │ ignored, so prediction intervals should be larger.
-└ @ PhyloNetworks ~/build/crsl4/PhyloNetworks.jl/src/traits.jl:3166
+└ @ PhyloNetworks ~/build/juliaphylo/PhyloNetworks.jl/src/traits.jl:3166
 
 julia> first(expectations(ancStates), 3) # looking at first 3 nodes only
 3×2 DataFrame

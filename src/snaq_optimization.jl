@@ -1263,7 +1263,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
     @debug "OPT: begins optTopLevel with hmax $(hmax)"
     liktolAbs > 0 || error("liktolAbs must be greater than zero: $(liktolAbs)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
-    isempty(Nmov0) || all((n-> (n > 0)), Nmov0) || error("Nmov must be greater than zero: $(Nmov0)")
+    isempty(Nmov0) || all(Nmov0 .>= 0) || error("Nmov must be non-negative zero: $(Nmov0)")
     if(!isempty(d.repSpecies))
         checkTop4multAllele(currT) || error("starting topology does not fit multiple alleles condition")
     end

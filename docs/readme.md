@@ -1,13 +1,13 @@
 # notes to maintain documentation
 
-- built with [Documenter](https://juliadocs.github.io/Documenter.jl).
-- deployed [here](https://crsl4.github.io/PhyloNetworks.jl/)
+- built with [Documenter](https://documenter.juliadocs.org/stable/).
+- deployed [here](https://juliaphylo.github.io/PhyloNetworks.jl/)
   (go to `dev/` or `stable/`)
   using GitHub and files committed to the `gh-pages` branch.
 
 ## how it works: overview
 
-- `.github/workflows/ci.yml` asks to start the doc project
+- `.github/workflows/documentation.yml` asks to start the doc project
   (installs R and dependencies like `PhyloPlots` & `Documenter`) and
   run `./docs/make.jl` after a successful test & build.
 - the julia script `docs/make.jl` has these steps:

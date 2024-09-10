@@ -580,7 +580,6 @@ function calculateObsCFAll_noDataCF!(quartets::Vector{Quartet}, trees::Vector{Hy
 end
 
 """
-<<<<<<< HEAD
 Version of calculateObsCFAll from SNP data
 calculateObsCFAll!(dat::DataCF, 
     genotypes::Dict{String, Array{Array{String,1}, 1}}, 
@@ -709,9 +708,6 @@ end
 
 """
     countquartetsintrees(trees [, taxonmap=Dict{String,String}]; which=:all, weight_byallele=true)
-=======
-    countquartetsintrees(trees [, taxonmap]; which=:all, weight_byallele=true)
->>>>>>> 787582f7daee146d36ca2357afa4664c5952ae19
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should be a dictionary that maps each allele name to it's species name.

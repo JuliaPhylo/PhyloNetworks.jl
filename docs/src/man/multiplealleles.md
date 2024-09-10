@@ -18,12 +18,12 @@ tm = CSV.read(mappingfile, DataFrame) # taxon map as a data frame
 taxonmap = Dict(row[:individual] => row[:species] for row in eachrow(tm)) # taxon map as a dictionary
 ```
 
-The [mapping file](https://github.com/crsl4/PhyloNetworks/blob/master/examples/mappingIndividuals.csv)
+The [mapping file](https://github.com/juliaphylo/PhyloNetworks/blob/master/examples/mappingIndividuals.csv)
 can be a text (or `csv`) file with two columns (at least):
 one for the individuals, named `allele` or `individual`,
 and one column containing the species names, named `species`.
 Each row should map an allele name to a species name.
-Next, read in the [gene trees](https://github.com/crsl4/PhyloNetworks/blob/master/examples/genetrees_alleletips.tre)
+Next, read in the [gene trees](https://github.com/juliaphylo/PhyloNetworks/blob/master/examples/genetrees_alleletips.tre)
 and calculate the quartet CFs at the species level:
 
 

@@ -239,7 +239,7 @@ number 'nodeNumber' (by default) or with index 'nodeNumber' if index=true.
 Attributes isChild1 and containRoot are updated along the way.
 Use `plot(net, shownodenumber=true, showedgelength=false)` to
 visualize and identify a node of interest.
-(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
+(see package [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl))
 
 Return the network.
 
@@ -320,7 +320,7 @@ Attributes `isChild1` and `containRoot` are updated along the way.
 This adds a new node and a new edge to the network.
 Use `plot(net, showedgenumber=true, showedgelength=false)` to
 visualize and identify an edge of interest.
-(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
+(see package [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl))
 
 See also: [`rootatnode!`](@ref).
 """
@@ -567,6 +567,8 @@ Add a new external edge between `node` or between the "middle" of `edge`
 and a newly-created leaf, of name `leafname`.
 By default, the new edge length is missing (-1).
 
+output: newly created leaf node.
+
 # examples
 
 ```jldoctest
@@ -616,13 +618,12 @@ function addleaf!(net::HybridNetwork, speciesnode::Node, leafname::String, edgel
         net.numTaxa -= 1
     end
     pushNode!(net, newleaf) # push node into network (see auxillary.jl)
-    return net
+    return newleaf
 end
 
 function addleaf!(net::HybridNetwork, startingedge::Edge, leafname::String, edgelength::Float64=-1.0)
-    newnode, newedge = breakedge!(startingedge, net)
-    addleaf!(net, newnode, leafname, edgelength)
-    return net
+    newnode, _ = breakedge!(startingedge, net)
+    return addleaf!(net, newnode, leafname, edgelength)
 end
 
 
@@ -798,7 +799,7 @@ and the optional argument `orderedEdgeNum` is ignored.
 
 Use `plot(net, shownodenumber=true, showedgenumber=false)` to map node and edge numbers
 on the network, as shown in the examples below.
-(see package [PhyloPlots](https://github.com/cecileane/PhyloPlots.jl))
+(see package [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl))
 
 Warning: assumes that edges are correctly directed (isChild1 updated). This is done
 by `plot(net)`. Otherwise run `directEdges!(net)`.

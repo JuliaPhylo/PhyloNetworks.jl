@@ -1,6 +1,6 @@
 # PhyloNetworks.jl
 
-[PhyloNetworks](https://github.com/crsl4/PhyloNetworks.jl)
+[PhyloNetworks](https://github.com/juliaphylo/PhyloNetworks.jl)
 is a [Julia](http://julialang.org) package for the
 manipulation, visualization, inference of phylogenetic networks,
 and their use for trait evolution.
@@ -9,9 +9,11 @@ and their use for trait evolution.
 
 **How to get help**
 
-- the package [wiki](https://github.com/crsl4/PhyloNetworks.jl/wiki) has a step-by-step
-  tutorial, done for the 2019 MBL workshop, with background on networks and
+- the package [wiki](https://github.com/juliaphylo/PhyloNetworks.jl/wiki) has a step-by-step
+  tutorial, done for the MBL workshop (last revised 2022), with background on networks and
   explanations.
+- [tutorial](https://juliaphylo.github.io/networkPCM-workshop/) for
+  comparative methods, including network calibration (2023 workshop)
 - the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
   has answers to common questions.
 - the [Manual](@ref) below has a quick tutorial (navigation on the left).
@@ -20,7 +22,7 @@ and their use for trait evolution.
 
 ## References
 
-See their [bibtex format](https://github.com/crsl4/PhyloNetworks.jl/blob/master/CITATION.bib).
+See their [bibtex format](https://github.com/juliaphylo/PhyloNetworks.jl/blob/master/CITATION.bib).
 
 for the package:
 - Claudia Solís-Lemus, Paul Bastide and Cécile Ané (2017).

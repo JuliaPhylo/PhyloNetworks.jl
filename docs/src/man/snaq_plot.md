@@ -261,7 +261,7 @@ Then log out of the cluster and go for coffee.
 echo "slurm task ID = $SLURM_ARRAY_TASK_ID used as hmax"
 echo "start of SNaQ parallel runs on $(hostname)"
 # finally: launch the julia script, using Julia executable appropriate for slurm, with full paths:
-/workspace/software/bin/julia --history-file=no -- runSNaQ.jl $SLURM_ARRAY_TASK_ID 30 > net$SLURM_ARRAY_TASK_ID_30runs.screenlog 2>&1
+/workspace/software/bin/julia --history-file=no -- runSNaQ.jl $SLURM_ARRAY_TASK_ID 30 > net${SLURM_ARRAY_TASK_ID}_30runs.screenlog 2>&1
 echo "end of SNaQ run ..."
 ```
 
@@ -297,7 +297,7 @@ plot(x=collect(0:3), y=scores, Geom.point, Geom.line)
 ## Network Visualization
 
 To visualize the estimated network, we can use the companion package
-[PhyloPlots](https://github.com/cecileane/PhyloPlots.jl).
+[PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl).
 In the example below, julia creates and sends the plot to R
 via [RCall](https://github.com/JuliaInterop/RCall.jl),
 so we can tweak the plot in various ways via commands sent to R.
@@ -379,7 +379,7 @@ lower the better. See the section to get the score of [Candidate Networks](@ref)
 ## SNaQ error reporting
 
 Please report any bugs and errors by opening an
-[issue](https://github.com/crsl4/PhyloNetworks.jl/issues/new).
+[issue](https://github.com/juliaphylo/PhyloNetworks.jl/issues/new).
 The easiest way to provide information on the error is by checking the
 `.err` file, which will show the number of runs that
 failed and the corresponding seed to replicate the run.
