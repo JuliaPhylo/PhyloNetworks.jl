@@ -64,7 +64,7 @@ end
 
 @testset "network estimation h=1" begin
 estNet = optTopRun1!(currT, 0.01,75, d,1, 1e-5,1e-6,1e-3,1e-4,
-                     false,true,Int[], 54, stdout,false,0.3)
+                     false,true,Int[], 54, stdout,false,0.3,0.0)
 # topology, likAbs,Nfail, data,hmax, fRel,fAbs,xRel,xAbs,
 # verbose,closeN,numMoves, seed, logfile,writelog,probST,sout)
 @test estNet.loglik < 0.00217
