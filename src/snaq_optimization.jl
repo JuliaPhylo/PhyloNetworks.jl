@@ -1042,6 +1042,7 @@ Arguments:
 - `count`: simply which likelihood step we are in in the optimization at `optTopLevel`
 - `movescount` and `movesfail`: vector of counts of number of moves proposed
 - `multall=true` if multiple alleles case: we need to check if the move did not violate the multiple alleles condition (sister alleles together and no gene flow into the alleles). This is inefficient because we are proposing moves that we can reject later, instead of being smart about the moves we propose: for example, move origin/target could rule out some neighbors that move gene flow into the alleles, the same for add hybridization; nni move can check if it is trying to separate the alleles)
+- `d`: DataCF containing the run's quartet information. This value is `nothing` for parsimony optimizations.
 
 Moves:
 
@@ -1117,6 +1118,7 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     N::Integer, movescount::Vector{Int}, movesfail::Vector{Int}, multall::Bool, probQR::Float64, d::DataCF)
     global CHECKNET
     1 <= move <= 6 || error("invalid move $(move)") #fixit: if previous move rejected, do not redo it!
+    probQR == 0.0 || d.numTrees != -1 || error("If probQR is not 0.0, d must not be an empty DataCF")
     @debug "current move: $(int2move[move])"
     if(move == 1)
         success = addHybridizationUpdateSmart!(newT, N, probQR, d)
@@ -1158,12 +1160,18 @@ function proposedTop!(move::Integer, newT::HybridNetwork,random::Bool, count::In
     return false
 end
 
+proposedTop!(move::Integer, newT::HybridNetwork, random::Bool, count::Integer, N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool) =
+    proposedTop!(move, newT, random, count, N, movescount, movesfail, multall, 0.0, DataCF())
 proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool, d::DataCF) =
     proposedTop!( try move2int[move] catch; error("invalid move $(string(move))") end,
         newT, random,count,N, movescount,movesfail, multall, 0.0, d)
+proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool) =
+    proposedTop!(move, newT, random, count, N, movescount, movesfail, multall, DataCF())
 proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool, probQR::Float64, d::DataCF) =
     proposedTop!( try move2int[move] catch; error("invalid move $(string(move))") end,
         newT, random,count,N, movescount,movesfail, multall, probQR, d)
+proposedTop!(move::Symbol, newT::HybridNetwork, random::Bool, count::Integer,N::Integer, movescount::Vector{Int},movesfail::Vector{Int}, multall::Bool, probQR::Float64) =
+    proposedTop!(move, newT, random, count, N, movescount, movesfail, multall, probQR, DataCF())
 
 # function to calculate Nmov, number max of tries per move
 # order: (add,mvorigin,mvtarget,chdir,delete,nni)
@@ -1315,7 +1323,7 @@ function optTopLevel!(currT::HybridNetwork, liktolAbs::Float64, Nfail::Integer, 
                 newT0 = deepcopy(newT)
             end
             #probosedTop --> Will guide moves by quartet rank with probability probQR (which is by default 0, meaning targets of changes are random)
-            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,!isempty(d.repSpecies), probQR, d) #N=10 because with 1 it never finds an edge for nni
+            flag = proposedTop!(move,newT,true, count,10, movescount,movesfail,!isempty(d.repSpecies), probQR; d=d) #N=10 because with 1 it never finds an edge for nni
             if(flag) #no need else in general because newT always undone if failed, but needed for multiple alleles
                 accepted = false
                 all((e->!(e.hybrid && e.inCycle == -1)), newT.edge) || error("found hybrid edge with inCycle == -1")
