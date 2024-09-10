@@ -138,7 +138,7 @@ redirect_stdout(originalstdout)
 # below, mostly check for 1 reticulation and "10" as outgroup. exact net depends on RNG :(
 netstring = writeTopology(estNet; round=true, digits=1)
 @test occursin(r"^\(\(7:0.*,#H\d:::.*,10\);", netstring) ||
-      occursin(r"^\(10,\(.*,#H\d:::0.\d\);", netstring) ||
+      occursin(r"^\(10,\(.*,#H\d:::0.\d\)", netstring) ||
       occursin(r",10,#H\d:::0.\d\);", netstring)
 end # test of snaq on multiple alleles
 
