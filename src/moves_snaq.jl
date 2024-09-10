@@ -1185,7 +1185,7 @@ function moveTargetUpdateRepeat!(net::HybridNetwork, node::Node, random::Bool, p
         success1 || return false
         #println("newedge is $(newedge.number), success1 is $(success1)")
         in(newedge,net.edge) || error("newedge $(newedge.number) not in net.edge")
-        success,flag2 = moveTargetUpdate!(net, node, othermin, majoredge,newedge)
+        success,flag2 = moveTargetUpdate!(net, node, majoredge,newedge)
         #println("after update, success is $(success)")
         if(!success)
             @debug "move target failed, will delete neighbor and try new one"
