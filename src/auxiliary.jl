@@ -481,23 +481,22 @@ function getIndexHybrid(node::Node, net::Network)
     return i
 end
 
+"""
+    getconnectingedge(node1::Node, node2::Node)
 
-# function that given two nodes, it gives you the edge that connects them
-# returns error if they are not connected by an edge
-function getConnectingEdge(node1::Node,node2::Node)
-    found = false;
-    i = 1;
-    while(i<= size(node1.edge,1) && !found)
-        if(isequal(getOtherNode(node1.edge[i],node1),node2))
-            found = true;
+Edge shared by (or connecting) `node1` and `node2`, that is: edge incident
+to both nodes. An error is thrown if the 2 nodes are not connected.
+
+See also [`isconnected`](@ref)
+"""
+function getconnectingedge(node1::Node, node2::Node)
+    for e1 in node1.edge
+        for e2 in node2.edge
+            e1 === e2 && return e1
         end
-        i = i+1;
     end
-    if(found)
-        return node1.edge[i-1]
-    else
-        error("nodes not connected")
-    end
+    error("nodes not connected")
+    return nothing
 end
 
 """
@@ -505,14 +504,11 @@ end
 
 Check if two nodes are connected by an edge. Return true if connected, false
 if not connected.
+
+See also [`getconnectingedge`](@ref)
 """
 function isconnected(node1, node2)
-    for e in node1.edge
-        if e in node2.edge
-            return true
-        end
-    end
-    return false
+    !isdisjoint(node1.edge, node2.edge) # requires Julia v1.5
 end
 
 # function to check in an edge is in an array by comparing

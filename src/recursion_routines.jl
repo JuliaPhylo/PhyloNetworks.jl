@@ -45,21 +45,25 @@ function updatePreOrder!(
     updateHybrid::Function,
     params...
 )
-    parent = getparents(nodes[i]) # vector of nodes (empty, size 1 or 2)
-    if isempty(parent) #nodes[i] is root
+    parnode = Node[] # will be the vector of parent nodes (empty, size 1 or 2)
+    paredge = Edge[]
+    parindx = Int[]  # index(es) of parent node(s) in `nodes`
+    for e in nodes[i].edge
+        ischildof(nodes[i], e) || continue
+        push!(paredge, e)
+        pn = getparent(e)
+        push!(parnode, pn)
+        push!(parindx, getIndex(pn, nodes))
+    end
+    if isempty(parnode) # nodes[i] is root
         updateRoot(V, i, params...)
-    elseif length(parent) == 1 #nodes[i] is tree
-        parentIndex = getIndex(parent[1],nodes)
-        edge = getConnectingEdge(nodes[i],parent[1])
-        updateTree(V, i, parentIndex, edge, params...)
-    elseif length(parent) == 2 #nodes[i] is hybrid
-        parentIndex1 = getIndex(parent[1],nodes)
-        parentIndex2 = getIndex(parent[2],nodes)
-        edge1 = getConnectingEdge(nodes[i],parent[1])
-        edge2 = getConnectingEdge(nodes[i],parent[2])
-        edge1.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[1].number) should be a hybrid egde")
-        edge2.hybrid || error("connecting edge between node $(nodes[i].number) and $(parent[2].number) should be a hybrid egde")
-        updateHybrid(V, i, parentIndex1, parentIndex2, edge1, edge2, params...)
+    elseif length(parnode) == 1 # nodes[i] is a tree node
+        updateTree(V, i, parindx[1], paredge[1], params...)
+    elseif length(parnode) > 1 # nodes[i] is a hybrid node
+        for e in paredge
+            e.hybrid || error("edge $(e.number), parent of node $(nodes[i].number), should be hybrid")
+        end
+        updateHybrid(V, i, parindx[1], parindx[2], paredge[1], paredge[2], params...)
     end
 end
 
@@ -103,12 +107,19 @@ function updatePostOrder!(
     updateNode::Function,
     params...
 )
-    children = getchildren(nodes[i]) # vector of nodes (empty, size 1 or 2)
-    if(isempty(children)) #nodes[i] is a tip
-        updateTip(V, i, params)
+    chnode = Node[] # will be the vector of child nodes (empty, size 1 or 2)
+    chedge = Edge[]
+    chindx = Int[]  # index(es) of child node(s) in `nodes`
+    for e in nodes[i].edge
+        isparentof(nodes[i], e) || continue
+        push!(chedge, e)
+        cn = getchild(e)
+        push!(chnode, cn)
+        push!(chindx, getIndex(cn, nodes))
+    end
+    if isempty(chnode) # nodes[i] is a tip
+        updateTip(V, i, params...)
     else
-        childrenIndex = [getIndex(n, nodes) for n in children]
-        edges = [getConnectingEdge(nodes[i], c) for c in children]
-        updateNode(V, i, childrenIndex, edges, params...)
+        updateNode(V, i, chindx, chedge, params...)
     end
 end

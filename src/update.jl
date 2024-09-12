@@ -69,7 +69,7 @@ function updateInCycle!(net::HybridNetwork,node::Node)
             curr.inCycle = start.number
             push!(net.nodes_changed, curr)
             node.k  =  node.k + 1
-            edge = getConnectingEdge(curr,curr.prev)
+            edge = getconnectingedge(curr, curr.prev)
             edge.inCycle = start.number
             push!(net.edges_changed, edge)
             curr = curr.prev

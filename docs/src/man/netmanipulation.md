@@ -13,7 +13,8 @@ To traverse or learn something about a network, node or edge, see for example:
 - [`tipLabels`](@ref),
   [`PhyloNetworks.descendants`](@ref) for the clade ("hardwired cluster") below an edge,
   [`PhyloNetworks.isdescendant`](@ref),
-  [`PhyloNetworks.isconnected`](@ref)
+  [`PhyloNetworks.isconnected`](@ref),
+  [`PhyloNetworks.getconnectingedge`](@ref)
 - [`displayedTrees`](@ref), [`majorTree`](@ref),
   [`biconnectedComponents`](@ref), [`PhyloNetworks.blobInfo`](@ref)
 - [`hardwiredCluster`](@ref), [`hardwiredClusters`](@ref)
