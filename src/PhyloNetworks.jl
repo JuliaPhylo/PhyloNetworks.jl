@@ -75,6 +75,8 @@ module PhyloNetworks
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
+        getGammas,
+		getHeights,
         isrootof,
         isleaf,
         isexternal,
@@ -99,6 +101,7 @@ module PhyloNetworks
         fittedQuartetCF,
         rotate!,
         setLength!,
+        setGammas!,
         setGamma!,
         deleteHybridThreshold!,
         displayedTrees,

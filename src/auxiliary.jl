@@ -1082,6 +1082,112 @@ function setGammaBLfromGammaz!(node::Node, net::HybridNetwork)
 end
 
 
+"""
+    setGammas!(net, γ vector)
+
+Set inheritance γ's of hybrid edges, using input vector for *major* edges.
+Assume pre-order calculated already, with up-to-date field `nodes_changed`.
+See [`getGammas`](@ref).
+
+**Warning**: very different from [`setGamma!`](@ref), which focuses on a
+single hybrid event,
+updates the field `isMajor` according to the new γ, and is not used here.
+
+**Assumption**: each hybrid node has only 2 parents, a major and a minor parent
+(according to the edges' field `isMajor`).
+"""
+function setGammas!(net::HybridNetwork, gammas::Vector)
+    for (i,nod) in enumerate(net.nodes_changed)
+        nod.hybrid || continue # skip tree nodes: nothing to do
+        majorhyb = getparentedge(nod) # major
+        minorhyb = getparentedgeminor(nod) # error if doesn't exit
+        majorhyb.gamma = gammas[i]
+        minorhyb.gamma = 1 - gammas[i]
+    end
+    return nothing
+end
+
+"""
+    getGammas(net)
+
+Vector of inheritance γ's of all major edges (tree edges and major hybrid edges),
+ordered according to the pre-order index of their child node,
+assuming this pre-order is already calculated
+(with up-to-date field `nodes_changed`).
+Here, a "major" edge is an edge with field `isMajor` set to true,
+regardless of its actual γ (below, at or above 0.5).
+
+See [`setGammas!`](@ref)
+"""
+function getGammas(net::HybridNetwork)
+    gammas = ones(length(net.nodes_changed))
+    for (i,node) in enumerate(net.nodes_changed)
+        node.hybrid || continue # skip tree nodes: their gamma is already set to 1
+        majorhybedge = getparentedge(node) # major
+        gammas[i] = majorhybedge.gamma
+    end
+    return gammas
+end
+
+
+
+"""
+    getHeights(net, checkpreorder::Bool=true)
+
+Return the height (distance to the root) of all nodes, assuming a time-consistent network
+(where all paths from the root to a given hybrid node have the same length)
+but not necessarily ultrametric: tips need not all be at the same distance from the root.
+If `checkpreorder=false`, assumes the network has already been preordered
+with [`preorder!`](@ref), because it uses
+[`getGammas`](@ref) and [`setGammas!`](@ref)).
+
+Output: vector of node heights, one per node, in the same order as in
+`net.nodes_changed`. Examples:
+
+```jldoctest
+julia> net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);");
+
+julia> # using PhyloPlots; plot(net, useedgelength=true, showedgelength=true, shownodenumber=true); # to see
+
+julia> nodeheight = PhyloTraits.getHeights(net)
+9-element Vector{Float64}:
+ 0.0
+ 5.2
+ 1.0
+ 3.2
+ 5.2
+ 2.0
+ 3.5
+ 4.5
+ 3.0
+
+julia> [node.number => (nodeheight[i], node.name) for (i,node) in enumerate(net.nodes_changed)]
+9-element Vector{Pair{Int64, Tuple{Float64, String}}}:
+ -2 => (0.0, "")
+  5 => (5.2, "O")
+ -3 => (1.0, "")
+ -6 => (3.2, "")
+  4 => (5.2, "E")
+ -4 => (2.0, "")
+  3 => (3.5, "H1")
+  2 => (4.5, "A")
+  1 => (3.0, "C")
+
+```
+"""
+function getHeights(net::HybridNetwork, checkpreorder::Bool=true)
+    checkpreorder && preorder!(net)
+    gammas = getGammas(net) # uses net.nodes_changed
+    setGammas!(net, ones(net.numNodes))
+    V = sharedPathMatrix(net; checkpreorder=false) # no need to preorder again
+    setGammas!(net, gammas)
+    return(diag(V[:All]))
+end
+
+
+
+
+
 function numTreeEdges(net::HybridNetwork)
     2*net.numTaxa - 3 + net.numHybrids
 end
