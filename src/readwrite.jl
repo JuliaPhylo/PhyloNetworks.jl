@@ -571,7 +571,7 @@ function readTopology(s::IO,verbose::Bool)
             net.root = getIndex(n,net);
         end
     else
-		a = read(s, String)
+        a = read(s, String)
         error("Expected beginning of tree with ( but received $(c) instead, rest is $(a)")
     end
     storeHybrids!(net)

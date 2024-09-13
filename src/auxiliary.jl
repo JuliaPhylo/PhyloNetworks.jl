@@ -101,10 +101,10 @@ function setNode!(edge::Edge, node::Node)
             if node.hybrid
                 # @debug (edge.node[1].hybrid ? "hybrid edge $(edge.number) has two hybrid nodes" : "")
                 edge.isChild1 = false;
-	        else
-	            edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
-	            edge.isChild1 = true;
-	        end
+            else
+                edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
+                edge.isChild1 = true;
+            end
           else #edge is tree
             if !edge.node[1].leaf
                 if !node.hybrid && !edge.node[1].hybrid

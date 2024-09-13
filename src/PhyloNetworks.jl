@@ -76,7 +76,7 @@ module PhyloNetworks
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
         getGammas,
-		getHeights,
+        getHeights,
         isrootof,
         isleaf,
         isexternal,
