@@ -252,18 +252,23 @@ end
 function updateHybridSharedPathMatrix!(
     V::Matrix,
     i::Int,
-    parentIndex1::Int,
-    parentIndex2::Int,
-    edge1::Edge,
-    edge2::Edge,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
 )
     for j in 1:(i-1)
-        V[i,j] = V[j,parentIndex1]*edge1.gamma + V[j,parentIndex2]*edge2.gamma
+        for (pi,pe) in zip(parindx, paredge)
+            V[i,j] += pe.gamma * V[pi,j]
+        end
         V[j,i] = V[i,j]
     end
-    V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) +
-        edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) +
-        2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
+    for k1 in eachindex(paredge)
+        p1i = parindx[k1]
+        p1e = paredge[k1]
+        V[i,i] +=  p1e.gamma^2 * (V[p1i,p1i] + p1e.length)
+        for k2 in (k1+1):length(paredge)
+            V[i,i] += 2 * p1e.gamma * paredge[k2].gamma * V[p1i,parindx[k2]]
+        end
+    end
     return true
 end
 
@@ -306,4 +311,3 @@ function initDescendenceMatrix(nodes::Vector{Node},)
     n = length(nodes)
     return(Matrix{Float64}(I, n, n)) # identity matrix
 end
-

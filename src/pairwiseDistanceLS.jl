@@ -71,10 +71,8 @@ function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
     end
     nnodes = net.numNodes
     M = zeros(Float64,nnodes,nnodes)
-    if length(nodeAges)>0
-        length(nodeAges) == net.numNodes ||
-          error("there should be $(net.numNodes) node ages")
-    end
+    isempty(nodeAges) || length(nodeAges) == nnodes ||
+        error("there should be $nnodes node ages")
     pairwiseTaxonDistanceMatrix!(M,net,nodeAges)
     if !keepInternal
         M = getTipSubmatrix(M, net)
@@ -117,33 +115,41 @@ function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,node
             nodeAges)
 end
 
-function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
-            i::Int,parentIndex::Int,edge::Edge,
-            params)
-    nodeAges = params # assumed pre-ordered, as in nodes_changed
-    if length(nodeAges)>0
-        edge.length= nodeAges[parentIndex] - nodeAges[i]
+function updateTreePairwiseTaxonDistanceMatrix!(
+    V::Matrix,
+    i::Int,
+    parindx::Int, # index of parent node
+    edge::Edge,
+    nodeages, # assumed pre-ordered, as in nodes_changed
+)
+    if !isempty(nodeages)
+        edge.length = nodeages[parindx] - nodeages[i]
     end
     for j in 1:(i-1)
-        V[i,j] = V[parentIndex,j]+edge.length
+        V[i,j] = V[parindx,j] + edge.length
         V[j,i] = V[i,j]
     end
-    V[i,i] = 0.0
+    # V[i,i] = zero(eltype(V)) # not needed bc: initialized to 0 and never changes
     return true
 end
 
-function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
-        i::Int, parentIndex1::Int, parentIndex2::Int,
-        edge1::Edge, edge2::Edge,
-        params)
-    nodeAges = params # should be pre-ordered
-    if length(nodeAges)>0
-        edge1.length= nodeAges[parentIndex1] - nodeAges[i]
-        edge2.length= nodeAges[parentIndex2] - nodeAges[i]
+function updateHybridPairwiseTaxonDistanceMatrix!(
+    V::Matrix,
+    i::Int,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
+    nodeages, # node ages should be pre-ordered
+)
+    if !isempty(nodeages)
+        for (pi,pe) in zip(parindx, paredge)
+            pe.length = nodeages[pi] - nodeages[i]
+        end
     end
     for j in 1:(i-1)
-        V[i,j] = edge1.gamma*(edge1.length+V[parentIndex1,j]) +
-                 edge2.gamma*(edge2.length+V[parentIndex2,j])
+        V[i,j] = zero(eltype(V))
+        for (pi,pe) in zip(parindx, paredge)
+            V[i,j] += pe.gamma * (V[pi,j] + pe.length)
+        end
         V[j,i] = V[i,j]
     end
     return true
@@ -176,39 +182,53 @@ function pairwiseTaxonDistanceGrad(net::HybridNetwork;
             nodeAges) # nodeAges assumed pre-ordered, like nodes_changed
     return M
 end
-function updateTreePairwiseTaxonDistanceGrad!(V::Array{Float64,3}, i::Int,
-            parentIndex::Int, edge::Edge, params)
-    nodeAges = params # assumed pre-ordered
+function updateTreePairwiseTaxonDistanceGrad!(
+    V::Array{Float64,3},
+    i::Int,
+    parindx::Int, # index of parent node
+    edge::Edge,
+    nodeages,  # assumed pre-ordered
+)
+    emptyages = isempty(nodeages)
     for j in 1:(i-1)
-        if length(nodeAges) == 0 # d/d(edge length)
+        if emptyages  # d/d(edge length)
             V[i,j,edge.number] = 1.0
-        else                     # d/d(node age)
-            V[i,j,parentIndex] = 1.0
+        else          # d/d(node age)
+            V[i,j,parindx] = 1.0
             V[i,j,i] = -1.0
         end
         for k in 1:size(V)[3] # brute force...
-            V[i,j,k] += V[parentIndex,j,k]
+            V[i,j,k] += V[parindx,j,k]
             V[j,i,k] = V[i,j,k]
         end
     end
     return true
     # V[i,i,k] initialized to 0.0 already
+    return nothing
 end
-function updateHybridPairwiseTaxonDistanceGrad!(V::Array{Float64,3},i::Int,
-            parentIndex1::Int, parentIndex2::Int,
-            edge1::Edge, edge2::Edge, params)
-    nodeAges = params
+function updateHybridPairwiseTaxonDistanceGrad!(
+    V::Array{Float64,3},
+    i::Int,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
+    nodeages,
+)
+    emptyages = isempty(nodeages)
     for j in 1:(i-1)
-        if length(nodeAges) == 0 # d/d(edge length)
-            V[i,j,edge1.number] = edge1.gamma
-            V[i,j,edge2.number] = edge2.gamma
-        else                     # d/d(node age)
-            V[i,j,parentIndex1] = edge1.gamma
-            V[i,j,parentIndex2] = edge2.gamma
+        if emptyages # d/d(edge length)
+            for pe in paredge
+                V[i,j,pe.number] = pe.gamma
+            end
+        else         # d/d(node age)
+            for (pi,pe) in zip(parindx, paredge)
+                V[i,j,pi] = pe.gamma
+            end
             V[i,j,i] = - 1.0 # because γ1+γ2 = 1
         end
-        for k in 1:size(V)[3]
-          V[i,j,k] += edge1.gamma*V[parentIndex1,j,k] + edge2.gamma*V[parentIndex2,j,k]
+        for k in 1:size(V)[3] # 1:size(V,3)
+            for (pi,pe) in zip(parindx, paredge)
+                V[i,j,k] += pe.gamma * V[pi,j,k]
+            end
           V[j,i,k] = V[i,j,k]
         end
     end
