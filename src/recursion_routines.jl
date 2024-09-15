@@ -30,7 +30,7 @@ function recursion_preorder!(
     params...
 )
     for i in 1:length(nodes) # nodes should be listed in topological order
-        updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params...)
+        !updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params...) && break
     end
     return M
 end
@@ -48,6 +48,7 @@ function updatePreOrder!(
     parnode = Node[] # will be the vector of parent nodes (empty, size 1 or 2)
     paredge = Edge[]
     parindx = Int[]  # index(es) of parent node(s) in `nodes`
+    keepgoing=true # true/false returned from each recursion function to determine if we can stop
     for e in nodes[i].edge
         ischildof(nodes[i], e) || continue
         push!(paredge, e)
@@ -56,19 +57,20 @@ function updatePreOrder!(
         push!(parindx, getIndex(pn, nodes))
     end
     if isempty(parnode) # nodes[i] is root
-        updateRoot(V, i, params...)
+        keepgoing=updateRoot(V, i, params...)
     elseif length(parnode) == 1 # nodes[i] is a tree node
-        updateTree(V, i, parindx[1], paredge[1], params...)
+        keepgoing=updateTree(V, i, parindx[1], paredge[1], params...)
     elseif length(parnode) > 1 # nodes[i] is a hybrid node
         for e in paredge
             e.hybrid || error("edge $(e.number), parent of node $(nodes[i].number), should be hybrid")
         end
         updateHybrid(V, i, parindx[1], parindx[2], paredge[1], paredge[2], params...)
     end
+    return keepgoing
 end
 
 function updateRecursion_default!(::AbstractArray, ::Int, params...)
-    return nothing
+    return true
 end
 
 """
@@ -94,7 +96,8 @@ function recursion_postorder(
     n = length(nodes)
     M = init(nodes, params...)
     for i in n:-1:1 #sorted list of nodes
-        updatePostOrder!(i, nodes, M, updateTip, updateNode, params...)
+        keepgoing = updatePostOrder!(i, nodes, M, updateTip, updateNode, params...)
+        !keepgoing && break
     end
     return M
 end
@@ -110,6 +113,7 @@ function updatePostOrder!(
     chnode = Node[] # will be the vector of child nodes (empty, size 1 or 2)
     chedge = Edge[]
     chindx = Int[]  # index(es) of child node(s) in `nodes`
+    keepgoing=true # true/false returned from each recursion function to determine if we can stop
     for e in nodes[i].edge
         isparentof(nodes[i], e) || continue
         push!(chedge, e)
@@ -118,8 +122,9 @@ function updatePostOrder!(
         push!(chindx, getIndex(cn, nodes))
     end
     if isempty(chnode) # nodes[i] is a tip
-        updateTip(V, i, params...)
+        keepgoing = updateTip(V, i, params...)
     else
-        updateNode(V, i, chindx, chedge, params...)
+        keepgoing = updateNode(V, i, chindx, chedge, params...)
     end
+    return keepgoing
 end

@@ -246,7 +246,7 @@ function updateTreeSharedPathMatrix!(
         V[j,i] = V[j,parentIndex]
     end
     V[i,i] = V[parentIndex,parentIndex] + edge.length
-    return nothing
+    return true
 end
 
 function updateHybridSharedPathMatrix!(
@@ -264,7 +264,7 @@ function updateHybridSharedPathMatrix!(
     V[i,i] = edge1.gamma*edge1.gamma*(V[parentIndex1,parentIndex1] + edge1.length) +
         edge2.gamma*edge2.gamma*(V[parentIndex2,parentIndex2] + edge2.length) +
         2*edge1.gamma*edge2.gamma*V[parentIndex1,parentIndex2]
-    return nothing
+    return true
 end
 
 """
@@ -299,7 +299,7 @@ function updateNodeDescendenceMatrix!(
     for j in 1:length(edges)
         V[:,i] .+= edges[j].gamma .* V[:,childrenIndex[j]]
     end
-    return nothing
+    return true
 end
 
 function initDescendenceMatrix(nodes::Vector{Node},)

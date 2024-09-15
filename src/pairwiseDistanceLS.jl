@@ -129,6 +129,7 @@ function updateTreePairwiseTaxonDistanceMatrix!(V::Matrix,
         V[j,i] = V[i,j]
     end
     V[i,i] = 0.0
+    return true
 end
 
 function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
@@ -145,6 +146,7 @@ function updateHybridPairwiseTaxonDistanceMatrix!(V::Matrix,
                  edge2.gamma*(edge2.length+V[parentIndex2,j])
         V[j,i] = V[i,j]
     end
+    return true
 end
 
 """
@@ -189,6 +191,7 @@ function updateTreePairwiseTaxonDistanceGrad!(V::Array{Float64,3}, i::Int,
             V[j,i,k] = V[i,j,k]
         end
     end
+    return true
     # V[i,i,k] initialized to 0.0 already
 end
 function updateHybridPairwiseTaxonDistanceGrad!(V::Array{Float64,3},i::Int,
@@ -209,6 +212,7 @@ function updateHybridPairwiseTaxonDistanceGrad!(V::Array{Float64,3},i::Int,
           V[j,i,k] = V[i,j,k]
         end
     end
+    return true
 end
 
 
