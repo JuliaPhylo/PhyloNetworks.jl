@@ -202,9 +202,8 @@ function updateTreePairwiseTaxonDistanceGrad!(
             V[j,i,k] = V[i,j,k]
         end
     end
-    return true
     # V[i,i,k] initialized to 0.0 already
-    return nothing
+    return true
 end
 function updateHybridPairwiseTaxonDistanceGrad!(
     V::Array{Float64,3},
