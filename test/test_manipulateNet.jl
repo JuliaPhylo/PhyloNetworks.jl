@@ -259,6 +259,16 @@ net = readTopology("((a,(((b)#H1,#H1))#H2),#H2);") # no degree-2 node adjacent t
 deleteleaf!(net, "a", unroot=true)
 @test writeTopology(net) == "(b)H1;"
 
+# unzip_canonical! and rezip_canonical!
+netstr = "(#H2:0.1::0.2,((C:0.2,((B:0.3)#H1:0.4)#H2:0.5::0.8):0.6,(#H1:0.7,((A1:0.8)#H3:0.01,(A2:0.9,#H3:0.02):0.03):1.0):1.1):1.2,O:1.3);"
+net = readTopology(netstr)
+# 2 reticulation in a hybrid ladder, and another isolated reticulation
+undoinfo = PhyloNetworks.unzip_canonical!(net)
+@test all(PhyloNetworks.getchildedge(h).length == 0.0 for h in net.hybrid) # unzipped
+@test writeTopology(net, round=true) == "(#H2:0.8::0.2,((C:0.2,((B:0.0)#H1:0.0)#H2:1.2::0.8):0.6,(#H1:1.0,((A1:0.0)#H3:0.81,(A2:0.9,#H3:0.82):0.03):1.0):1.1):1.2,O:1.3);"
+PhyloNetworks.rezip_canonical!(undoinfo...)
+@test writeTopology(net, round=true) == netstr
+
 end # of testset for other functions in manipulateNet
 
 end # of overall testset for this file

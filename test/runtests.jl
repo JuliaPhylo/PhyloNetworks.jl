@@ -89,7 +89,6 @@ tests = [
     "test_recursion_matrices.jl",
     "test_calibratePairwise.jl", "test_relaxed_reading.jl",
     "test_isMajor.jl", "test_interop.jl",
-    # "test_phyLiNCoptimization.jl",
     "test_readInputData.jl",
     "test_nj.jl",
 ]

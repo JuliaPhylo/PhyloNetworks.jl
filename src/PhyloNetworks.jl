@@ -173,6 +173,5 @@ module PhyloNetworks
     include("graph_components.jl")
     include("deprecated.jl")
     include("nj.jl")
-    # include("phyLiNCoptimization.jl")
 
 end #module

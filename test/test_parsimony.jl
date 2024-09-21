@@ -4,6 +4,15 @@ extrarun = false
 global net
 originalstdout = stdout
 
+@testset "utility: readfastatodna" begin
+fasta8sites = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln")
+# fasta8sites = joinpath(dirname(pathof(PhyloNetworks)), "..", "examples", "Ae_bicornis_8sites.aln")
+dna_dat, dna_weights = readfastatodna(fasta8sites, true) # 22 species
+@test size(dna_dat) == (22, 9)
+@test isa(dna_dat, DataFrame)
+@test dna_weights == repeat([1], 8)
+end
+
 @testset "Fitch" begin
 # on a tree:
 net = readTopology("(A,(B,(C,D)));")
