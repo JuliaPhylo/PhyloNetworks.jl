@@ -77,6 +77,7 @@ module PhyloNetworks
         getroot,
         getGammas,
         getHeights,
+        getHeights!,
         isrootof,
         isleaf,
         isexternal,

@@ -70,6 +70,17 @@ n = deepcopy(net)
 deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 @test net.numNodes == 5; @test net.numEdges == 6;
 
+##Test getHeights functions
+net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")
+@test getHeights(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
+net.edge[5].length = -1 # add missing edge length
+@test_throws ErrorException getHeights(net)
+@test net.edge[5].length == -1 # Make sure we don't mutate the broken edge length
+@test getHeights!(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
+
+
+
+
 # below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.
 nwkstring = "((t7:0.23,#H19:0.29::0.47):0.15,(((#H23:0.02::0.34)#H19:0.15::0.53,(t9:0.06)#H23:0.02::0.66):0.09,t6:0.17):0.21);"
 net = readTopology(nwkstring)

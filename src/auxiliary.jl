@@ -1133,13 +1133,26 @@ end
 
 """
     getHeights(net, checkpreorder::Bool=true)
+    getHeights!(net, checkpreorder::Bool=true)
 
-Return the height (distance to the root) of all nodes, assuming a time-consistent network
-(where all paths from the root to a given hybrid node have the same length)
-but not necessarily ultrametric: tips need not all be at the same distance from the root.
+Return the height (distance to the root) of all nodes. The function will return an error if the network is not time-consistent.
+Ultrametricity is not assumed: tips need not all be at the same distance from the root.
 If `checkpreorder=false`, assumes the network has already been preordered
-with [`preorder!`](@ref), because it uses
-[`getGammas`](@ref) and [`setGammas!`](@ref)).
+with [`preorder!`](@ref).
+
+[`getHeights`](@ref) returns an error upon finding a missing edge (i.e., an edge with length `-1`)
+The second form [`getHeights!`](@ref) will attempt to fill in missing edge values. 
+
+If a tree edge has a missing length, then the function throws an error. In general, resolving tree edges is nontrivial.
+
+It is assumed that hybrid nodes are not leaves, such that external edges
+are necessarily tree edges.
+If a hybrid edge has a missing length, this length is changed as follows:
+- If both partner hybrid edges lack a length: the shortest lengths are assigned
+  to make the network time-consistent at the hybrid node. In particular,
+  either the major edge or the minor edge is assigned length 0.0.
+- Otherwise: the value needed to make the network time-consistent considering
+  based on the partner edge's length. If this value is negative, then an error is thrown.
 
 Output: vector of node heights, one per node, in the same order as in
 `net.nodes_changed`. Examples:
@@ -1176,14 +1189,154 @@ julia> [node.number => (nodeheight[i], node.name) for (i,node) in enumerate(net.
 ```
 """
 function getHeights(net::HybridNetwork, checkpreorder::Bool=true)
-    checkpreorder && preorder!(net)
-    gammas = getGammas(net) # uses net.nodes_changed
-    setGammas!(net, ones(net.numNodes))
-    V = sharedPathMatrix(net; checkpreorder=false) # no need to preorder again
-    setGammas!(net, gammas)
-    return(diag(V[:All]))
+    getHeightshelper(net,false,inconsistencyerror,false,checkpreorder)
 end
 
+function getHeights!(net::HybridNetwork, checkpreorder::Bool=true)
+    getHeightshelper(net,true,inconsistencyerror,false,checkpreorder)
+end
+
+function getHeightshelper(
+    net::HybridNetwork,
+    fixmissing::Bool,
+    inconsistencyhandler::Function,
+    stopearly::Bool,
+    checkpreorder::Bool=true,)
+
+    checkpreorder && preorder!(net)
+
+    missing_e = Tuple{Edge,Float64}[] ##Vector of tuples that has missing edges and their 'fixed' values as tuples
+    isconsistent = Ref(true)
+
+    rootdistance=recursion_preorder(
+        net.nodes_changed,
+        get_heights_init,
+        updateRecursion_default!,
+        update_getheights_tree!,
+        update_getheights_hybrid!,
+        fixmissing,
+        missing_e,
+        isconsistent,
+        inconsistencyhandler,
+        stopearly)
+
+    if fixmissing ##assign values to fixed edges
+        for e in missing_e
+            e[1].length = e[2]
+        end
+    end
+
+    rootdistance
+end
+
+inconsistencyerror = function(
+    distanceroot_i_major::Float64,
+    distanceroot_i_minor::Float64,
+    i::Int,
+    distanceroot::Vector{Float64} )
+    if approxEq(distanceroot_i_major,distanceroot_i_minor) # They should only be aporximately equal if one of the edges has negative branch length
+        error("Edges $((x ->x.length).(paredges)) cannot be fixed without creating a negative branch length")
+    else # we errored because they are not equal
+        error("The paths that lead to $(getchild(paredges[1])) both have different heights")
+    end
+end
+
+function get_heights_init(nodes::Vector{Node},params...)
+    n = length(nodes)
+    return zeros(Float64,n) 
+end
+
+
+function update_getheights_tree!(rootdistance::Vector{Float64},
+    i::Int,
+    parind::Int,
+    paredge::Edge,
+    fixmissing::Bool,
+    params...
+    ) 
+    if paredge.length == -1.0 ##The branch is missing a value
+            !fixmissing && error("Edge $(paredge.number) has a missing edge length")
+            error("Edge $(paredge.number) has a missing edge length and tree edges are nontrivial to fix, if fixable")
+    end
+    rootdistance[i] = rootdistance[parind] + paredge.length 
+    return true
+end
+
+function update_getheights_hybrid!(
+    rootdistance::Vector{Float64},
+    i,
+    parinds::Vector{Int},
+    paredges::Vector{Edge},
+    fixmissing::Bool,
+    missing_e::Vector{Tuple{Edge,Float64}},
+    isconsistent::Ref{Bool},
+    inconsistencyhandler::Function,
+    stopearly::Bool,)
+
+    maj_ind = !paredges[1].isMajor + 1 ## If the first is not major then the 2nd is
+    min_ind = paredges[1].isMajor + 1
+    
+    maj_e = paredges[maj_ind]
+    maj_rootdistance = rootdistance[parinds[maj_ind]] 
+
+    min_e = paredges[min_ind]
+    min_rootdistance = rootdistance[parinds[min_ind]]
+
+
+    majmissing = maj_e.length == -1.0
+    if majmissing
+        !fixmissing &&  error("Edge $(maj_e.number) has a missing edge length.")
+    end
+    minmissing = min_e.length == -1.0
+    if minmissing
+        !fixmissing && error("Edge $(min_e.number) has a missing edge length.")
+    end
+
+    ##Attempt to fix missing edges
+    if majmissing && minmissing # both parent edges lack a length
+        if maj_rootdistance < min_rootdistance
+            min_e_len = 0.0
+            maj_e_len = min_rootdistance - maj_rootdistance
+            rootdistance[i] = min_rootdistance
+        else
+            maj_e_len = 0.0
+            min_e_len = maj_rootdistance - min_rootdistance
+            rootdistance[i] = maj_rootdistance
+        end
+        push!(missing_e,(min_e,min_e_len))
+        push!(missing_e,(maj_e,maj_e_len))
+    elseif majmissing || minmissing # one of the two branches is missing 
+        ##Attempt to fix the missing edge length. compute rootdistance[i] given the nonmissing edge and see if we can specify the missing edge s.t. it is time-consistent
+        maj_e_len=Inf
+        min_e_len=Inf
+        if majmissing
+            dr_i_min = min_rootdistance + min_e.length #compute the root distance to i from min side
+            maj_e_len= dr_i_min - maj_rootdistance 
+            dr_i_maj = maj_rootdistance + maj_e_len
+            push!(missing_e,(maj_e,maj_e_len))
+        else ##minmissing
+            dr_i_maj = maj_rootdistance + maj_e.length
+            min_e_len = dr_i_maj - min_rootdistance
+            dr_i_min = min_rootdistance + min_e_len
+            push!(missing_e,(min_e,min_e_len))
+        end
+        if maj_e_len < 0.0 || min_e_len < 0.0 # one of the branches could not be resolved 
+            isconsistent[]=false
+            inconsistencyhandler(paredges,dr_i_maj,dr_i_min,i,rootdistance)    
+        end
+        rootdistance[i] = dr_i_maj # should be the same as dr_i_min
+    else # both parent edges have a length
+        dr_i_maj = maj_rootdistance+maj_e.length
+        dr_i_min = min_rootdistance+min_e.length
+        if !isapprox(dr_i_maj, dr_i_min) # root distances not compatible
+            isconsistent[]=false
+            inconsistencyhandler(paredges,dr_i_maj,dr_i_min,i,rootdistance)  
+        else # root distances are compatible 
+            rootdistance[i]=dr_i_maj 
+        end
+    end
+    return !stopearly && isconsistent[] ## tell recursion to end if we want to stop early and the phylogeny is not time-consistent
+end
 
 
 

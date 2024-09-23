@@ -64,7 +64,7 @@ function updatePreOrder!(
         for e in paredge
             e.hybrid || error("edge $(e.number), parent of node $(nodes[i].number), should be hybrid")
         end
-        updateHybrid(V, i, parindx, paredge, params...)
+        keepgoing = updateHybrid(V, i, parindx, paredge, params...)
     end
     return keepgoing
 end
