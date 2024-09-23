@@ -791,14 +791,13 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
     nTax = length(taxa)
-    if bothtrees # even if rooted, different treatment at the root if root=leaf
-        M1 = tree2Matrix(net1, taxa, rooted=rooted)
-        M2 = tree2Matrix(net2, taxa, rooted=rooted)
-    else
-        M1 = hardwiredClusters(net1, taxa) # last row: 10/11 if tree/hybrid edge.
-        M2 = hardwiredClusters(net2, taxa)
-        #println("M1="); print(M1); println("\nM2="); print(M2); println("\n");
+    if bothtrees
+        return hardwiredClusterDistance_treelike(net1, net2)
     end
+
+    # The following is only run for networks
+    M1 = hardwiredClusters(net1, taxa) # last row: 10/11 if tree/hybrid edge.
+    M2 = hardwiredClusters(net2, taxa)
     dis = 0
     n2ci = collect(1:size(M2, 1)) # cluster indices
     for i1 in 1:size(M1,1)
@@ -820,6 +819,56 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     end # (size(M1)[1] - dis) edges have been found in net2, dis edges have not.
     # so size(M2)[1] - (size(M1)[1] - dis) edges in net2 are not in net1.
     dis + dis + size(M2)[1] - size(M1)[1]
+end
+
+
+function hardwiredClusterDistance_treelike(tre1::HybridNetwork, tre2::HybridNetwork)
+    (tre1.numHybrids == 0 && tre2.numHybrids == 0) || error("tree1 and tree2 must be tree-like (0 hybrids)")
+    
+    clusters1 = hardwiredClusters_treelike(tre1)
+    clusters2 = hardwiredClusters_treelike(tre2)
+    inboth = intersect(clusters1, clusters2)
+
+    return length(clusters1) + length(clusters2) - 2 * length(inboth)
+end
+
+
+function hardwiredClusters_treelike(tree::HybridNetwork)
+    tree.numHybrids == 0 || error("tre must be a tree (0 hybrids)")
+
+    working_edgeset = [leaf.edge[1] for leaf in tree.leaf]
+    saved_map = Dict()      # final clusters are the values of the dict
+    rootnumber = tree.node[tree.root].number 
+
+    while length(working_edgeset) != 0
+        edge = working_edgeset[1]
+        deleteat!(working_edgeset, 1)
+        if edge.number in keys(saved_map) continue end
+
+        if getchild(edge).leaf > 0
+            # Leaf edge
+            saved_map[edge.number] = [getchild(edge).name]
+            if getparent(edge) != tree.node[tree.root] push!(working_edgeset, getparentedge(getparent(edge))) end
+        else
+            # Non-leaf edge
+            children = getchildren(getchild(edge))
+            e1 = getparentedge(children[1])
+            e2 = getparentedge(children[2])
+
+            try
+                saved_map[edge.number] = vcat(saved_map[e1.number], saved_map[e2.number])
+            catch e
+                push!(working_edgeset, edge)
+            end
+        
+            # Keep going up
+            if getparent(edge) != tree.node[tree.root] push!(working_edgeset, getparentedge(getparent(edge))) end
+        end
+
+    end
+
+    for key in keys(saved_map) saved_map[key] = sort(saved_map[key]) end
+    return values(saved_map)
 end
 
 
@@ -881,6 +930,9 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
             if diss < bestdissimilarity
                 bestns = (n1, n2)
                 bestdissimilarity = diss
+                if diss == 0
+                    return 0
+                end
             end
         end
     end
