@@ -849,7 +849,7 @@ function hardwiredClusters_treelike(tree::HybridNetwork, S::Union{Vector{String}
     # We go through each edge in `tree` one at a time, from the bottom up
     # `working_edgeset` holds edges that we still need to looks at
     working_edgeset = Queue{Edge}()
-    saved_map = Dict{Int64, Edge}()     # final clusters are the values of the dict; Dicts are significantly faster
+    saved_map = Dict{Int64, BitVector}()     # final clusters are the values of the dict; Dicts are significantly faster
                                         #  w/ Int64 than w/ Edge for some reason, so we index w/ `edge.number` instead of `edge`
     rootnumber = tree.node[tree.root].number 
 
