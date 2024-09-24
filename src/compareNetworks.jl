@@ -791,14 +791,13 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
     nTax = length(taxa)
-    if bothtrees # even if rooted, different treatment at the root if root=leaf
-        M1 = tree2Matrix(net1, taxa, rooted=rooted)
-        M2 = tree2Matrix(net2, taxa, rooted=rooted)
-    else
-        M1 = hardwiredClusters(net1, taxa) # last row: 10/11 if tree/hybrid edge.
-        M2 = hardwiredClusters(net2, taxa)
-        #println("M1="); print(M1); println("\nM2="); print(M2); println("\n");
+    if bothtrees
+        return hardwiredClusterDistance_treelike(net1, net2, rooted)
     end
+
+    # The following is only run for networks
+    M1 = hardwiredClusters(net1, taxa) # last row: 10/11 if tree/hybrid edge.
+    M2 = hardwiredClusters(net2, taxa)
     dis = 0
     n2ci = collect(1:size(M2, 1)) # cluster indices
     for i1 in 1:size(M1,1)
@@ -821,6 +820,103 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
     # so size(M2)[1] - (size(M1)[1] - dis) edges in net2 are not in net1.
     dis + dis + size(M2)[1] - size(M1)[1]
 end
+
+
+"""
+Computes hardwiredClusterDistance for networks without hybridizations (trees). Argument
+`count_root` should be true if this is apart of a rooted HWCD calculation, otherwise false.
+"""
+function hardwiredClusterDistance_treelike(tre1::HybridNetwork, tre2::HybridNetwork, count_root::Bool)
+    (tre1.numHybrids == 0 && tre2.numHybrids == 0) || error("tree1 and tree2 must be tree-like (0 hybrids)")
+    
+    clusters1 = hardwiredClusters_treelike(tre1, tipLabels(tre1), count_root)
+    clusters2 = hardwiredClusters_treelike(tre2, tipLabels(tre1), count_root)
+    inboth = intersect(clusters1, clusters2)
+
+    return length(clusters1) + length(clusters2) - 2 * length(inboth)
+end
+
+
+"""
+Function takes the same format as `hardwiredClusters`, but is used exclusively for trees and has a
+different return type that is used exclusively by `hardwiredClusterDistance_treelike`.
+"""
+function hardwiredClusters_treelike(tree::HybridNetwork, S::Union{Vector{String}, Vector{<:Integer}}, count_root::Bool)
+    tree.numHybrids == 0 || error("tre must be a tree (0 hybrids)")
+    N = tree.numTaxa
+    labels = tipLabels(tree)
+
+    # We go through each edge in `tree` one at a time, from the bottom up
+    # `working_edgeset` holds edges that we still need to looks at
+    working_edgeset = Queue{Edge}()
+    saved_map = Dict{Int64, BitVector}()     # final clusters are the values of the dict; Dicts are significantly faster
+                                        #  w/ Int64 than w/ Edge for some reason, so we index w/ `edge.number` instead of `edge`
+    rootnumber = tree.node[tree.root].number 
+
+    S_map = Dict(Si => j for (j, Si) in enumerate(S))
+    for leaf in tree.leaf
+        saved_map[leaf.edge[1].number] = falses(N)
+        
+        if isa(S, Vector{String})
+            saved_map[leaf.edge[1].number][S_map[leaf.name]] = true
+        else
+            saved_map[leaf.edge[1].number][S_map[leaf.number]] = true
+        end
+
+        if getparent(leaf.edge[1]) != tree.node[tree.root] enqueue!(working_edgeset, getparentedge(getparent(leaf.edge[1]))) end
+    end
+
+
+    while length(working_edgeset) != 0
+        edge = dequeue!(working_edgeset)
+        if edge.number in keys(saved_map) continue end
+
+        # Non-leaf edge
+        children = getchildren(getchild(edge))
+        e1 = getparentedge(children[1])
+        e2 = getparentedge(children[2])
+
+        try
+            saved_map[edge.number] = saved_map[e1.number] .|| saved_map[e2.number]
+        catch e
+            enqueue!(working_edgeset, edge)
+            continue
+        end
+    
+        # Keep going up
+        if getparent(edge) != tree.node[tree.root] enqueue!(working_edgeset, getparentedge(getparent(edge))) end
+
+    end
+
+    if !count_root
+        # Remove one of the non-leaf root edges.
+        # We do all of this extra work to make sure that the edge we remove between trees is identical
+        # Though this may not be a very principled way of going about it...
+        non_leaf_root_edges = [edge for edge in tree.node[tree.root].edge if !getchild(edge).leaf]
+        if length(non_leaf_root_edges) > 1
+            delete_order = sortperm([saved_map[edge.number] for edge in non_leaf_root_edges])
+            for j = 1:(length(delete_order)-1)
+                delete!(saved_map, non_leaf_root_edges[delete_order[j]].number)
+            end
+        end
+    end
+
+    # Remove splits w/ individual leaves and splits w/ all N-1 taxa
+    clusters = Vector{BitVector}([vec for vec in values(saved_map) if sum(vec) >= 2 && sum(vec) <= N-2])
+
+    # Adjust the BitVectors so that they can be accurately compared against others
+    # e.g. [0, 0, 0, 1, 1] should be equivalent to [1, 1, 1, 0, 0], so, by convention,
+    # we if the first bit is 0, we flip all bits in the vector
+    for (i, vec) in enumerate(clusters)
+        if vec[1]
+            clusters[i] = .!clusters[i]
+        end
+    end
+
+    return clusters
+end
+hardwiredClusters_treelike(tree::HybridNetwork, count_root::Bool) =
+    hardwiredClusters_treelike(tree, tipLabels(tree), count_root)
 
 
 """
@@ -881,6 +977,9 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
             if diss < bestdissimilarity
                 bestns = (n1, n2)
                 bestdissimilarity = diss
+                if diss == 0
+                    return 0
+                end
             end
         end
     end
