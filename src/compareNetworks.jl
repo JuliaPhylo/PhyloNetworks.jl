@@ -878,7 +878,6 @@ function hardwiredClusters_treelike(tree::HybridNetwork, S::Union{Vector{String}
 
         try
             saved_map[edge.number] = saved_map[e1.number] .|| saved_map[e2.number]
-            # saved_map[edge] = vcat(saved_map[e1.number], saved_map[e2.number])
         catch e
             enqueue!(working_edgeset, edge)
             continue
