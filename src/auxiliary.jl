@@ -1221,15 +1221,17 @@ function getHeightshelper(
         stopearly)
 
     if fixmissing ##assign values to fixed edges
-        for e in missing_e
-            e[1].length = e[2]
-        end
+        (x-> x[1].length=x[2]).(missing_e)
+        #for e in missing_e
+        #    e[1].length = e[2]
+        #end
     end
 
     rootdistance
 end
 
 inconsistencyerror = function(
+    paredges::Vector{Edge},
     distanceroot_i_major::Float64,
     distanceroot_i_minor::Float64,
     i::Int,
@@ -1237,7 +1239,7 @@ inconsistencyerror = function(
     if approxEq(distanceroot_i_major,distanceroot_i_minor) # They should only be aporximately equal if one of the edges has negative branch length
         error("Edges $((x ->x.length).(paredges)) cannot be fixed without creating a negative branch length")
     else # we errored because they are not equal
-        error("The paths that lead to $(getchild(paredges[1])) both have different heights")
+        error("The paths that lead to node number $(getchild(paredges[1]).number) both have different heights")
     end
 end
 

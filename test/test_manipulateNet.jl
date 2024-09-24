@@ -77,8 +77,10 @@ net.edge[5].length = -1 # add missing edge length
 @test_throws ErrorException getHeights(net)
 @test net.edge[5].length == -1 # Make sure we don't mutate the broken edge length
 @test getHeights!(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
-
-
+(x->x.length=-1).(net.edge[[3,5]]) ## make both hybrid edges missing
+getHeights!(net) ==  [0.0,5.2,1.0,3.2,5.2,2.0,3.2,4.2,3.0]
+net.edge[5].length=7 ## make time-inconsistent
+@test_throws ErrorException getHeights!(net)
 
 
 # below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.
