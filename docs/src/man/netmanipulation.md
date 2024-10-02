@@ -51,4 +51,4 @@ To compare networks or compare nodes in a network, for example:
   it's a dissimilarity measure on networks
 - [`pairwiseTaxonDistanceMatrix`](@ref) for *average* distances,
   [`getNodeAges`](@ref) if ultrametric network,
-  [`PhyloNetworks.getHeights`](@ref), [`vcv`](@ref)
+  [`getnodeheights`](@ref), [`vcv`](@ref)

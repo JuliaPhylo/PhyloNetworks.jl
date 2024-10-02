@@ -70,17 +70,20 @@ n = deepcopy(net)
 deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 @test net.numNodes == 5; @test net.numEdges == 6;
 
-##Test getHeights functions
+## test nodeheights functions
 net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")
-@test getHeights(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
+@test getnodeheights(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
 net.edge[5].length = -1 # add missing edge length
-@test_throws ErrorException getHeights(net)
+@test_throws "missing parent edge length" getnodeheights(net)
 @test net.edge[5].length == -1 # Make sure we don't mutate the broken edge length
-@test getHeights!(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
-(x->x.length=-1).(net.edge[[3,5]]) ## make both hybrid edges missing
-getHeights!(net) ==  [0.0,5.2,1.0,3.2,5.2,2.0,3.2,4.2,3.0]
-net.edge[5].length=7 ## make time-inconsistent
-@test_throws ErrorException getHeights!(net)
+@test getnodeheights!(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
+(x->x.length=-1).(view(net.edge, [3,5])) # make both hybrid edges missing
+getnodeheights!(net) ==  [0.0,5.2,1.0,3.2,5.2,2.0,3.2,4.2,3.0]
+net.edge[5].length = 7 # time-*in*consistent
+@test_throws "not time consistent" getnodeheights!(net)
+getnodeheights_average(net)
+# todo: turn the line above into a test; write docstring for it;
+# write & test new function `istimeconsistent` using `timeinconsistency_check` as handler
 
 
 # below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.

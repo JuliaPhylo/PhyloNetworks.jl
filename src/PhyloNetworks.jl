@@ -76,8 +76,9 @@ module PhyloNetworks
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
         getGammas,
-        getHeights,
-        getHeights!,
+        getnodeheights,
+        getnodeheights!,
+        getnodeheights_average,
         isrootof,
         isleaf,
         isexternal,

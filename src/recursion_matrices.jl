@@ -219,10 +219,10 @@ function sharedPathMatrix(net::HybridNetwork; checkpreorder=true::Bool)
         """The variance-covariance matrix of the network is not defined.
            A phylogenetic regression cannot be done.""")
     checkpreorder && preorder!(net)
-    V = recursion_preorder(
+    V = traversal_preorder(
             net.nodes_changed,
             initsharedPathMatrix,
-            updateRecursion_default!,
+            traversalupdate_default!,
             updateTreeSharedPathMatrix!,
             updateHybridSharedPathMatrix!,
         )
@@ -285,10 +285,10 @@ If `checkpreorder` is true (default), `preorder!` is run on the network beforeha
 """
 function descendenceMatrix(net::HybridNetwork; checkpreorder=true::Bool)
     checkpreorder && preorder!(net)
-    V = recursion_postorder(
+    V = traversal_postorder(
         net.nodes_changed,
         initDescendenceMatrix,
-        updateRecursion_default!, # does nothing
+        traversalupdate_default!, # does nothing
         updateNodeDescendenceMatrix!,
     )
     M = MatrixTopologicalOrder(V, net, :r) # nodes in rows
