@@ -29,6 +29,7 @@ To traverse or learn something about a network, node or edge, see for example:
   [`getparentedge`](@ref PhyloNetworks.getparent),
   [`getparentedgeminor`](@ref PhyloNetworks.getparent),
   [`getpartneredge`](@ref)
+- [`istimeconsistent`](@ref)
 
 To modify a network, for example:
 - [`rootonedge!`](@ref), [`rootatnode!`](@ref):
@@ -51,4 +52,5 @@ To compare networks or compare nodes in a network, for example:
   it's a dissimilarity measure on networks
 - [`pairwiseTaxonDistanceMatrix`](@ref) for *average* distances,
   [`getNodeAges`](@ref) if ultrametric network,
-  [`getnodeheights`](@ref), [`vcv`](@ref)
+  [`getnodeheights`](@ref), [`getnodeheights_average`](@ref),
+  [`vcv`](@ref)
