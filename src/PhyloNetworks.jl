@@ -42,11 +42,11 @@ module PhyloNetworks
     export
         ## Network Definition
         HybridNetwork,
-        DataCF,
-        Quartet,
+        #DataCF,
+        #Quartet,
         readTopology,
-        readTopologyLevel1,
-        tipLabels,
+        #readTopologyLevel1,
+        #tipLabels,
         writeTopology,
         writeSubTree!,
         hybridlambdaformat,
@@ -57,21 +57,21 @@ module PhyloNetworks
         shrink3cycles!,
         printEdges,
         printNodes,
-        sorttaxa!,
+        #sorttaxa!,
         ## SNAQ
-        readTrees2CF,
-        countquartetsintrees,
-        readTableCF,
-        readTableCF!,
-        writeTableCF,
-        mapAllelesCFtable,
+        #readTrees2CF,
+        #countquartetsintrees,
+        #readTableCF,
+        #readTableCF!,
+        #writeTableCF,
+        #mapAllelesCFtable,
         readInputTrees,
         readnexus_treeblock,
-        summarizeDataCF,
-        snaq!,
-        readSnaqNetwork,
-        topologyMaxQPseudolik!,
-        topologyQPseudolik!,
+        #summarizeDataCF,
+        #snaq!,
+        #readSnaqNetwork,
+        #topologyMaxQPseudolik!,
+        #topologyQPseudolik!,
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
@@ -99,7 +99,7 @@ module PhyloNetworks
         directEdges!,
         preorder!,
         cladewiseorder!,
-        fittedQuartetCF,
+        #fittedQuartetCF,
         rotate!,
         setLength!,
         setGammas!,
@@ -124,13 +124,13 @@ module PhyloNetworks
         hybridDetection,
         summarizeHFdf,
         hybridBootstrapSupport,
-        bootsnaq,
+        #bootsnaq,
         readBootstrapTrees,
         writeMultiTopology,
-        readMultiTopologyLevel1,
+        #readMultiTopologyLevel1,
         readMultiTopology,
-        hybridatnode!,
-        undirectedOtherNetworks,
+        #hybridatnode!,
+        #undirectedOtherNetworks,
         ## Network Calibration
         getNodeAges,
         pairwiseTaxonDistanceMatrix,
@@ -150,21 +150,21 @@ module PhyloNetworks
     include("types.jl")
     include("auxiliary.jl")
     include("generate_topology.jl")
-    include("update.jl")
+    #include("update.jl")
     include("undo.jl")
-    include("addHybrid_snaq.jl")
+    #include("addHybrid_snaq.jl")
     include("addHybrid.jl")
     include("deleteHybrid.jl")
-    include("moves_snaq.jl")
+    #include("moves_snaq.jl")
     include("moves_semidirected.jl")
     include("readwrite.jl")
-    include("readData.jl")
-    include("snaq_optimization.jl")
-    include("pseudolik.jl")
+    #include("readData.jl")
+    #include("snaq_optimization.jl")
+    #include("pseudolik.jl")
     include("descriptive.jl")
     include("manipulateNet.jl")
     include("bootstrap.jl")
-    include("multipleAlleles.jl")
+    #include("multipleAlleles.jl")
     include("compareNetworks.jl")
     include("recursion_routines.jl")
     include("recursion_matrices.jl")

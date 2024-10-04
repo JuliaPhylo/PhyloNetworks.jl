@@ -632,16 +632,7 @@ function checkNumHybEdges!(net::HybridNetwork)
     return nothing
 end
 
-# aux function to send an error if the number of hybrid attached to every
-# hybrid node is >2
-function check2HybEdges(net::HybridNetwork)
-    for n in net.hybrid
-        hyb = sum([e.hybrid for e in n.edge]);
-        if hyb > 2
-            error("hybrid node $(n.number) has more than two hybrid edges attached to it: polytomy that cannot be resolved without intersecting cycles.")
-        end
-    end
-end
+
 
 
 # aux function to solve a polytomy

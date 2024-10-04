@@ -359,20 +359,3 @@ function choosePartition(net::HybridNetwork)
 end
 
 
-# based on getDescendants on readData.jl but with vector of edges, instead of nodes
-# finds the partition corresponding to the node and edge in the cycle
-# used in chooseEdgesGamma and to set net.partition
-# cycleNum is a variable that will save another hybrid node number if found
-function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int})
-    @debug "getDescendants of node $(node.number) and edge $(edge.number)"
-    if(node.inCycle != -1)
-        push!(cycleNum,node.inCycle)
-    elseif(!node.leaf && node.inCycle == -1)
-        for e in node.edge
-            if(!isEqual(edge,e) && e.isMajor)
-                push!(descendants,e)
-                getDescendants!(getOtherNode(e,node),e,descendants,cycleNum)
-            end
-        end
-    end
-end

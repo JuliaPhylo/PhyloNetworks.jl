@@ -3,12 +3,7 @@
 # Claudia February 2015
 #####################
 
-function setCHECKNET(b::Bool)
-    global CHECKNET
-    CHECKNET = b
-    CHECKNET && @warn "PhyloNetworks.CHECKNET is true: will slow snaq! down."
-    b || @info "PhyloNetworks.CHECKNET set to false"
-end
+
 
 # ----- aux general functions ---------------
 
@@ -511,19 +506,12 @@ function isconnected(node1, node2)
     !isdisjoint(node1.edge, node2.edge) # requires Julia v1.5
 end
 
-# function to check in an edge is in an array by comparing
-# edge numbers (could use isEqual for adding comparisons of gammaz and inCycle)
-# needed for updateHasEdge
-function isEdgeNumIn(edge::Edge,array::Array{Edge,1})
-    enum = edge.number
-    return any(e -> e.number == enum, array)
-end
 
-# function to check in a leaf is in an array by comparing
-# the numbers (uses isEqual)
-# needed for updateHasEdge
-function isNodeNumIn(node::Node,array::Array{Node,1})
-    return all((e->!isEqual(node,e)), array) ? false : true
+
+function isTree(net::HybridNetwork)
+    net.numHybrids == length(net.hybrid) || error("numHybrids does not match to length of net.hybrid")
+    net.numHybrids != 0 || return true
+    return false
 end
 
 # function to push a Node in net.node and

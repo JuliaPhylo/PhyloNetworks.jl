@@ -877,11 +877,7 @@ end
 
 # -------------- heuristic search for topology -----------------------
 
-function isTree(net::HybridNetwork)
-    net.numHybrids == length(net.hybrid) || error("numHybrids does not match to length of net.hybrid")
-    net.numHybrids != 0 || return true
-    return false
-end
+
 
 # function to adjust the weight of addHybrid if net is in a much lower layer
 # net.numHybrids<<hmax

@@ -1207,7 +1207,7 @@ end
 # aux function to traverse the network from a node and an edge
 # based on traverseContainRoot
 # warning: it does not go accross hybrid node, minor hybrid edge
-# there is another getDescendants in update.jl for updatePartition
+# there is another getDescendants below for updatePartition
 function getDescendants!(node::Node, edge::Edge, descendants::Array{Node,1})
     if(node.leaf)
         push!(descendants, node)
@@ -1220,6 +1220,27 @@ function getDescendants!(node::Node, edge::Edge, descendants::Array{Node,1})
         end
     end
 end
+
+# based on getDescendants on readData.jl but with vector of edges, instead of nodes
+# finds the partition corresponding to the node and edge in the cycle
+# used in chooseEdgesGamma and to set net.partition
+# cycleNum is a variable that will save another hybrid node number if found
+function getDescendants!(node::Node, edge::Edge, descendants::Vector{Edge}, cycleNum::Vector{Int})
+    @debug "getDescendants of node $(node.number) and edge $(edge.number)"
+    if(node.inCycle != -1)
+        push!(cycleNum,node.inCycle)
+    elseif(!node.leaf && node.inCycle == -1)
+        for e in node.edge
+            if(!isEqual(edge,e) && e.isMajor)
+                push!(descendants,e)
+                getDescendants!(getOtherNode(e,node),e,descendants,cycleNum)
+            end
+        end
+    end
+end
+
+
+
 
 # function to make table to later use in updateBL
 # uses vector parts obtained from edgeParts function
