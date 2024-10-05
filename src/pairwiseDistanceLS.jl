@@ -255,6 +255,10 @@ This function will output *one* of these equally good calibrations.
 optional arguments (default):
 - checkPreorder (true)
 - forceMinorLength0 (false) to force minor hybrid edges to have a length of 0
+- ultrametric (true) to force the network to be
+  * time-consistent: all paths from the root to a given node must have the same
+    length, so the age of this node is well-defined, and
+  * ultrametric: all tips are at the same distance from the root, so have the same age.
 - NLoptMethod (`:LD_MMA`) for the optimization algorithm.
   Other options include `:LN_COBYLA` (derivative-free); see NLopt package.
 - tolerance values to control when the optimization is stopped:
@@ -443,4 +447,88 @@ function calibrateFromPairwiseDistances!(net::HybridNetwork,
     fmin, xmin, ret = NLopt.optimize(opt,par) # optimization here!
     verbose && println("got $(round(fmin, digits=5)) at $(round.(xmin, digits=5)) after $(counter[1]) iterations (return code $(ret))")
     return fmin,xmin,ret
+end
+
+"""
+    startingBL!(net::HybridNetwork,
+                trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
+                siteweight=ones(length(trait[1]))::AbstractVector{Float64})
+
+Calibrate branch lengths in `net` by minimizing the mean squared error
+between the JC-adjusted pairwise distance between taxa, and network-predicted
+pairwise distances, using [`calibrateFromPairwiseDistances!`](@ref).
+The network is *not* forced to be time-consistent nor ultrametric.
+To avoid one source of non-identifiability, the network is "zipped" by
+forcing minor hybrid edges to have length 0.
+
+`siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
+
+Assumptions:
+
+- all species have the same number of traits (sites): `length(trait[i])` constant
+- `trait[i]` is for leaf with `node.number = i` in `net`, and
+  `trait[i][j] = k` means that leaf number `i` has state index `k` for trait `j`.
+  These indices are those used in a substitution model (see `PhyloTraits.jl`):
+  kth value of `getlabels(model)`.
+
+Other:
+- Hamming distances are calculated for each pair, ignoring any site in which
+  one of 2 values is missing. The total number of differences is then divided
+  by the total weight of all sites, ignoring that some of them may have been
+  missing for the pair. This is an inexact rescaling of the hamming distance,
+  assuming a small proportion of missing values for each pair.
+- Theoretically, Hamming distances are < 0.75 with four states,
+  or < (n-1)/n for n states.
+  If not, all pairwise hamming distances are scaled by `.75/(m*1.01)` where `m`
+  is the maximum observed hamming distance, to make them all < 0.75.
+  The JC correction calculates: d_JC = - 0.75 log(1-d_hamming/0.75) for n=4 states
+- At the end, any edge length smaller than 1.0e-10 is reset to 0.0001,
+  to avoid the 0 boundary.
+"""
+function startingBL!(
+    net::HybridNetwork,
+    trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
+    siteweight=ones(length(trait[1]))::AbstractVector{Float64}
+)
+    nspecies = net.numTaxa
+    M = zeros(Float64, nspecies, nspecies) # pairwise distances initialized to 0
+    # count pairwise differences, then multiply by pattern weight
+    ncols = length(trait[1]) # assumption: all species have same # columns
+    length(siteweight) == ncols ||
+      error("$(length(siteweight)) site weights but $ncols columns in the data")
+    for i in 2:nspecies
+        species1 = trait[i]
+        for j in 1:(i-1)
+            species2 = trait[j]
+            for col in 1:ncols
+                if !(ismissing(species1[col]) || ismissing(species2[col])) &&
+                    (species1[col] != species2[col])
+                    M[i, j] += siteweight[col]
+                end
+            end
+            M[j,i] = M[i,j]
+        end
+    end
+    Mp = M ./ sum(siteweight) # to get proportion of sites, for each pair
+
+    # estimate pairwise evolutionary distances using extended Jukes Cantor model
+    nstates = mapreduce(x -> maximum(skipmissing(x)), max, trait)
+    maxdist = (nstates-1)/nstates
+    Mp[:] = Mp ./ max(maxdist, maximum(Mp*1.01)) # values in [0,0.9901]: log(1-Mp) well defined
+    dhat = - maxdist .* log.( 1.0 .- Mp)
+
+    taxonnames = [net.leaf[i].name for i in sortperm([n.number for n in net.leaf])]
+    # taxon names: to tell the calibration that row i of dhat is for taxonnames[i]
+    # trait[i][j] = trait j for taxon at node number i: 'node.number' = i
+    calibrateFromPairwiseDistances!(net, dhat, taxonnames,
+        forceMinorLength0=true, ultrametric=false)
+        #= force minor length to 0 to avoid non-identifiability at zippers.
+        works well if the true (or "the" best-fit) minor parent edge is shorter
+        than that of the major parent edge: to zip-up =#
+    for e in net.edge # avoid starting at the boundary
+        if e.length < 1.0e-10
+            e.length = 0.0001
+        end
+    end
+    return net
 end
