@@ -716,6 +716,25 @@ function expandChild!(net::HybridNetwork, n::Node)
 end
 
 
+# function to search for the hybrid nodes in a read network after cleaning it
+# and store this information as a network's attribute
+function storeHybrids!(net::HybridNetwork)
+    flag = true;
+    hybrid = nothing
+    try
+        hybrid = searchHybridNode(net)
+    catch
+        #@warn "topology read is a tree as it has no hybrid nodes"
+        flag = false;
+    end
+    if(flag)
+        net.hybrid = hybrid;
+        net.numHybrids = size(hybrid,1);
+    end
+    return nothing
+end
+
+
 # aux function to check if the root is placed correctly, and re root if not
 # warning: it needs updateContainRoot set
 function checkRootPlace!(net::HybridNetwork; verbose=false::Bool, outgroup="none"::AbstractString)
