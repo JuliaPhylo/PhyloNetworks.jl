@@ -74,6 +74,7 @@ deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")
 nh0 = [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
 @test getnodeheights(net) == nh0
+@test getnodeheights_majortree(net) == nh0
 net.edge[5].length = -1 # remove edge length: make it missing
 nh = (@test_logs (:warn,"some hybrid edge length is missing") getnodeheights(net))
 @test nh == nh0
@@ -87,6 +88,11 @@ getnodeheights!(net) == nh0
 @test net.edge[5].length ≈ 0.0 atol=1e-12
 @test_logs getnodeheights_average(net, false) == nh0 # no more warning
 @test istimeconsistent(net, false)
+net.edge[3].length = -1 #Make major edge missing
+net.edge[5].length = 0.5
+nh_major = [0.0,5.2,1.0,3.2,5.2,2.0,3.7,4.7,3.0] #Since using the minor edge, nodes indices 7 and 8 should have height increased by 0.5
+@test (@test_logs (:warn, "major hybrid edge missing a length. Using non-missing minor edge with largest gamma") match_mode=:any getnodeheights_majortree(net))==nh_major
+net.edge[3].length = 1.2 #make major known again for testing inconsistency
 net.edge[5].length = 7 # time-*in*consistent
 @test_throws "not time consistent" getnodeheights!(net, false)
 @test !istimeconsistent(net, false)

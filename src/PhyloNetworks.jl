@@ -80,6 +80,7 @@ module PhyloNetworks
         getnodeheights,
         getnodeheights!,
         getnodeheights_average,
+        getnodeheights_majortree,
         isrootof,
         isleaf,
         isexternal,

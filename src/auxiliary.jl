@@ -1225,12 +1225,38 @@ missing edge lengths:
   (such that some missing length would need to be negative) then a warning is
   issued.
 
-A warning is issued, unless `warn=false`, is the network is not time-consistent.
+A warning is issued, unless `warn=false`, if the network is not time-consistent.
 
-See also: [`istimeconsistent`](@ref) and [`getnodeheights`](@ref).
+See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref), and `getnodeheights_majortree`](@ref).
 """
 function getnodeheights_average(net::HybridNetwork, checkpreorder::Bool=true; warn::Bool=true)
     (isTC, nh) = _getnodeheights(net, false, timeinconsistency_average, checkpreorder)
+    warn && !isTC && @warn "the network is not time consistent"
+    return nh
+end
+
+"""
+    getnodeheights_majortree(net, checkpreorder::Bool=true; warn=true)
+
+Vector of node heights from the major tree, that is: the distance from the root to
+each node when considering the major tree for node heights. 
+
+missing edge lengths:
+- An error is thrown if a tree edge has a missing edge length.
+- If all parent hybrid edges have missing lengths at a given hybrid node, then
+  the hybrid node is assumed to be as close to the root as possible, that is,
+  the reticulation is assumed "zipped-up" with one of its hybrid edges of length 0.
+- If a major hybid edge has a missing length, then the hybrid node height will
+  be calculated using the node height and edge length of the minor parent with
+  the largest gamma value (with a warning). If the major hybrid edge lacks a length and
+  all non-missing minor edges lack a inheritance values γ or have the same value, then an error will be thrown.
+
+A warning is issued, unless `warn=false`, if the network is not time-consistent.
+
+See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref), and `getnodeheights_average`](@ref).
+"""
+function getnodeheights_majortree(net::HybridNetwork, checkpreorder::Bool=true; warn::Bool=true)
+    (isTC, nh) = _getnodeheights(net, false, timeinconsistency_majortree, checkpreorder)
     warn && !isTC && @warn "the network is not time consistent"
     return nh
 end
@@ -1454,7 +1480,7 @@ Calculate the γ-weighted average node height at a given hybrid node `h`, based
 on the candidate node heights from its parents with non-missing edge lengths.
 - If some of these parent edges have a missing γ, then equal weights are used
   and a warning is issued.
-- If the hybrid node's average height (calculate from non-missig lengths)
+- If the hybrid node's average height (calculate from non-missing lengths)
   turns out to be lower than one of the parent's height with a missing length
   (such that this parent edge would need to be assigned a negative value)
   then a warning is issued.
@@ -1500,6 +1526,64 @@ function timeinconsistency_average(
     if any(missingparent_height .> nh) # may be empty vector
         @warn """a missing edge length would be need to be set to a negative value
         for these average node heights"""
+        timecons = false
+    end
+    isconsistent[] &= timecons
+    return (true, nh) # keep going, even if the network is inconsistent
+end
+
+"""
+    timeinconsistency_majortree(
+        candidate_nodeheights,
+        missingparent_heights,
+        isconsistent::Ref{Bool},
+        parent_edges,
+        nonmissingparent_j;
+        atol::Real=1e-8, rtol::Real=√eps(Float64))
+
+Calculate node height at a given hybrid node `h`, based on the major parent node
+heights if it has non-missing edge lengths. If the major parent has a missing edge
+length then the non-missing edge with the largest gamma will be used and a warning is issued.
+If all γ values are missing for the cantidate edges then an error will be thrown.  
+
+Outcome:
+- update `isconsistent` to false if the candidate node heights are not all equal
+  or if some missing edge length would have to be assigned a negative value
+  to make the network time-consistent
+- returns `(true, nodeheight)`
+
+Assumption: `candidate_nodeheight` is not empty, that is, the node has at least
+one parent edge with a non-missing length.
+
+See also [`_getnodeheights`](@ref) and [`getnodeheights_average`](@ref)
+"""
+function timeinconsistency_majortree(
+    candidate_nodeheight::AbstractVector{T},
+    missingparent_height::AbstractVector{T},
+    isconsistent::Ref{Bool},
+    paredges::Vector{Edge},
+    nm_ind::AbstractVector;
+    atol::Real=1e-8, # more lenient than default 0
+    rtol::Real=√eps(T),
+) where T<:Real
+    min_nh, max_nh = extrema(candidate_nodeheight)
+    timecons = length(candidate_nodeheight) == 1 ||
+        isapprox(min_nh, max_nh; atol=atol, rtol=rtol)
+    maj_cantidate = findfirst(x->x.isMajor,paredges[nm_ind])
+    if !isnothing(maj_cantidate)#  the major edge is among cantidates 
+        nh = max_nh
+    else #find largest gamma and use that cantidate height, if avaliable
+        @warn """major hybrid edge missing a length. Using non-missing minor edge with largest gamma"""
+        gammas=(x-> x.gamma).(paredges[nm_ind])
+        max_gamma=maximum(gammas)
+        max_gamma == -1 && error("""major edge had missing length and all non-missing edges lacked a γ""")
+        cantidate_ind = findall(gammas.==max_gamma)
+        length(cantidate_ind)>1 && error("""The major edge is not specified and two edges have the same gamma""")
+        nh = candidate_nodeheight[cantidate_ind[1]]
+    end
+    if any(missingparent_height .> nh) # may be empty vector
+        @warn """a missing edge length would be need to be set to a negative value
+        to use the cantidate node height of the major edge"""
         timecons = false
     end
     isconsistent[] &= timecons
