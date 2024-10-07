@@ -58,6 +58,7 @@ module PhyloNetworks
         printEdges,
         printNodes,
         #sorttaxa!,
+
         ## SNAQ
         #readTrees2CF,
         #countquartetsintrees,
@@ -69,9 +70,9 @@ module PhyloNetworks
         readnexus_treeblock,
         #summarizeDataCF,
         #snaq!,
-        #readSnaqNetwork,
         #topologyMaxQPseudolik!,
         #topologyQPseudolik!,
+
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
