@@ -801,21 +801,6 @@ end
 
 
 """
-    setBranchLength!(Edge, newlength)
-
-Set the length of an Edge object. The new length needs to be non-negative,
-or -1.0 to be interpreted as missing. `edge.y` and `edge.z` are updated
-accordingly.
-"""
-function setBranchLength!(edge::Edge, new_length::Number)
-    (new_length >= 0 || new_length == -1.0) || error("length $(new_length) has to be nonnegative or -1.0 (for missing).")
-    edge.length = new_length;
-    edge.y = exp(-new_length);
-    edge.z = 1.0 - edge.y;
-end
-
-
-"""
     setGamma!(Edge, new γ)
     setGamma!(Edge, new γ, change_other=true::Bool)
 
