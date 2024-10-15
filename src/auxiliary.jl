@@ -589,8 +589,19 @@ function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
     net.numEdges -= 1;
 end
 
+"""
+    removeHybrid!(net::Network, n::Node)
 
-
+Delete a hybrid node `n` from `net.hybrid`, and update `net.numHybrid`.
+The actual node `n` is not deleted. It is kept in the full list `net.node`.
+"""
+function removeHybrid!(net::Network, n::Node)
+    n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
+    i = findfirst(x -> x===n, net.hybrid)
+    i !== nothing || error("hybrid node $(n.number) not in the network's list of hybrids");
+    deleteat!(net.hybrid, i);
+    net.numHybrids -= 1;
+end
 
 # function to delete a leaf node in net.leaf
 # and update numTaxa
