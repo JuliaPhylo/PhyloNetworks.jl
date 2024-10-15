@@ -1297,11 +1297,13 @@ end
 
 
 """
-    setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+    setlengths!(edges::Vector{Edge}, lengths::AbstractVector)
 
 Assign new lengths to a vector of `edges`.
+Warning: does *not* make any checks that the new edge lengths are non-negative
+(except for -1 values to be interpreted as missing).
 """
-@inline function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+@inline function setlengths!(edges::Vector{Edge}, lengths::AbstractVector)
     for (e,l) in zip(edges, lengths)
         e.length = l
     end
