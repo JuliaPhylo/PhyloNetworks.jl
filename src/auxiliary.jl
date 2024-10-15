@@ -1233,10 +1233,6 @@ function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{In
     return false
 end
 
-
-
-
-X
 """
     assignhybridnames!(net)
 
