@@ -825,6 +825,152 @@ function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
     return nothing
 end
 
+
+
+"""
+    deletehybridedge!(net::HybridNetwork, edge::Edge,
+                      nofuse=false, unroot=false,
+                      multgammas=false, simplify=true, keeporiginalroot=false)
+
+Delete a hybrid `edge` from `net` and return the network.
+The network does not have to be of level 1 and may contain polytomies,
+although each hybrid node must have exactly 2 parents.
+Branch lengths are updated, allowing for missing values.
+
+If `nofuse` is false, when `edge` is removed, its child (hybrid) node is removed
+and its partner hybrid edge is removed.
+Its child edge is retained (below the hybrid node), fused with the former partner,
+with new length: old length + length of `edge`'s old partner.
+Any 2-cycle is simplified into a single edge, unless `simplify` is false.
+
+If `nofuse` is true, edges with descendant leaves are kept as is,
+and are not fused. Nodes are retained during edge removal,
+provided that they have at least one descendant leaf.
+The hybrid edge that is partner to `edge` becomes a tree edge,
+but has its γ value unchanged (it is not set to 1), since it is not merged
+with its child edge after removal of the reticulation.  
+Also, 2-cycles are not simplified if `nofuse` is true.
+That is, if we get 2 hybrid edges both from the same parent to the same child,
+these hybrid edges are retained without being fused into a single tree edge.
+
+If `unroot` is false and if the root is up for deletion during the process,
+it will be kept if it's of degree 2 or more.
+A root node of degree 1 will be deleted unless `keeporiginalroot` is true.
+
+If `multgammas` is true: inheritance weights are kept by multiplying together
+the inheritance γ's of edges that are merged. For example,
+if there is a hybrid ladder, the partner hybrid edge remains a hybrid edge
+(with a new partner), and its γ is the product of the two hybrid edges
+that have been fused. So it won't add up to 1 with its new partner's γ.
+
+If `keeporiginalroot` is true, a root of degree one will not be deleted.
+
+Warnings:
+
+- `containRoot` is updated, but this requires correct `isChild1` fields
+- if the parent of `edge` is the root and if `nofuse` is false, the root
+  is moved to keep the network unrooted with a root of degree two.
+- does *not* update attributes needed for snaq! (like inCycle, edge.z, edge.y etc.)
+"""
+function deletehybridedge!(net::HybridNetwork, edge::Edge,
+                           nofuse=false::Bool, unroot=false::Bool,
+                           multgammas=false::Bool,
+                           simplify=true::Bool, keeporiginalroot=false::Bool)
+    edge.hybrid || error("edge $(edge.number) has to be hybrid for deletehybridedge!")
+    n1 = getchild(edge)  # child of edge, to be deleted unless nofuse
+    n1.hybrid || error("child node $(n1.number) of hybrid edge $(edge.number) should be a hybrid.")
+    n1degree = length(n1.edge)
+    n2 = getparent(edge)  # parent of edge, to be deleted too
+    n2degree = length(n2.edge)
+    # next: keep hybrid node n1 if it has 4+ edges or if keepNode.
+    #       otherwise: detach n1, then delete recursively
+    delete_n1_recursively = false
+    if n1degree < 3
+        error("node $(n1.number) has $(length(n1.edge)) edges instead of 3+");
+    # alternatively: error if degree < 2 or leaf,
+    #   warning if degree=2 and internal node, then
+    #   delete_n1_recursively = true # n1 doesn't need to be detached first
+    elseif n1degree == 3 && !nofuse # then fuse 2 of the edges and detach n1
+        delete_n1_recursively = true
+        pe = nothing # will be other parent (hybrid) edge of n1
+        ce = nothing # will be child edge of n1, to be merged with pe
+        for e in n1.edge
+            if e.hybrid && e!==edge && n1===getchild(e) pe = e; end
+            if !e.hybrid || n1===getparent(e)  ce = e; end # does *not* assume correct isChild1 for tree edges :)
+        end
+        pn = getparent(pe); # parent node of n1, other than n2
+        atRoot = (net.node[net.root] ≡ n1) # n1 should not be root, but if so, pn will be new root
+        # if pe may contain the root, then allow the root on ce and below
+        if pe.containRoot
+            allowrootbelow!(ce) # warning: assumes correct `isChild1` for ce and below
+        end
+        # next: replace ce by pe+ce, detach n1 from pe & ce, remove pe from network.
+        ce.length = addBL(ce.length, pe.length)
+        if multgammas
+            ce.gamma = multiplygammas(ce.gamma, pe.gamma)
+        end
+        removeNode!(n1,ce) # ce now has 1 single node cn
+        setNode!(ce,pn)    # ce now has 2 nodes in this order: cn, pn
+        ce.isChild1 = true
+        setEdge!(pn,ce)
+        removeEdge!(pn,pe)
+        # if (pe.number<ce.number) ce.number = pe.number; end # bad to match edges between networks
+        removeEdge!(n1,pe); removeEdge!(n1,ce) # now n1 attached to edge only
+        deleteEdge!(net,pe,part=false) # decreases net.numEdges   by 1
+        removeHybrid!(net,n1) # decreases net.numHybrids by 1
+        n1.hybrid = false
+        edge.hybrid = false; edge.isMajor = true
+        # n1 not leaf, and not added to net.leaf, net.numTaxa unchanged
+        if atRoot
+            i = findfirst(x -> x===pn, net.node)
+            i !== nothing || error("node $(pn.number) not in net!")
+            net.root = i
+        end
+        # below: we will need to delete n1 recursively (hence edge)
+    else # n1 has 4+ edges (polytomy) or 3 edges but we want to keep it anyway:
+        # keep n1 but detach it from 'edge', set its remaining parent to major tree edge
+        pe = getpartneredge(edge, n1) # partner edge: keep it this time
+        if !pe.isMajor pe.isMajor=true; end
+        pe.hybrid = false
+        # note: pe.gamma *not* set to 1.0 here
+        removeEdge!(n1,edge) # does not update n1.hybrid at this time
+        removeHybrid!(net,n1) # removes n1 from net.hybrid, updates net.numHybrids
+        n1.hybrid = false
+        if pe.containRoot
+            allowrootbelow!(pe) # warning: assumes correct `isChild1` for pe and below
+        end
+        # below: won't delete n1, delete edge instead
+    end
+
+    formernumhyb = net.numHybrids
+    # next: delete n1 recursively, or delete edge and delete n2 recursively.
+    # keep n2 if it has 4+ edges (or if nofuse). 1 edge should never occur.
+    #       If root, would have no parent: treat network as unrooted and change the root.
+    if delete_n1_recursively
+        deleteleaf!(net, n1.number; index=false, nofuse=nofuse,
+                    simplify=simplify, unroot=unroot, multgammas=multgammas,
+                    keeporiginalroot=keeporiginalroot)
+    # else: delete "edge" then n2 as appropriate
+    elseif n2degree == 1
+        error("node $(n2.number) (parent of hybrid edge $(edge.number) to be deleted) has 1 edge only!")
+    else
+        # fixit: if n2degree == 2 && n2 === net.node[net.root] and
+        #        if we want to keep original root: then delete edge but keep n2
+        # detach n2 from edge, remove hybrid 'edge' from network
+        removeEdge!(n2,edge)
+        deleteEdge!(net,edge,part=false)
+        # remove n2 as appropriate later (recursively)
+        deleteleaf!(net, n2.number; index=false, nofuse=nofuse,
+                    simplify=simplify, unroot=unroot, multgammas=multgammas,
+                    keeporiginalroot=keeporiginalroot)
+    end
+    if net.numHybrids != formernumhyb # deleteleaf! does not update containRoot
+        allowrootbelow!(net)
+    end
+    return net
+end
+
+
 """
     deleteaboveLSA!(net, preorder=true::Bool)
 
