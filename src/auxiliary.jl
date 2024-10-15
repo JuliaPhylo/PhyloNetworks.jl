@@ -656,6 +656,33 @@ function searchHybridEdge(net::Network)
     return a
 end
 
+"""
+    printEdges(net)
+    printEdges(io::IO, net)
+
+Print information on the edges of a `HybridNetwork` or `QuartetNetwork` object
+`net`: edge number, numbers of nodes attached to it, edge length, whether it's
+a hybrid edge, its γ inheritance value, whether it's a major edge,
+if it could contain the root (this field is not always updated, though)
+and attributes pertaining to level-1 networks used in SNaQ:
+in which cycle it is contained (-1 if no cycle), and if the edge length
+is identifiable (based on quartet concordance factors).
+"""
+printEdges(x) = printEdges(stdout::IO, x)
+function printEdges(io::IO, net::HybridNetwork)
+    if net.numBad > 0
+        println(io, "net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
+    end
+    miss = ""
+    println(io, "edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable")
+    for e in net.edge
+        @printf(io, "%-4d %-6d %-6d ", e.number, getparent(e).number, getchild(e).number)
+        if e.length==-1.0 @printf(io, "%-7s ", miss); else @printf(io, "%-7.3f ", e.length); end
+        @printf(io, "%-6s %-7s ", e.hybrid, e.isMajor)
+        if e.gamma==-1.0  @printf(io, "%-7s ", miss); else @printf(io, "%-7.4g ", e.gamma); end
+        @printf(io, "%-11s %-7d %-5s\n", e.containRoot, e.inCycle, e.istIdentifiable)
+    end
+end
 
 
 # print for every node, inCycle and edges

@@ -221,4 +221,9 @@ mutable struct HybridNetwork <: Network
                           0,false,[],0,[],[],false,false); # numBad ...
 end
 
+struct RootMismatch <: Exception
+  msg::String
+end
+RootMismatch() = RootMismatch("")
+Base.showerror(io::IO, e::RootMismatch) = print(io, "RootMismatch: ", e.msg);
 

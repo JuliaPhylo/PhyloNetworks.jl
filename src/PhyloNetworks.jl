@@ -128,7 +128,6 @@ module PhyloNetworks
     include("types.jl")
     include("auxiliary.jl")
     include("generate_topology.jl")
-    include("undo.jl")
     include("addHybrid.jl")
     include("moves_semidirected.jl")
     include("readwrite.jl")

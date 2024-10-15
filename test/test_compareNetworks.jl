@@ -66,7 +66,7 @@ end
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 net.edge[5].isChild1 = false;
 @test_logs deletehybridedge!(net, net.edge[4]);
-@test writeTopologyLevel1(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);"
+@test writeTopology(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);"
 # or: deletehybridedge! didn't work on 4th edge when isChild1 was outdated
 
 if doalltests
@@ -162,38 +162,38 @@ deleteHybridThreshold!(net21,0.2);
 writeTopology(net21) == "(A,((B,#H1:::0.5),(C,(D)#H1:::0.5)));" ||
  error("deleteHybridThreshold! didn't work on net21, gamma=0.2")
 deleteHybridThreshold!(net21,0.5);
-writeTopologyLevel1(net21) == "(A,((C,D),B));" ||
+writeTopology(net21) == "(A,((C,D),B));" ||
  error("deleteHybridThreshold! didn't work on net21, gamma=0.5")
 
 net22 = readTopology("(A,((B,#H1:::0.2),(C,(D)#H1:::0.8)));");
 deleteHybridThreshold!(net22,0.3);
-writeTopologyLevel1(net22) == "(A,((C,D),B));" ||
+writeTopology(net22) == "(A,((C,D),B));" ||
  error("deleteHybridThreshold! didn't work on net22, gamma=0.3")
 
 net31 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 net32 = deepcopy(net31); for e in net32.edge e.length=-1.0; end
 # plot(net31)
 deleteHybridThreshold!(net31,0.3);
-writeTopologyLevel1(net31) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
+writeTopology(net31) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
  error("deleteHybridThreshold! didn't work on net31, gamma=0.3")
 deleteHybridThreshold!(net32,0.3)
-writeTopologyLevel1(net32) == "(A,((C,D),B));" ||
+writeTopology(net32) == "(A,((C,D),B));" ||
  error("deleteHybridThreshold! didn't work on net32, gamma=0.3")
 
 net42 = readTopology("(A:1.0,((B:1.1,#H1:0.2):1.2,(C:0.9,(D:0.8)#H1:0.3):1.3):0.7):0.1;");
 deleteHybridThreshold!(net42,0.5);
-writeTopologyLevel1(net42) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
+writeTopology(net42) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
  error("deleteHybridThreshold! didn't work on net42, gamma=0.5")
 end
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 # plot(net5)
 @test_logs deleteHybridThreshold!(net5,0.5);  # both H1 and H2 eliminated
-@test writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopology(net5) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
 # or: deleteHybridThreshold! didn't work on net5, gamma=0.5
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 @test_logs deleteHybridThreshold!(net5,0.3);  # H2 remains
-@test writeTopologyLevel1(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopology(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 # or: deleteHybridThreshold! didn't work on net5, gamma=0.3
 
 end # of testset, deleteHybridThreshold!
@@ -202,9 +202,9 @@ end # of testset, deleteHybridThreshold!
 
 net3 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 net31 = displayedNetworks!(net3, net3.node[6]); #H1 = 6th node
-@test writeTopologyLevel1(net31) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);"
+@test writeTopology(net31) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);"
 # or: displayedNetworks! didn't work on net3, minor at 6th node
-@test writeTopologyLevel1(net3)  == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopology(net3)  == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);"
 # or: displayedNetworks! didn't work on net3, major at 6th node
 
 if doalltests
@@ -212,23 +212,23 @@ net3 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8
 a = displayedTrees(net3, 0.2);
 length(a) == 2 ||
  error("displayedTrees didn't work on net3, gamma=0.2: output not of length 2")
-writeTopologyLevel1(a[1]) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
+writeTopology(a[1]) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
  error("displayedTrees didn't work on net3, gamma=0.2: 1st tree wrong")
-writeTopologyLevel1(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);" ||
+writeTopology(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);" ||
  error("displayedTrees didn't work on net3, gamma=0.2: 2nd tree wrong")
 end
 
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 a = displayedTrees(net5, 0.5);
 @test length(a) == 1 # or: displayedTrees didn't work on net5, gamma=0.5
-@test writeTopologyLevel1(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopology(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
 # or: displayedTrees didn't work on net5, gamma=0.5
 a = displayedTrees(net5, 0.1);
 @test length(a) == 4 # or: displayedTrees didn't work on net5, gamma=0.1
-@test writeTopologyLevel1(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
-@test writeTopologyLevel1(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,((C:0.52,E:0.52):0.6,F:1.5):2.2):0.7);"
-@test writeTopologyLevel1(a[3]) == "(A:1.0,((((F:0.7,E:0.51):0.8,C:1.12):0.9,D:1.1):1.3,B:2.3):0.7);"
-@test writeTopologyLevel1(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);"
+@test writeTopology(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopology(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,((C:0.52,E:0.52):0.6,F:1.5):2.2):0.7);"
+@test writeTopology(a[3]) == "(A:1.0,((((F:0.7,E:0.51):0.8,C:1.12):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writeTopology(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);"
 
 net = readTopology("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")
 trees = (@test_logs displayedTrees(net,0.0; nofuse=true));
@@ -277,8 +277,8 @@ if doalltests
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 tree = displayedTrees(net5, 0.0);
 taxa = tipLabels(net5);
-M1 = tree2Matrix(tree[1], taxa, rooted=false);
-M2 = tree2Matrix(tree[2], taxa, rooted=false);
+M1 = PN.tree2Matrix(tree[1], taxa, rooted=false);
+M2 = PN.tree2Matrix(tree[2], taxa, rooted=false);
 M1 ==
 [15 0 0 1 1 1 1;
  12 0 0 1 1 1 0;
