@@ -79,7 +79,7 @@ end # of test set for softwired parsimony
 
 if extrarun
   fastafile = "../examples/Ae_bicornis_Tr406_Contig10132.aln"
-  pecies, sequences = PhyloNetworks.readFastaToArray(fastafile);
+  species, sequences = PhyloNetworks.readFastaToArray(fastafile);
   @test parsimonySoftwired(net, species, sequences) == 209.0
   fastafile = "../examples/Ae_bicornis_Tr406_Contig10722.aln"
   species, sequences = PhyloNetworks.readFastaToArray(fastafile);

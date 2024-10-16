@@ -126,6 +126,12 @@ module PhyloNetworks
         # neighbor joining
         nj
 
+    ##Constants
+    const fAbsBL = 1e-10
+    const fRelBL = 1e-12
+    const xAbsBL = 1e-10
+    const xRelBL = 1e-10
+
     include("types.jl")
     include("auxiliary.jl")
     include("generate_topology.jl")
