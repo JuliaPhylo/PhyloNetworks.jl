@@ -71,11 +71,11 @@ net.edge[5].isChild1 = false;
 
 if doalltests
 net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
-net.edge[5].isChild1 = false # edge 5 from -1 to -2
+net.edge[5].isChild1 = false # edge incident to the root, now pointing towards the root
+# tests that deletehybridedge! and writetopology don't use isChild1,
+# now in conflict with net.root: node -2 instead of -3 as would isChild1 suggest
 deletehybridedge!(net, net.edge[10]);
-println("a warning is expected: \"node -1 being the root is contradicted by isChild1 of its edges.\"")
-writeTopologyLevel1(net) == "((Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0):1.614,Aten:1.0);" ||
- error("deletehybridedge! didn't work on 10th edge after isChild1 was changed")
+@test writeTopology(net) == "((Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0):1.614,Aten:1.0);"
 end
 
 # example with simplify=false
