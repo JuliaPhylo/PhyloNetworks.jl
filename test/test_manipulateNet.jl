@@ -70,17 +70,34 @@ n = deepcopy(net)
 deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 @test net.numNodes == 5; @test net.numEdges == 6;
 
-##Test getHeights functions
+## test nodeheights functions
 net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")
-@test getHeights(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
-net.edge[5].length = -1 # add missing edge length
-@test_throws ErrorException getHeights(net)
+nh0 = [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
+@test getnodeheights(net) == nh0
+@test getnodeheights_majortree(net) == nh0
+net.edge[5].length = -1 # remove edge length: make it missing
+nh = (@test_logs (:warn,"some hybrid edge length is missing") getnodeheights(net))
+@test nh == nh0
 @test net.edge[5].length == -1 # Make sure we don't mutate the broken edge length
-@test getHeights!(net) == [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
-(x->x.length=-1).(net.edge[[3,5]]) ## make both hybrid edges missing
-getHeights!(net) ==  [0.0,5.2,1.0,3.2,5.2,2.0,3.2,4.2,3.0]
-net.edge[5].length=7 ## make time-inconsistent
-@test_throws ErrorException getHeights!(net)
+@test getnodeheights!(net, false) == nh0 # no warning, though not tested
+(x->x.length=-1).(view(net.edge, [3,5])) # make both hybrid edges missing
+nh0 = [0,5.2,1,3.2,5.2,2,3.2,4.2,3]
+@test (@test_logs (:warn, r"missing$") getnodeheights_average(net, false)) == nh0
+getnodeheights!(net) == nh0
+@test net.edge[3].length ≈ 1.2
+@test net.edge[5].length ≈ 0.0 atol=1e-12
+@test_logs getnodeheights_average(net, false) == nh0 # no more warning
+@test istimeconsistent(net, false)
+net.edge[3].length = -1 #Make major edge missing
+net.edge[5].length = 0.5
+nh_major = [0.0,5.2,1.0,3.2,5.2,2.0,3.7,4.7,3.0] #Since using the minor edge, nodes indices 7 and 8 should have height increased by 0.5
+@test (@test_logs (:warn, "major hybrid edge missing a length. Using non-missing minor edge with largest gamma") match_mode=:any getnodeheights_majortree(net))==nh_major
+net.edge[3].length = 1.2 #make major known again for testing inconsistency
+net.edge[5].length = 7 # time-*in*consistent
+@test_throws "not time consistent" getnodeheights!(net, false)
+@test !istimeconsistent(net, false)
+nh = (@test_logs (:warn, r"not time consistent$") getnodeheights_average(net, false))
+@test all(nh .≈ [0,5.2,1,3.2,5.2,2,5.3,6.3,3])
 
 
 # below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.

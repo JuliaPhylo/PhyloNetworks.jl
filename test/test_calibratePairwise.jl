@@ -107,3 +107,20 @@ est = [e.length for e in net.edge]
 el = [.2,.2,1.3,1.5,1,.3,2.8,.2,3,.5,3,0,2.5,.5,.5]
 @test est ≈ el atol=0.06
 end
+
+@testset "starting BL by fitting data-estimated distances" begin
+trait_weights = [3,2,1,1,1]
+trait_dat = Vector{Vector{Union{Missings.Missing,Int}}}([
+  [4,3,4,1,3], # taxon 1
+  [4,3,1,1,3],
+  [4,3,1,1,2],
+  [4,3,1,missing,missing],
+  [4,3,1,4,2], # taxon 5
+])
+net = readTopology("((t1,t2),(t3,t4),t5);");
+# printNodes(net) # leaf named "ti" does have node.number i
+PhyloNetworks.startingBL!(net, trait_dat, trait_weights)
+# ((t1:0.159,t2:0.0):0.099,(t3:0.018,t4:0.0):0.0,t5:0.146);
+@test all([e.length for e in net.edge] .≈
+  [0.1586697132288586, 0.0001, 0.09935344568620236, 0.018499865670972223, 0.0001, 0.0001, 0.14620582339229848])
+end

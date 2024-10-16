@@ -547,7 +547,7 @@ end
 # fit lambda on bigger network
 m1big = (@test_logs (:info, r"^M") phylolm(@formula(trait3 ~ trait1), dfbig, netbig, model="lambda"; tipnames=:speciesIds))
 # equivalent phylo and within variances
-net_height = maximum(PhyloNetworks.getHeights(net));
+net_height = maximum(getnodeheights(net));
 sig_phy_2 = sigma2_phylo(m1big) * lambda_estim(m1big);
 sig_err_2 = sigma2_phylo(m1big) * (1 - lambda_estim(m1big)) * net_height;
 @test sigma2_phylo(m1) ≈ sig_phy_2 atol=1e-7
