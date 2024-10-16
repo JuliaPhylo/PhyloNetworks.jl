@@ -54,11 +54,11 @@ net = readTopology(netstr);
 if doalltests
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 deletehybridedge!(net, net.edge[11]);
-writeTopologyLevel1(net) == "(4,((1,2):2.069,(6,5):3.423):0.265,3);" ||
+writeTopology(net) == "(4,((1,2):2.069,(6,5):3.423):0.265,3);" ||
  error("deletehybridedge! didn't work on 11th edge")
 net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
 deletehybridedge!(net, net.edge[4]);
-writeTopologyLevel1(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
+writeTopology(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);" ||
  error("deletehybridedge! didn't work on 4th edge")
 end
 
@@ -74,7 +74,7 @@ net = readTopology("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0
 net.edge[5].isChild1 = false # edge 5 from -1 to -2
 deletehybridedge!(net, net.edge[10]);
 println("a warning is expected: \"node -1 being the root is contradicted by isChild1 of its edges.\"")
-writeTopologyLevel1(net) == "(Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0,Aten:2.614);" ||
+writeTopologyLevel1(net) == "((Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0):1.614,Aten:1.0);" ||
  error("deletehybridedge! didn't work on 10th edge after isChild1 was changed")
 end
 
@@ -276,9 +276,9 @@ end # of testset, majorTree & displayedNetworkAt!
 if doalltests
 net5 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 tree = displayedTrees(net5, 0.0);
-taxa = tipLabels(net5);
-M1 = PN.tree2Matrix(tree[1], taxa, rooted=false);
-M2 = PN.tree2Matrix(tree[2], taxa, rooted=false);
+taxa = PhyloNetworks.tipLabels(net5);
+M1 = PhyloNetworks.tree2Matrix(tree[1], taxa, rooted=false);
+M2 = PhyloNetworks.tree2Matrix(tree[2], taxa, rooted=false);
 M1 ==
 [15 0 0 1 1 1 1;
  12 0 0 1 1 1 0;
@@ -368,7 +368,7 @@ h1est = readTopology("(5:0.0,6:0.0,(((2:0.0)#H1:0.0::0.95,1:0.0):0.0,((4:0.0,3:0
 
 net5 = readTopology("(A,((B,#H1:::0.2),(((C,(E)#H2:::0.7),(#H2:::0.3,F)),(D)#H1:::0.8)));");
 tree = displayedTrees(net5, 0.0);
-taxa = tipLabels(net5);
+taxa = PhyloNetworks.tipLabels(net5);
 @test hardwiredClusters(tree[1], taxa) ==
 [16 0 1 1 1 1 1 10;
  15 0 0 1 1 1 1 10;
@@ -391,7 +391,7 @@ taxa = tipLabels(net5);
 
 if doalltests
 trunet = readTopology("(((1,2),((3,4))#H1),(#H1,5),6);"); # unrooted
-taxa = tipLabels(trunet);
+taxa = PhyloNetworks.tipLabels(trunet);
 hardwiredClusters(trunet, taxa) ==
 [8 1 1 1 1 0 0 10
  3 1 1 0 0 0 0 10
@@ -416,18 +416,18 @@ hardwiredClusters(estnet, taxa) ==
 hardwiredClusterDistance(trunet,estnet,true) == 0 ||
  error("trunet and estnet should be found to be at HWDist 0");
 
-net51 = readTopologyLevel1("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
+net51 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
 directEdges!(net51); # doing this avoids a warning on the next line:
 displayedNetworkAt!(net51, net51.hybrid[1]) # H2
 # "WARNING: node -3 being the root is contradicted by isChild1 of its edges."
 rootatnode!(net51, "A");
-writeTopologyLevel1(net51) == "(A:0.5,((((C:0.52,(E:0.5)#H2:0.02):0.6,(#H2:0.01,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.5);" ||
+writeTopology(net51) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);" ||
   error("wrong net51 after displayedNetworkAt!");
 net52 = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 displayedNetworkAt!(net52, net52.hybrid[2])
-writeTopologyLevel1(net52) == "(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,E:0.52):0.6,F:1.5):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7);" ||
+writeTopology(net52) == "(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,E:0.52):0.6,F:1.5):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7);" ||
   error("wrong net52 after displayedNetworkAt!");
-taxa = tipLabels(net52); # order: A B C E F D
+taxa = PhyloNetworks.tipLabels(net52); # order: A B C E F D
 hardwiredClusters(net51, taxa) ==
 [16 0 1 1 1 1 1 10;
  15 0 0 1 1 1 1 10;

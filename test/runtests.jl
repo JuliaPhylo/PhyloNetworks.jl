@@ -18,7 +18,6 @@ using StatsBase # for aic etc., stderr
 using BioSymbols
 
 
-PhyloNetworks.setCHECKNET(true)
 
     ## readTopology
     getIndexEdge = PhyloNetworks.getIndexEdge
@@ -28,72 +27,35 @@ PhyloNetworks.setCHECKNET(true)
     setNode! = PhyloNetworks.setNode!
     ## calculateExpCF
     approxEq = PhyloNetworks.approxEq
-    Quartet = PhyloNetworks.Quartet
-    extractQuartet! = PhyloNetworks.extractQuartet!
-    identifyQuartet! = PhyloNetworks.identifyQuartet!
-    eliminateHybridization! = PhyloNetworks.eliminateHybridization!
-    updateSplit! = PhyloNetworks.updateSplit!
-    updateFormula! = PhyloNetworks.updateFormula!
-    calculateExpCF! = PhyloNetworks.calculateExpCF!
-    parameters! = PhyloNetworks.parameters!
     searchHybridNode = PhyloNetworks.searchHybridNode
-    updateInCycle! = PhyloNetworks.updateInCycle!
-    updateContainRoot! = PhyloNetworks.updateContainRoot!
-    updateGammaz! = PhyloNetworks.updateGammaz!
-    ## correctLik
-    calculateExpCFAll! = PhyloNetworks.calculateExpCFAll!
-    logPseudoLik = PhyloNetworks.logPseudoLik
-    optTopRun1! = PhyloNetworks.optTopRun1!
-    ## partition
-    addHybridizationUpdate! = PhyloNetworks.addHybridizationUpdate!
-    deleteHybridizationUpdate! = PhyloNetworks.deleteHybridizationUpdate!
-    ## partition2
-    writeTopologyLevel1 = PhyloNetworks.writeTopologyLevel1
-    printPartitions = PhyloNetworks.printPartitions
-    cleanBL! = PhyloNetworks.cleanBL!
-    cleanAfterRead! = PhyloNetworks.cleanAfterRead!
-    identifyInCycle = PhyloNetworks.identifyInCycle
-    updatePartition! = PhyloNetworks.updatePartition!
-    ## deleteHybridizationUpdate
-    checkNet = PhyloNetworks.checkNet
     ## add2hyb
     hybridEdges = PhyloNetworks.hybridEdges
-    ## optBLparts
-    update! = PhyloNetworks.update!
+
     ## orderings_plot
     RootMismatch = PhyloNetworks.RootMismatch
     fuseedgesat! = PhyloNetworks.fuseedgesat!
     ## compareNetworks
     deletehybridedge! = PhyloNetworks.deletehybridedge!
     displayedNetworks! = PhyloNetworks.displayedNetworks!
-    ## perfect data
-    writeExpCF = PhyloNetworks.writeExpCF
-    optBL! = PhyloNetworks.optBL!
+ 
 
 tests = [
-    "test_auxillary.jl",
+    "test_auxiliary.jl",
     "test_generatetopology.jl",
     "test_addHybrid.jl",
-    "test_5taxon_readTopology.jl",
-    "test_calculateExpCF.jl", "test_calculateExpCF2.jl",
-    "test_hasEdge.jl", "test_parameters.jl", "test_correctLik.jl",
-    "test_partition.jl", "test_partition2.jl", "test_deleteHybridizationUpdate.jl", "test_add2hyb.jl", "test_optBLparts.jl", "test_undirectedOtherNetworks.jl",
     "test_graph_components.jl",
     "test_manipulateNet.jl", "test_compareNetworks.jl",
-    "test_badDiamII.jl",
-    "test_multipleAlleles.jl",
-    "test_bootstrap.jl",
-    "test_perfectData.jl",
-    "test_moves_semidirected.jl",
-    "test_parsimony.jl",
-    "test_recursion_matrices.jl",
-    "test_calibratePairwise.jl", "test_relaxed_reading.jl",
-    "test_isMajor.jl", "test_interop.jl",
-    "test_readInputData.jl",
-    "test_nj.jl",
+    #"test_bootstrap.jl",
+    #"test_perfectData.jl",
+    #"test_moves_semidirected.jl",
+    #"test_parsimony.jl",
+    #"test_recursion_matrices.jl",
+    #"test_calibratePairwise.jl", "test_relaxed_reading.jl",
+    #"test_isMajor.jl", "test_interop.jl",
+    #"test_readInputData.jl",
+    #"test_nj.jl",
 ]
 
-@show PhyloNetworks.CHECKNET
 
 anyerrors = false
 

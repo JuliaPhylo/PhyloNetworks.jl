@@ -77,6 +77,7 @@ module PhyloNetworks
         getparentedge,
         getparentedgeminor,
         getpartneredge,
+        tipLabels,
         ## Network Manipulation
         rootatnode!,
         rootonedge!,
