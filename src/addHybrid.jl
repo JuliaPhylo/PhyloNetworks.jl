@@ -255,3 +255,135 @@ function directionalconflict(parent::Node, edge2::Edge, hybridpartnernew::Bool)
         end
     end
 end
+
+
+# --- add alternative hybridizations found in bootstrap
+"""
+    addAlternativeHybridizations!(net::HybridNetwork, BSe::DataFrame;
+                                  cutoff=10::Number, top=3::Int)
+
+Modify the network `net` (the best estimated network) by adding some of
+the hybridizations present in the bootstrap networks. By default, it will only
+add hybrid edges with more than 10% bootstrap support (`cutoff`) and it will
+only include the top 3 hybridizations (`top`) sorted by bootstrap support.
+
+The dataframe `BSe` is also modified. In the original `BSe`,
+supposedly obtained with `hybridBootstrapSupport`, hybrid edges that do not
+appear in the best network have a missing number.
+After hybrid edges from bootstrap networks are added,
+`BSe` is modified to include the edge numbers of the newly added hybrid edges.
+To distinguish hybrid edges present in the original network versus new edges,
+an extra column of true/false values is also added to `BSe`, named "alternative",
+with true for newly added edges absent from the original network.
+
+The hybrid edges added to `net` are added as minor edges, to keep the underlying
+major tree topology.
+
+# example
+
+```jldoctest
+julia> bootnet = readMultiTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples", "bootsnaq.out")); # vector of 10 networks
+
+julia> bestnet = readTopology("((O,(E,#H7:::0.196):0.314):0.332,(((A)#H7:::0.804,B):10.0,(C,D):10.0):0.332);");
+
+julia> BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
+
+julia> BSe[1:6,[:edge,:hybrid_clade,:sister_clade,:BS_hybrid_edge]]
+6×4 DataFrame
+ Row │ edge     hybrid_clade  sister_clade  BS_hybrid_edge 
+     │ Int64?   String        String        Float64        
+─────┼─────────────────────────────────────────────────────
+   1 │       7  H7            B                       33.0
+   2 │       3  H7            E                       32.0
+   3 │ missing  c_minus3      c_minus8                44.0
+   4 │ missing  c_minus3      H7                      44.0
+   5 │ missing  E             O                       12.0
+   6 │ missing  c_minus6      c_minus8                 9.0
+
+julia> PhyloNetworks.addAlternativeHybridizations!(bestnet, BSe)
+
+julia> BSe[1:6,[:edge,:hybrid_clade,:sister_clade,:BS_hybrid_edge,:alternative]]
+6×5 DataFrame
+ Row │ edge     hybrid_clade  sister_clade  BS_hybrid_edge  alternative 
+     │ Int64?   String        String        Float64         Bool        
+─────┼──────────────────────────────────────────────────────────────────
+   1 │       7  H7            B                       33.0        false
+   2 │       3  H7            E                       32.0        false
+   3 │      16  c_minus3      c_minus8                44.0         true
+   4 │      19  c_minus3      H7                      44.0         true
+   5 │      22  E             O                       12.0         true
+   6 │ missing  c_minus6      c_minus8                 9.0        false
+
+julia> # using PhyloPlots; plot(bestnet, edgelabel=BSe[:,[:edge,:BS_hybrid_edge]]);
+```
+"""
+function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)
+    top > 0 || error("top must be greater than 0")
+    BSe[!,:alternative] = falses(nrow(BSe))
+    newBSe = subset(BSe,
+        :BS_hybrid_edge => x -> x.> cutoff, :edge   => ByRow( ismissing),
+        :hybrid => ByRow(!ismissing),       :sister => ByRow(!ismissing),
+    )
+    top = min(top,nrow(newBSe))
+    if top==0
+        @info "no alternative hybridizations with support > cutoff $cutoff%, so nothing added."
+        return
+    end
+    for i in 1:top
+        hybnum = newBSe[i,:hybrid]
+        sisnum = newBSe[i,:sister]
+        edgenum = addHybridBetweenClades!(net, hybnum, sisnum)
+        if isnothing(edgenum)
+          @warn "cannot add desired hybrid (BS=$(newBSe[i,:BS_hybrid_edge])): the network would have a directed cycle"
+          continue
+        end
+        ind1 = findall(x->!ismissing(x) && x==hybnum, BSe[!,:hybrid])
+        ind2 = findall(x->!ismissing(x) && x==sisnum, BSe[!,:sister])
+        ind = intersect(ind1,ind2)
+        BSe[ind,:edge] .= edgenum
+        BSe[ind,:alternative] .= true
+    end
+end
+
+
+"""
+    addHybridBetweenClades!(net::HybridNetwork, hybnum::Number, sisnum::Number)
+
+Modify `net` by adding a minor hybrid edge from "donor" to "recipient",
+where "donor" is the major parent edge `e1` of node number `hybnum` and
+"recipient" is the major parent edge `e2` of node number `sisnum`.
+The new nodes are currently inserted at the middle of these parent edges.
+
+If a hybrid edge from `e1` to `e2` would create a directed cycle in the network,
+then this hybrid cannot be added.
+In that case, the donor edge `e1` is moved up if its parent is a hybrid node,
+to ensure that the sister clade to the new hybrid would be a desired (the
+descendant taxa from `e1`) and a new attempt is made to create a hybrid edge.
+
+Output: number of the new hybrid edge, or `nothing` if the desired hybridization
+is not possible.
+
+See also:
+[`addhybridedge!`](@ref) (used by this method) and
+[`directionalconflict`](@ref) to check that `net` would still be a DAG.
+"""
+function addHybridBetweenClades!(net::HybridNetwork, hybnum::Number, sisnum::Number)
+    hybind = getIndexNode(hybnum,net)
+    sisind = getIndexNode(sisnum,net)
+    e1 = getparentedge(net.node[sisind]) # major parent edges
+    e2 = getparentedge(net.node[hybind])
+    p1 = getparent(e1)
+    if directionalconflict(p1, e2, true) # then: first try to move the donor up
+        # so long as the descendant taxa (= sister clade) remain the same
+        while p1.hybrid
+          e1 = getparentedge(p1) # major parent edge: same descendant taxa
+          p1 = getparent(e1)
+        end
+        directionalconflict(p1, e2, true) && return nothing
+    end
+    hn, he = addhybridedge!(net, e1, e2, true) # he: missing length & gamma by default
+    # ideally: add option "where" to breakedge!, used by addhybridedge!
+    # so as to place the new nodes at the base of each clade.
+    # currently: the new nodes are inserted at the middle of e1 and e2.
+    return he.number
+end

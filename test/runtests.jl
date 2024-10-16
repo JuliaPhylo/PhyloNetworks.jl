@@ -45,7 +45,7 @@ tests = [
     "test_addHybrid.jl",
     "test_graph_components.jl",
     "test_manipulateNet.jl", "test_compareNetworks.jl",
-    #"test_bootstrap.jl",
+    "test_bootstrap.jl",
     #"test_perfectData.jl",
     #"test_moves_semidirected.jl",
     #"test_parsimony.jl",
