@@ -59,7 +59,6 @@ module PhyloNetworks
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
-        getGammas,
         istimeconsistent,
         getnodeheights,
         getnodeheights!,
@@ -88,7 +87,6 @@ module PhyloNetworks
         preorder!,
         cladewiseorder!,
         rotate!,
-        setGammas!,
         setGamma!,
         deleteHybridThreshold!,
         displayedTrees,
