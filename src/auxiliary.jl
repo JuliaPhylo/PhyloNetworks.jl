@@ -1050,14 +1050,16 @@ missing edge lengths:
 - If all parent hybrid edges have missing lengths at a given hybrid node, then
   the hybrid node is assumed to be as close to the root as possible, that is,
   the reticulation is assumed "zipped-up" with one of its hybrid edges of length 0.
-- If a major hybid edge has a missing length, then the hybrid node height will
+- If a major hybrid edge has a missing length, then the hybrid node height will
   be calculated using the node height and edge length of the minor parent with
-  the largest gamma value (with a warning). If the major hybrid edge lacks a length and
-  all non-missing minor edges lack a inheritance values γ or have the same value, then an error will be thrown.
+  the largest inheritance γ (with a warning). If the major hybrid edge lacks a length and
+  all non-missing minor edges lack an inheritance γ or have the same value,
+  then an error is thrown.
 
 A warning is issued, unless `warn=false`, if the network is not time-consistent.
 
-See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref), and `getnodeheights_average`](@ref).
+See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref) and
+[`getnodeheights_average`](@ref).
 """
 function getnodeheights_majortree(net::HybridNetwork, checkpreorder::Bool=true; warn::Bool=true)
     (isTC, nh) = _getnodeheights(net, false, timeinconsistency_majortree, checkpreorder)

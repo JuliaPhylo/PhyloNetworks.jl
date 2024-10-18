@@ -185,7 +185,7 @@ end
 
 
 """
-`hybridBootstrapSupport(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork; rooted=false)`
+    hybridBootstrapSupport(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork; rooted=false)
 
 Match hybrid nodes in a reference network with those in an array of networks,
 like bootstrap networks.
