@@ -122,7 +122,7 @@ module PhyloNetworks
         ## parsimony
         parsimonySoftwired,
         parsimonyGF,
-        maxParsimonyNet,
+        #maxParsimonyNet, Broken after refactoring. Need to fix proposals for search
         readfastatodna,
         # neighbor joining
         nj

@@ -133,7 +133,7 @@ if extrarun
 end
 end
 
-
+#=
 @testset "data from CSV, parsimony search" begin
 originalstdout = stdout
 dat = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","Swadesh.csv")); copycols=false)
@@ -147,3 +147,4 @@ redirect_stdout(devnull)
 redirect_stdout(originalstdout)
 # best = PhyloNetworks.maxParsimonyNetRun1(net, dat, 100, 0.1, 1, 1234,stdout,false,0.3,"Spanish",:softwired)
 end
+=#

@@ -987,6 +987,13 @@ end
 ## at this stage, currT is compatible with the outgroup, but still unrooted (for moves functions to work)
 ## tolAbs: could be set to 0.1 and removed from list of arguments. up to 0.5 should work,
 ##         because parsimony scores are integers, but Float64 to extend cost function later perhaps
+##
+##
+## Near-term fix: maxParsimonuNetRun1 and maxParsimonuNetRun1! are commented out.
+## The body of maxParsimonyNet is commented out and the only run code gives an error notifying the user of the issues of the function.
+## The functions are not exported, and their tests and documentation are commented out
+
+#=
 """
 Road map for various functions behind maxParsimonyNet
 
@@ -1117,6 +1124,7 @@ function maxParsimonyNetRun1(currT0::HybridNetwork, df::DataFrame, Nfail::Intege
 end
 
 
+
 ## find the most parsimonious network over multiple runs
 ## no multiple alleles for now;
 ## if rootname not defined, it does not save output files
@@ -1173,12 +1181,14 @@ Optional arguments include
 
 For a roadmap of the functions inside maxParsimonyNet, see [`maxParsimonyNetRun1!`](@ref).
 """
+=#
 function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
-    tolAbs=fAbs::Float64, Nfail=numFails::Integer,
+    tolAbs=fAbsBL::Float64, Nfail=numFails::Integer,
     hmax=1::Integer, runs=10::Integer, outgroup="none"::Union{AbstractString,Integer},
     rootname="mp"::AbstractString, seed=0::Integer, probST=0.3::Float64,
     criterion=:softwired::Symbol)
-
+    error("Function is temporarily broken after refactoring. Use PhyloNetworksv0.16.4 for a working version")
+    #=
     currT0 = readTopologyUpdate(writeTopologyLevel1(currT)) # update all level-1 things
     flag = checkNet(currT0,true) # light checking only
     flag && error("starting topology suspected not level-1")
@@ -1316,6 +1326,7 @@ function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
     writelog && close(logfile)
 
     return maxNet
+    =#
 end
 
 
