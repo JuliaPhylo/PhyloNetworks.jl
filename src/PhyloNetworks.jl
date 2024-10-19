@@ -4,7 +4,7 @@ module PhyloNetworks
 
     # stdlib (standard libraries)
     using Dates
-    using Distributed
+    using Distributed # used for parsimony search, currently broken
     using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, rmul!,
             Diagonal, cholesky, qr, BLAS
     # alternative: drop support for julia v1.4, because LinearAlgebra.rotate! requires julia v1.5
@@ -24,21 +24,15 @@ module PhyloNetworks
     using Distributions #for RateVariationAcrossSites
     using FASTX
     using Functors: fmap
-    using GLM # for the lm function
     using NLopt # for branch lengths optimization
-    using StaticArrays
-    using StatsBase # sample, coef etc.
+    using StatsBase # cov2cor! for vcv
     using StatsFuns # logsumexp, logaddexp, log2π, various cdf
-    using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
 
     import Base: show
-    import GLM: ftest
-    import StatsModels: coefnames
 
     const DEBUGC = false # even more debug messages
     global CHECKNET = false # for debugging only
 
-    export ftest
     export
         ## Network Definition
         HybridNetwork,
@@ -122,7 +116,7 @@ module PhyloNetworks
         ## parsimony
         parsimonySoftwired,
         parsimonyGF,
-        #maxParsimonyNet, Broken after refactoring. Need to fix proposals for search
+        #maxParsimonyNet # broken after v0.17 refactoring: fix network search
         readfastatodna,
         # neighbor joining
         nj

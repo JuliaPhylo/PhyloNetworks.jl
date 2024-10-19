@@ -6,6 +6,7 @@ function check_distance_matrix(D::Matrix{<:Real})
     if any(diag(D) .!= 0.0)
         throw(DomainError(D, "Diagonal entry not 0"))
     end
+    return nothing
 end
 
 
@@ -23,17 +24,16 @@ is changed to 0.0 (with a message).
 
 Warning: `D` is modified.
 """
-function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[];
-             force_nonnegative_edges::Bool=false)
-
+function nj!(
+    D::Matrix{Float64},
+    names::AbstractVector{<:AbstractString}=String[];
+    force_nonnegative_edges::Bool=false
+)
     check_distance_matrix(D)
-    n = size(D, 1)              # number of species
-
-    # when no names arg is supplied
-    if isempty(names)
+    n = size(D, 1) # number of species
+    if isempty(names) # when no names argument is supplied
         names = string.(1:n)
     end
-
     # create empty network with n unconnected leaf nodes
     nodes = map(function(i)
                 node = Node(i, true)
@@ -41,16 +41,14 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
                 return node
                 end,
                 1:n)
-
     net = HybridNetwork(nodes, Edge[])
-    # an array of Node s.t. active_nodes[i] would correspond to the
+    # array of Nodes such that: active_nodes[i] corresponds to the
     # ith entry in distance matrix D at each iteration
     active_nodes = copy(nodes)
-
     neglenp = 0  # number of negative edge lengths
 
     while n > 2
-        # compute Q matrix and find min
+        # compute Q matrix and find pair with minimum Q
         # warning: here i and j are indeces for D, not actual id's
         sums = sum(D, dims = 1)
         cur = Inf
@@ -66,7 +64,6 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
                 end
             end
         end
-
         # connect the nodes, compute the length of the edge
         (i, j) = min_index
         dik = D[i,j] / 2 + (sums[i] - sums[j]) / (2 * (n - 2))
@@ -80,7 +77,6 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
             neglenp += 1
             if force_nonnegative_edges djk = 0.0; end
         end
-
         # create new edges and node, update tree
         edgenum = net.numEdges
         eik = Edge(edgenum + 1, dik) # edge length must be Float64 for Edge()
@@ -95,9 +91,7 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
         pushEdge!(net, eik)
         pushEdge!(net, ejk)
         pushNode!(net, node_k)
-
-        # update map and D
-        # replace D[l, i] with D[l, k], delete D[ , j]
+        # update map and D: replace D[l, i] with D[l, k], delete D[ , j]
         for l in 1:n
             if !(l in [i j])
                 D[l, i] = (D[l,i] + D[j,l] - D[i,j]) / 2
@@ -106,7 +100,6 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
         end
         newidx = filter(u->u!=j, 1:n) # index 1:n\{j}
         D = view(D, newidx, newidx)
-
         # update active_nodes
         active_nodes[i] = node_k
         active_nodes = view(active_nodes, newidx)
@@ -114,7 +107,7 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
         n = n - 1
     end
 
-    # base case
+    # base case: 2 leaves
     if D[1,2] < 0.0
         neglenp += 1
         if force_nonnegative_edges D[1,2] = 0.0; end
@@ -124,14 +117,13 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
     newedge = Edge(net.numEdges+1, D[1,2])
     setNode!(newedge, [node1, node2]) # isChild1 = true by default: nodes are [child, parent]
     if node1.number == net.numNodes
-        newedge.isChild1 = false # to direct the edge from the last created node to the other node
+        newedge.isChild1 = false # direct the edge: last created node -> other node
     end
     setEdge!(node1, newedge)
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
 
-    net.root = net.numNodes # to place the root at the last created node, which is internal
-
+    net.root = net.numNodes # root = last created node, which is internal
     # report on number of negative branches
     if neglenp > 0
         infostr = (force_nonnegative_edges ?
@@ -139,7 +131,6 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
                    "$neglenp branches have negative lengths" )
         @info infostr
     end
-
     return net
 end
 

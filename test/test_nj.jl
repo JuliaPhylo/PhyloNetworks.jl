@@ -1,6 +1,5 @@
-@testset "Neighbour joining implementation" begin
-
-    D = DataFrame(CSV.File(joinpath(@__DIR__,"..","examples","caudata_dist.txt")); copycols=false)
+@testset "neighbour joining tree" begin
+    D = CSV.read(joinpath(@__DIR__,"..","examples","caudata_dist.txt"),  DataFrame)
     tree = nj(D)
     # read results from ape implementation of nj
     apetree = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_dist_nj.txt"))
