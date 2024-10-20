@@ -874,6 +874,7 @@ end
 
 """
     moveroot!(
+        [rng::AbstractRNG,]
         net::HybridNetwork,
         constraints::Vector{TopologyConstraint}=TopologyConstraint[]
     )
@@ -882,11 +883,15 @@ Move the root to a randomly chosen non-leaf node that is different from
 the current root, and not within a constraint clade or species.
 Output: `true` if successul, `nothing` otherwise.
 """
+function moveroot!(net::HybridNetwork, args...)
+    moveroot!(Random.default_rng(), net, args...)
+end
 function moveroot!(
+    rng::Random.AbstractRNG,
     net::HybridNetwork,
     constraints::Vector{TopologyConstraint}=TopologyConstraint[]
 )
-    newrootrandomorder = Random.shuffle(1:length(net.node))
+    newrootrandomorder = Random.shuffle(rng, 1:length(net.node))
     oldroot = net.root
     for newrooti in newrootrandomorder
         newrooti != oldroot || continue
