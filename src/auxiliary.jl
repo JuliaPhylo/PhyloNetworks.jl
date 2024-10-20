@@ -1280,7 +1280,7 @@ end
         nonmissingparent_j;
         atol::Real=1e-8, rtol::Real=√eps(Float64))
 
-Calculate the γ-weighted average node height at a given hybrid node `h`, based
+Calculate the γ-weighted average node height of a given hybrid node `h`, based
 on the candidate node heights from its parents with non-missing edge lengths.
 - If some of these parent edges have a missing γ, then equal weights are used
   and a warning is issued.
@@ -1345,10 +1345,10 @@ end
         nonmissingparent_j;
         atol::Real=1e-8, rtol::Real=√eps(Float64))
 
-Calculate node height at a given hybrid node `h`, based on the major parent node
-heights if it has non-missing edge lengths. If the major parent has a missing edge
-length then the non-missing edge with the largest gamma will be used and a warning is issued.
-If all γ values are missing for the cantidate edges then an error will be thrown.  
+Calculate node height of a given hybrid node `h`, based on the its major parent
+node height, if its major parent edge has a non-missing length. If missing, then
+the non-missing edge length with the largest γ is used and a warning is issued.
+If all parent edges have missing γ values then an error is thrown.
 
 Outcome:
 - update `isconsistent` to false if the candidate node heights are not all equal
@@ -1373,16 +1373,16 @@ function timeinconsistency_majortree(
     min_nh, max_nh = extrema(candidate_nodeheight)
     timecons = length(candidate_nodeheight) == 1 ||
         isapprox(min_nh, max_nh; atol=atol, rtol=rtol)
-    maj_cantidate = findfirst(x->x.isMajor,paredges[nm_ind])
-    if !isnothing(maj_cantidate)#  the major edge is among cantidates 
-        nh = max_nh
-    else #find largest gamma and use that cantidate height, if avaliable
-        @warn """major hybrid edge missing a length. Using non-missing minor edge with largest gamma"""
-        gammas=(x-> x.gamma).(paredges[nm_ind])
-        max_gamma=maximum(gammas)
-        max_gamma == -1 && error("""major edge had missing length and all non-missing edges lacked a γ""")
-        cantidate_ind = findall(gammas.==max_gamma)
-        length(cantidate_ind)>1 && error("""The major edge is not specified and two edges have the same gamma""")
+    maj_cantidate = findfirst(x->x.isMajor, paredges[nm_ind])
+    if !isnothing(maj_cantidate) #  the major edge is among candidates
+        nh = candidate_nodeheight[maj_cantidate]
+    else # find candidate with largest γ
+        @warn "major hybrid edge missing a length. Using non-missing minor edge with largest γ"
+        gammas = (x-> x.gamma).(paredges[nm_ind])
+        max_gamma = maximum(gammas)
+        max_gamma == -1 && error("major edge lacks a length and all non-missing edges lack a γ")
+        cantidate_ind = findall(gammas .== max_gamma)
+        length(cantidate_ind) > 1 && error("major edge lacks a length and two alternative edges have the same γ")
         nh = candidate_nodeheight[cantidate_ind[1]]
     end
     if any(missingparent_height .> nh) # may be empty vector

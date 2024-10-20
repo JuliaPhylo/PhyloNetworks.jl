@@ -88,17 +88,23 @@ getnodeheights!(net) == nh0
 @test net.edge[5].length ≈ 0.0 atol=1e-12
 @test_logs getnodeheights_average(net, false) == nh0 # no more warning
 @test istimeconsistent(net, false)
-net.edge[3].length = -1 #Make major edge missing
+net.edge[3].length = -1 # make major edge missing
 net.edge[5].length = 0.5
-nh_major = [0.0,5.2,1.0,3.2,5.2,2.0,3.7,4.7,3.0] #Since using the minor edge, nodes indices 7 and 8 should have height increased by 0.5
-@test (@test_logs (:warn, "major hybrid edge missing a length. Using non-missing minor edge with largest gamma") match_mode=:any getnodeheights_majortree(net))==nh_major
-net.edge[3].length = 1.2 #make major known again for testing inconsistency
+nh_major = [0.0,5.2,1.0,3.2,5.2,2.0,3.7,4.7,3.0]
+@test (@test_logs (:warn, r"major hybrid edge missing a length") match_mode=:any getnodeheights_majortree(net))==nh_major
+net.edge[3].length = 1.2 # make major known again for testing inconsistency
 net.edge[5].length = 7 # time-*in*consistent
 @test_throws "not time consistent" getnodeheights!(net, false)
 @test !istimeconsistent(net, false)
 nh = (@test_logs (:warn, r"not time consistent$") getnodeheights_average(net, false))
-@test all(nh .≈ [0,5.2,1,3.2,5.2,2,5.3,6.3,3])
-
+@test all(nh .≈ [0,5.2,1,3.2,5.2,2, 5.3, 6.3,3])
+nh = (@test_logs getnodeheights_majortree(net, false, warn=false))
+@test all(nh .≈ [0,5.2,1,3.2,5.2,2, 3.2, 4.2,3])
+# re-assign lengths to switch candidate heights between major and minor
+net.edge[3].length = 8.2
+net.edge[5].length = 0.0
+nh = (@test_logs getnodeheights_majortree(net, false, warn=false))
+@test all(nh .≈ [0,5.2,1,3.2,5.2,2,10.2,11.2,3])
 
 # below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.
 nwkstring = "((t7:0.23,#H19:0.29::0.47):0.15,(((#H23:0.02::0.34)#H19:0.15::0.53,(t9:0.06)#H23:0.02::0.66):0.09,t6:0.17):0.21);"
