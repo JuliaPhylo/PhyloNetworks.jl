@@ -5,12 +5,6 @@ using DataFrames
 using Distributed # for parsimony search, currently broken
 using LinearAlgebra: norm, diag, logdet, PosDefException # LinearAlgebra.rotate! not brought into scope
 using Random
-using Statistics
-using BioSymbols
-
-## readTopology
-Edge = PhyloNetworks.Edge
-Node = PhyloNetworks.Node
 
 tests = [
     "test_auxiliary.jl",
