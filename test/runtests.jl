@@ -5,6 +5,7 @@ using DataFrames
 using Distributed # for parsimony search, currently broken
 using LinearAlgebra: diag # LinearAlgebra.rotate! not brought into scope
 using Random
+using StableRNGs
 
 tests = [
     "test_auxiliary.jl",

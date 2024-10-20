@@ -387,19 +387,21 @@ c_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1A","S1B","S1C","S4"], net_l
 @test_throws ErrorException PhyloNetworks.TopologyConstraint(0x02, ["S1A", "S8"], net_level1_i) # not a clade
 
 # NNIs under species constraints
-Random.seed!(1234);
+str_level1_i = "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+str_0belowH1 = "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+# tests pass under julia v1.10 with `Random.seed!(1234)` but fail under julia v1.11 RNG
+rng = StableRNG(222) # to propose these moves: 1,2,... (ei=8), 6,... (ei=3), 1,2 (ei=9)
 # no nni on stem edge for species example
-@test isnothing(nni!(net_level1_i , net_level1_i.edge[4], true, true, c_species))
+@test isnothing(nni!(rng, net_level1_i , net_level1_i.edge[4], true, true, c_species))
 @testset "NNI, 1 species constraint, net level 1, edge $ei" for ei in [8,3,9]
     # 8: BR directed, 3: BB undirected, 9: BB directed, 15: RB directed
     # note: there are no cases of RR directed in net_level1_i
-    undoinfo = nni!(net_level1_i , net_level1_i.edge[ei], true, true, c_species);
+    undoinfo = nni!(rng, net_level1_i , net_level1_i.edge[ei], true, true, c_species);
     @test undoinfo !== nothing
-    nni!(undoinfo...);
-        # restored to original network, except that edges below hybrid nodes will now have length 0.0
-    @test writeTopology(net_level1_i) == "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+    nni!(undoinfo...); # orignal net restored, except when ei=8 move 2: length 0 below H1
+    @test writeTopology(net_level1_i) == (ei==8 ? str_0belowH1 : str_level1_i)
+    net_level1_i.edge[7].length = -1 # reset to missing edge length
 end
-# TODO: BR case edge 8: nni move 3 causes problems. hybrid node 6 has 0 or 2+ major hybrid parents
 end # of species constraints
 
 @testset "test move root & constraint checking under species & clade constraints" begin
