@@ -26,7 +26,7 @@ module PhyloNetworks
     using Functors: fmap
     using NLopt # for branch lengths optimization
     using StatsBase # cov2cor! for vcv
-    using StatsFuns # logsumexp, logaddexp, log2π, various cdf
+    #using StatsFuns # logsumexp, logaddexp, log2π, various cdf
 
     import Base: show
 

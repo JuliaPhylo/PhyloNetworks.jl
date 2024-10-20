@@ -3,7 +3,7 @@ using PhyloNetworks
 using CSV # for reading files
 using DataFrames
 using Distributed # for parsimony search, currently broken
-using LinearAlgebra: norm, diag, logdet, PosDefException # LinearAlgebra.rotate! not brought into scope
+using LinearAlgebra: diag # LinearAlgebra.rotate! not brought into scope
 using Random
 
 tests = [
