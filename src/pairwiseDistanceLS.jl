@@ -62,9 +62,12 @@ Providing node ages hence makes the network time consistent: such that
 all paths from the root to a given hybrid node have the same length.
 If node ages are not provided, the network need not be time consistent.
 """
-function pairwiseTaxonDistanceMatrix(net::HybridNetwork;
-            keepInternal=false::Bool, checkPreorder=true::Bool,
-            nodeAges=Float64[]::Vector{Float64})
+function pairwiseTaxonDistanceMatrix(
+    net::HybridNetwork;
+    keepInternal::Bool=false,
+    checkPreorder::Bool=true,
+    nodeAges::Vector{Float64}=Float64[]
+)
     net.isRooted || error("net needs to be rooted for preorder recursion")
     if(checkPreorder)
         preorder!(net)
@@ -167,8 +170,11 @@ not on branch lengths or node ages (distances are linear in either).
 
 WARNING: edge numbers need to range between 1 and #edges.
 """
-function pairwiseTaxonDistanceGrad(net::HybridNetwork;
-        checkEdgeNumber=true::Bool, nodeAges=Float64[]::Vector{Float64})
+function pairwiseTaxonDistanceGrad(
+    net::HybridNetwork;
+    checkEdgeNumber::Bool=true,
+    nodeAges::Vector{Float64}=Float64[]
+)
     if checkEdgeNumber
       sort([e.number for e in net.edge]) == collect(1:net.numEdges) ||
         error("edge numbers must range between 1 and #edges")
@@ -266,13 +272,20 @@ optional arguments (default):
   xtolRel (1e-10), xtolAbs (1e-10) on branch lengths / divergence times.
 - verbose (false)
 """
-function calibrateFromPairwiseDistances!(net::HybridNetwork,
-      D::Array{Float64,2}, taxNames::Vector{<:AbstractString};
-      checkPreorder=true::Bool, forceMinorLength0=false::Bool, verbose=false::Bool,
-      ultrametric=true::Bool, NLoptMethod=:LD_MMA::Symbol,
-      ftolRel=fRelBL::Float64, ftolAbs=fAbsBL::Float64,
-      xtolRel=xRelBL::Float64, xtolAbs=xAbsBL::Float64)
-
+function calibrateFromPairwiseDistances!(
+    net::HybridNetwork,
+    D::Array{Float64,2},
+    taxNames::Vector{<:AbstractString};
+    checkPreorder::Bool=true,
+    forceMinorLength0::Bool=false,
+    verbose::Bool=false,
+    ultrametric::Bool=true,
+    NLoptMethod::Symbol=:LD_MMA,
+    ftolRel::Float64=fRelBL,
+    ftolAbs::Float64=fAbsBL,
+    xtolRel::Float64=xRelBL,
+    xtolAbs::Float64=xAbsBL
+)
     checkPreorder && preorder!(net)
     # fixit: remove root node if of degree 2, and if ultrametric=false
     defaultedgelength = median(D)/(length(net.edge)/2)
@@ -452,7 +465,7 @@ end
 """
     startingBL!(net::HybridNetwork,
                 trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-                siteweight=ones(length(trait[1]))::AbstractVector{Float64})
+                siteweight::AbstractVector{Float64}=ones(length(trait[1])))
 
 Calibrate branch lengths in `net` by minimizing the mean squared error
 between the JC-adjusted pairwise distance between taxa, and network-predicted
@@ -488,7 +501,7 @@ Other:
 function startingBL!(
     net::HybridNetwork,
     trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-    siteweight=ones(length(trait[1]))::AbstractVector{Float64}
+    siteweight::AbstractVector{<:Real}=ones(Float64,length(trait[1]))
 )
     nspecies = net.numTaxa
     M = zeros(Float64, nspecies, nspecies) # pairwise distances initialized to 0

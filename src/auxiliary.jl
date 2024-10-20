@@ -575,7 +575,7 @@ end
 Delete edge `e` from `net.edge` and update `net.numEdges`.
 If `part` is true, update the network's partition field.
 """
-function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
+function deleteEdge!(net::HybridNetwork, e::Edge; part::Bool=true)
     if part
         if e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net)
             ind = whichPartition(net,e)
@@ -839,8 +839,7 @@ end
 
 
 """
-    setGamma!(Edge, new γ)
-    setGamma!(Edge, new γ, change_other=true::Bool)
+    setGamma!(Edge, new γ, change_other::Bool=true)
 
 Set inheritance probability γ for an edge, which must be a hybrid edge.
 The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
@@ -857,12 +856,7 @@ The last argument is true by default. If false: the partner edge is not updated.
 This is useful if the new γ is 0.5, and the partner's γ is already 0.5,
 in which case the `isMajor` attributes can remain unchanged.
 """
-setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
-
-# warning in the bad diamond/triangle cases because gamma is not identifiable
-# changeOther = true, looks for the other hybrid edge and changes gamma too
-
-function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
+function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool=true)
     new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
@@ -1033,7 +1027,11 @@ A warning is issued, unless `warn=false`, if the network is not time-consistent.
 
 See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref), and `getnodeheights_majortree`](@ref).
 """
-function getnodeheights_average(net::HybridNetwork, checkpreorder::Bool=true; warn::Bool=true)
+function getnodeheights_average(
+    net::HybridNetwork,
+    checkpreorder::Bool=true;
+    warn::Bool=true
+)
     (isTC, nh) = _getnodeheights(net, false, timeinconsistency_average, checkpreorder)
     warn && !isTC && @warn "the network is not time consistent"
     return nh
@@ -1610,7 +1608,7 @@ function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
 end
 
 @doc raw"""
-    shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
+    shrink2cycles!(net::HybridNetwork, unroot::Bool=false)
 
 If `net` contains a 2-cycle, collapse the cycle into one edge of length
 tA + γt1+(1-γ)t2 + tB (see below), and return true.
@@ -1637,7 +1635,7 @@ is has degree 2 or more. If `unroot` is true and the root is up for deletion, it
 will be kept only if it has degree 3 or more. A root node with degree 1 will be
 deleted in both cases.
 """
-function shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
+function shrink2cycles!(net::HybridNetwork, unroot::Bool=false)
     foundcycle = false
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end
@@ -1681,7 +1679,7 @@ function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge,
 end
 
 """
-    shrink3cycles!(net::HybridNetwork, unroot=false::Bool)
+    shrink3cycles!(net::HybridNetwork, unroot::Bool=false)
 
 Remove all 2- and 3-cycles from a network.
 
@@ -1697,7 +1695,7 @@ deleted in both cases.
 See [`shrink3cycleat!`](@ref) for details on branch lengths and
 inheritance values.
 """
-function shrink3cycles!(net::HybridNetwork, unroot=false::Bool)
+function shrink3cycles!(net::HybridNetwork, unroot::Bool=false)
     foundcycle = false
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end

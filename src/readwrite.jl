@@ -934,7 +934,7 @@ or like this, as output by SpeciesNetwork
 
 In this example, the corresponding edge to hybrid H11 has γ=0.08.
 """
-function readnexus_treeblock(file::AbstractString, treereader=readTopology::Function, args...;
+function readnexus_treeblock(file::AbstractString, treereader::Function=readTopology, args...;
             reticulate=true, stringmodifier=[r"#(\d+)\b" => s"#H\1"]) # add H
     vnet = HybridNetwork[]
     rx_start = r"^\s*begin\s+trees\s*;"i
@@ -1167,9 +1167,15 @@ The network is updated with this new root placement, if successful.
 
 Uses lower-level function [`writeSubTree!`](@ref).
 """
-function writeTopology(n::HybridNetwork, file::AbstractString; append::Bool=false,
-        round=false::Bool, digits=3::Integer, di=false::Bool, # keyword arguments
-        internallabel=true::Bool)
+function writeTopology(
+    n::HybridNetwork,
+    file::AbstractString;
+    append::Bool=false,
+    round::Bool=false,
+    digits::Integer=3,
+    di::Bool=false,
+    internallabel::Bool=true
+)
     mode = (append ? "a" : "w")
     s = open(file, mode)
     writeTopology(n,s,round,digits,di,internallabel)
@@ -1177,17 +1183,26 @@ function writeTopology(n::HybridNetwork, file::AbstractString; append::Bool=fals
     close(s)
 end
 
-function writeTopology(n::HybridNetwork;
-        round=false::Bool, digits=3::Integer, di=false::Bool, # keyword arguments
-        internallabel=true::Bool)
+function writeTopology(
+    n::HybridNetwork;
+    round::Bool=false,
+    digits::Integer=3,
+    di::Bool=false,
+    internallabel::Bool=true
+)
     s = IOBuffer()
     writeTopology(n,s,round,digits,di,internallabel)
     return String(take!(s))
 end
 
-function writeTopology(net::HybridNetwork, s::IO,
-        round=false::Bool, digits=3::Integer, di=false::Bool, # optional arguments
-        internallabel=true::Bool)
+function writeTopology(
+    net::HybridNetwork,
+    s::IO,
+    round::Bool=false,
+    digits::Integer=3,
+    di::Bool=false,
+    internallabel::Bool=true
+)
     # check/find admissible root: otherwise could be trapped in infinite loop
     rootsaved = net.root
     changeroot = false

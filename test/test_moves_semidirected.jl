@@ -561,7 +561,7 @@ end
 Random.seed!(123)
 n6h1 = readTopology("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
 @test n6h1.hybrid[1].number == 5
-@test !isnothing(PhyloNetworks.fliphybrid!(n6h1))
+@test !isnothing(PhyloNetworks.fliphybrid!(n6h1, true)) # true: to flip minor edge
 @test n6h1.hybrid[1].number == -8
 
 net_W = readTopology("(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);")

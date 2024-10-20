@@ -88,10 +88,12 @@ Arguments:
 - `nonmissing::BitArray{1}`: optional argument saying which tips have data (internal use).
    Tips with missing data are treated as internal nodes.
 """
-function Base.getindex(obj::MatrixTopologicalOrder,
-                       d::Symbol,
-                       indTips=collect(1:length(obj.tipNumbers))::Vector{Int},
-                       nonmissing=trues(length(obj.tipNumbers))::BitArray{1})
+function Base.getindex(
+    obj::MatrixTopologicalOrder,
+    d::Symbol,
+    indTips::Vector{Int}=collect(1:length(obj.tipNumbers)),
+    nonmissing::BitArray{1}=trues(length(obj.tipNumbers))
+)
     tipnums = obj.tipNumbers[indTips][nonmissing]
     maskTips = indexin(tipnums, obj.nodeNumbersTopOrder)
     if d == :Tips # Extract rows and/or columns corresponding to the tips with data
@@ -123,9 +125,9 @@ function Base.getindex(obj::MatrixTopologicalOrder,
 end
 
 """
-    vcv(net::HybridNetwork; model="BM"::AbstractString,
-                            corr=false::Bool,
-                            checkpreorder=true::Bool)
+    vcv(net::HybridNetwork; model::AbstractString="BM",
+                            corr::Bool=false,
+                            checkpreorder::Bool=true)
 
 This function computes the variance covariance matrix between the tips of the
 network, assuming a Brownian model of trait evolution (with unit variance).
@@ -191,10 +193,12 @@ julia> C = vcv(net)
    3 │    0.0     0.28      1.5
 ```
 """
-function vcv(net::HybridNetwork;
-             model="BM"::AbstractString,
-             corr=false::Bool,
-             checkpreorder=true::Bool)
+function vcv(
+    net::HybridNetwork;
+    model::AbstractString="BM",
+    corr::Bool=false,
+    checkpreorder::Bool=true
+)
     @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
     V = sharedPathMatrix(net; checkpreorder=checkpreorder)
     C = V[:Tips]
@@ -205,7 +209,7 @@ end
 
 
 """
-    sharedPathMatrix(net::HybridNetwork; checkpreorder=true::Bool)
+    sharedPathMatrix(net::HybridNetwork; checkpreorder::Bool=true)
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkpreorder is
@@ -214,7 +218,7 @@ true (default), then it runs function `preorder!` on the network beforehand.
 Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
 """
-function sharedPathMatrix(net::HybridNetwork; checkpreorder=true::Bool)
+function sharedPathMatrix(net::HybridNetwork; checkpreorder::Bool=true)
     check_nonmissing_nonnegative_edgelengths(net,
         """The variance-covariance matrix of the network is not defined.
            A phylogenetic regression cannot be done.""")
@@ -273,7 +277,7 @@ function updateHybridSharedPathMatrix!(
 end
 
 """
-    descendenceMatrix(net::HybridNetwork; checkpreorder=true::Bool)
+    descendenceMatrix(net::HybridNetwork; checkpreorder::Bool=true)
 
 Descendence matrix between all the nodes of a network:
 object `D` of type [`MatrixTopologicalOrder`](@ref) in which
@@ -283,7 +287,7 @@ an ancestor of `i`).
 The network is assumed to be pre-ordered if `checkpreorder` is false.
 If `checkpreorder` is true (default), `preorder!` is run on the network beforehand.
 """
-function descendenceMatrix(net::HybridNetwork; checkpreorder=true::Bool)
+function descendenceMatrix(net::HybridNetwork; checkpreorder::Bool=true)
     checkpreorder && preorder!(net)
     V = traversal_postorder(
         net.nodes_changed,

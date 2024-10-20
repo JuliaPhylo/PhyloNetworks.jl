@@ -15,7 +15,7 @@ String for the Newick parenthetical description of a symmetric tree with
 2^n tips, numbered from i to i+2^n-1. All branch lengths are set equal to `ell`.
 The tree can be created later by reading the string with [`readTopology`](@ref).
 """
-function symmetrictree_newick(n::Int, ell::Real, i=1::Int)
+function symmetrictree_newick(n::Int, ell::Real, i::Int=1)
     tree = "A$(i-1+2^n):$(ell)"
     if n==0 return("("*"A$(i-1+2^n):0"*");") end
     for k in 1:(n-1)
@@ -73,7 +73,7 @@ with a symmetric major tree, whose branch lengths are all equal.
 2^(n-h) hybrids are added from level h to h-1 "symmetrically".
 The network is time-consistent and ultrametric, with a total height of 1.
 """
-function symmetricnet_newick(n::Int, h::Int, gamma::Real, i=1::Int)
+function symmetricnet_newick(n::Int, h::Int, gamma::Real, i::Int=1)
     (n < h || h < 2) && error("must have n >= h > 1.")
     # length of branch
     ell = 1.0/n

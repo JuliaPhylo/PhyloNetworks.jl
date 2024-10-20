@@ -2,7 +2,7 @@
 
 
 """
-    rootatnode!(HybridNetwork, nodeNumber::Integer; index=false::Bool)
+    rootatnode!(HybridNetwork, nodeNumber::Integer; index::Bool=false)
     rootatnode!(HybridNetwork, Node)
     rootatnode!(HybridNetwork, nodeName::AbstractString)
 
@@ -40,7 +40,7 @@ function rootatnode!(net::HybridNetwork, nodeName::AbstractString; kwargs...)
     rootatnode!(net, tmp[1]; kwargs..., index=true)
 end
 
-function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index=false::Bool)
+function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index::Bool=false)
     ind = nodeNumber # good if index=true
     if !index
       try
@@ -82,7 +82,7 @@ end
 
 
 """
-    rootonedge!(HybridNetwork, edgeNumber::Integer; index=false::Bool)
+    rootonedge!(HybridNetwork, edgeNumber::Integer; index::Bool=false)
     rootonedge!(HybridNetwork, Edge)
 
 Root the network/tree along an edge with number `edgeNumber` (by default)
@@ -100,7 +100,7 @@ function rootonedge!(net::HybridNetwork, edge::Edge; kwargs...)
     rootonedge!(net, edge.number, index=false; kwargs...)
 end
 
-function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index=false::Bool)
+function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index::Bool=false)
     ind = edgeNumber # good if index=true
     if !index
       try
@@ -220,7 +220,7 @@ function breakedge!(edge::Edge, net::HybridNetwork)
 end
 
 """
-    fuseedgesat!(i::Integer,net::HybridNetwork, multgammas=false::Bool)
+    fuseedgesat!(i::Integer,net::HybridNetwork, multgammas::Bool=false)
 
 Removes `i`th node in net.node, if it is of degree 2.
 The parent and child edges of this node are fused.
@@ -231,7 +231,7 @@ Reverts the action of [`breakedge!`](@ref).
 
 returns the fused edge.
 """
-function fuseedgesat!(i::Integer, net::HybridNetwork, multgammas=false::Bool)
+function fuseedgesat!(i::Integer, net::HybridNetwork, multgammas::Bool=false)
     i <= length(net.node) ||
       error("node index $i too large: only $(length(net.node)) nodes in the network.")
     nodei = net.node[i]
@@ -274,7 +274,7 @@ function fuseedgesat!(i::Integer, net::HybridNetwork, multgammas=false::Bool)
 end
 
 """
-    removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
+    removedegree2nodes!(net::HybridNetwork, keeproot::Bool=false)
 
 Delete *all* nodes of degree two in `net`, fusing the two adjacent edges
 together each time, and return the network.
@@ -314,7 +314,7 @@ julia> writeTopology(net, round=true) # the root was kept
 
 ```
 """
-function removedegree2nodes!(net::HybridNetwork, keeproot=false::Bool)
+function removedegree2nodes!(net::HybridNetwork, keeproot::Bool=false)
     rootnode = getroot(net)
     # caution: the root and its incident edges may change when degree-2 nodes
     #          are removed. Indices of nodes to be removed would change too.
@@ -406,7 +406,7 @@ end
 #################################################
 
 """
-    directEdges!(net::HybridNetwork; checkMajor=true::Bool)
+    directEdges!(net::HybridNetwork; checkMajor::Bool=true)
 
 Updates the edges' attribute `isChild1`, according to the root placement.
 Also updates edges' attribute `containRoot`, for other possible root placements
@@ -422,7 +422,7 @@ Warnings:
 Returns the network. Throws a 'RootMismatch' Exception if the root was found to
 conflict with the direction of any hybrid edge.
 """
-function directEdges!(net::HybridNetwork; checkMajor=true::Bool)
+function directEdges!(net::HybridNetwork; checkMajor::Bool=true)
     if checkMajor # check each node has 2+ hybrid parent edges (if any), and exactly one major.
         for n in net.node
             nparents = 0 # 0 or 2 normally, but could be >2 if polytomy.
@@ -596,7 +596,7 @@ Note that `LinearAlgebra` also exports a function named `rotate!` in Julia v1.5.
 If both packages need to be used in Julia v1.5 or higher,
 usage of `rotate!` needs to be qualified, such as with `PhyloNetworks.rotate!`.
 """
-function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum=Int[]::Array{Int,1})
+function rotate!(net::HybridNetwork, nnum::Integer; orderedEdgeNum::Array{Int,1}=Int[])
     nind = 0
     nind = findfirst(n -> n.number == nnum, net.node)
     nind !== nothing || error("cannot find any node with number $nnum in network.")
@@ -701,10 +701,16 @@ end
 # - 2 hybrid edges down to a hybrid node.
 # hybrid edges from node to another node are not removed. fused instead.
 # consequence: node having 2 hybrid edges away from node should not occur.
-function deleteleaf!(net::HybridNetwork, nodeNumber::Integer;
-                     index=false::Bool, nofuse=false::Bool,
-                     simplify=true::Bool, unroot=false::Bool,
-                     multgammas=false::Bool, keeporiginalroot=false::Bool)
+function deleteleaf!(
+    net::HybridNetwork,
+    nodeNumber::Integer;
+    index::Bool=false,
+    nofuse::Bool=false,
+    simplify::Bool=true,
+    unroot::Bool=false,
+    multgammas::Bool=false,
+    keeporiginalroot::Bool=false
+)
     i = nodeNumber # good if index=true
     if !index
         i = findfirst(n -> n.number == nodeNumber, net.node)
@@ -872,10 +878,15 @@ Warnings:
   is moved to keep the network unrooted with a root of degree two.
 - does *not* update attributes needed for snaq! (like inCycle, edge.z, edge.y etc.)
 """
-function deletehybridedge!(net::HybridNetwork, edge::Edge,
-                           nofuse=false::Bool, unroot=false::Bool,
-                           multgammas=false::Bool,
-                           simplify=true::Bool, keeporiginalroot=false::Bool)
+function deletehybridedge!(
+    net::HybridNetwork,
+    edge::Edge,
+    nofuse::Bool=false,
+    unroot::Bool=false,
+    multgammas::Bool=false,
+    simplify::Bool=true,
+    keeporiginalroot::Bool=false
+)
     edge.hybrid || error("edge $(edge.number) has to be hybrid for deletehybridedge!")
     n1 = getchild(edge)  # child of edge, to be deleted unless nofuse
     n1.hybrid || error("child node $(n1.number) of hybrid edge $(edge.number) should be a hybrid.")
@@ -972,14 +983,14 @@ end
 
 
 """
-    deleteaboveLSA!(net, preorder=true::Bool)
+    deleteaboveLSA!(net, preorder=true)
 
 Delete edges and nodes above (ancestral to) the least stable ancestor (LSA)
 of the leaves in `net`. See [`leaststableancestor`](@ref) for the definition
 of the LSA.
 Output: modified network `net`.
 """
-function deleteaboveLSA!(net::HybridNetwork, preorder=true::Bool)
+function deleteaboveLSA!(net::HybridNetwork, preorder::Bool=true)
     lsa, lsaindex = leaststableancestor(net, preorder)
     for _ in 1:(lsaindex-1)
         # the network may temporarily have multiple "roots"
@@ -1057,9 +1068,11 @@ node leaf  hybrid hasHybEdge name inCycle edges'numbers
 7    false false  false           -1      1    6   
 ```
 """
-function resetNodeNumbers!(net::HybridNetwork;
-    checkPreorder=true::Bool,
-    type::Symbol=:ape)
+function resetNodeNumbers!(
+    net::HybridNetwork;
+    checkPreorder::Bool=true,
+    type::Symbol=:ape
+)
     if checkPreorder
       directEdges!(net)
       preorder!(net) # to create/update net.nodes_changed
@@ -1096,7 +1109,7 @@ end
 Check that edge numbers of `net` are consecutive numbers from 1 to the total
 number of edges. If not, reset the edge numbers to be so.
 """
-function resetEdgeNumbers!(net::HybridNetwork, verbose=true::Bool)
+function resetEdgeNumbers!(net::HybridNetwork, verbose::Bool=true)
     enum = [e.number for e in net.edge]
     ne = length(enum)
     unused = setdiff(1:ne, enum)

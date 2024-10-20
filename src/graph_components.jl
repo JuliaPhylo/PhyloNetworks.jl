@@ -32,7 +32,7 @@ References:
 - nice explanation at this
   [url](https://www.cs.cmu.edu/~avrim/451f12/lectures/biconnected.pdf)
 """
-function biconnectedComponents(net, ignoreTrivial=false::Bool)
+function biconnectedComponents(net, ignoreTrivial::Bool=false)
     for n in net.node
         n.inCycle = -1 # inCycle = lowpoint. -1 for missing, until the node is visited
         n.k = -1       # k = index, order of visit during depth-first search
@@ -121,7 +121,7 @@ These entry nodes depend on the rooting (whereas the BCC only depend on the
 unrooted graph). They are either the root of the network or cut node
 (articulation points).
 """
-function biconnectedcomponent_entrynodes(net, bcc, preorder=true::Bool)
+function biconnectedcomponent_entrynodes(net, bcc, preorder::Bool=true)
     if preorder
         directEdges!(net)
         preorder!(net)
@@ -157,7 +157,7 @@ It stores the index (in `bcc`) of the biconnected component that an edge belongs
 If an edge doesn't belong in any (e.g. if trivial blobs are ignored),
 then its `.inCycle` is set to -1.
 """
-function biconnectedcomponent_exitnodes(net, bcc, preorder=true::Bool)
+function biconnectedcomponent_exitnodes(net, bcc, preorder::Bool=true)
     if preorder
         directEdges!(net)
         preorder!(net)
@@ -214,8 +214,11 @@ are supposed to be correct.
 **warning**: see [`biconnectedComponents`](@ref) for node
 attributes modified during the algorithm.
 """
-function blobInfo(net, ignoreTrivial=true::Bool;
-    checkPreorder=true::Bool)
+function blobInfo(
+    net,
+    ignoreTrivial::Bool=true;
+    checkPreorder::Bool=true
+)
     if checkPreorder
       directEdges!(net) # update isChild1, needed for preorder
       preorder!(net) # creates / updates net.nodes_changed
@@ -303,7 +306,7 @@ function blobDecomposition!(net)
 end
 
 """
-    leaststableancestor(net, preorder=true::Bool)
+    leaststableancestor(net, preorder=true)
 
 Return `(lsa, lsa_index)` where `lsa` is the least stable ancestor node (LSA)
 in `net`, and `lsa_index` is the index of `lsa` in `net.nodes_changed`.
@@ -324,7 +327,7 @@ via the edges' `.inCycle` field --including the trivial blobs (cut edges).
 
 See also: [`deleteaboveLSA!`](@ref)
 """
-function leaststableancestor(net, preorder=true::Bool)
+function leaststableancestor(net, preorder::Bool=true)
     net.node[net.root].leaf && error("The root can't be a leaf to find the LSA.")
     if preorder
         directEdges!(net)

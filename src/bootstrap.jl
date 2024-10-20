@@ -1,7 +1,3 @@
-# julia functions for bootstrap
-# Claudia October 2015
-# Cecile April 2016
-
 """
     readBootstrapTrees(listfile; relative2listfile=true)
 
@@ -17,7 +13,7 @@ Otherwise, use option `relative2listfile=false`, in which case the file names
 are interpreted as usual: relative to the user's current directory
 if not given as absolute paths.
 """
-function readBootstrapTrees(filelist::AbstractString; relative2listfile=true::Bool)
+function readBootstrapTrees(filelist::AbstractString; relative2listfile::Bool=true)
     filelistdir = dirname(filelist)
     bootfiles = DataFrame(CSV.File(filelist, header=false, types=Dict(1=>String));
         copycols=false)
@@ -34,8 +30,8 @@ function readBootstrapTrees(filelist::AbstractString; relative2listfile=true::Bo
 end
 
 """
-    sampleBootstrapTrees(vector of tree lists; seed=0::Integer, generesampling=false, row=0)
-    sampleBootstrapTrees!(tree list, vector of tree lists; seed=0::Integer, generesampling=false, row=0)
+    sampleBootstrapTrees(vector of tree lists; seed=0, generesampling=false, row=0)
+    sampleBootstrapTrees!(tree list, vector of tree lists; seed=0, generesampling=false, row=0)
 
 Sample bootstrap gene trees, 1 tree per gene.
 Set the seed with keyword argument `seed`, which is 0 by default.
@@ -52,14 +48,23 @@ each one of length 1 or more (error if one vector is empty, tested in `bootsnaq`
 
 output: one vector of trees. the modifying function (!) modifies the input tree list and returns it.
 """
-function sampleBootstrapTrees(trees::Vector{Vector{HybridNetwork}};
-                              seed=0::Integer, generesampling=false::Bool, row=0::Integer)
+function sampleBootstrapTrees(
+    trees::Vector{Vector{HybridNetwork}};
+    seed::Integer=0,
+    generesampling::Bool=false,
+    row::Integer=0
+)
     bootTrees = Array{HybridNetwork}(undef, length(trees))
     sampleBootstrapTrees!(bootTrees, trees, seed=seed, generesampling=generesampling, row=row)
 end
 
-function sampleBootstrapTrees!(bootTrees::Vector{HybridNetwork}, trees::Vector{Vector{HybridNetwork}};
-                              seed=0::Integer, generesampling=false::Bool, row=0::Integer)
+function sampleBootstrapTrees!(
+    bootTrees::Vector{HybridNetwork},
+    trees::Vector{Vector{HybridNetwork}};
+    seed::Integer=0,
+    generesampling::Bool=false,
+    row::Integer=0
+)
     numgen = length(trees) ## number of genes
     numgen>0 || error("needs at least 1 array of trees")
     numgen <= length(bootTrees) || error("the input tree list needs to be of length $numgen at least")
@@ -255,8 +260,11 @@ The "edge" data frame has one row for each pair of clades, and 8 columns:
      major sister.
   - `:BS_minor`: same as previous, but minor
 """
-function hybridBootstrapSupport(nets::Vector{HybridNetwork}, refnet::HybridNetwork;
-         rooted=false::Bool)
+function hybridBootstrapSupport(
+    nets::Vector{HybridNetwork},
+    refnet::HybridNetwork;
+    rooted::Bool=false
+)
     numNets = length(nets)
     numNets>0 || error("there aren't any test (bootstrap) networks")
     numHybs = refnet.numHybrids

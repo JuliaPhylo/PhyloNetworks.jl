@@ -2,14 +2,21 @@
 # subject to topological constraints; no level restriction
 
 """
-    addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
-                   constraints=TopologyConstraint[]::Vector{TopologyConstraint};
-                   maxattempts=10::Int, fixroot=false::Bool)
+    addhybridedge!(
+        [rng::AbstractRNG,]
+        net::HybridNetwork,
+        nohybridladder::Bool,
+        no3cycle::Bool,
+        constraints::Vector{TopologyConstraint}=TopologyConstraint[];
+        maxattempts::Int=10,
+        fixroot::Bool=false
+    )
 
 Randomly choose two edges in `net` then: add hybrid edge from edge 1 to edge 2
 of length 0.01. The two halves of edge 1 (and of edge 2) have equal lengths.
 The hybrid partner edge (top half of edge 2, if fixroot is true) will point
-towards the newly-created node on the middle of the original edge 2.
+towards the newly-created node on the middle of the original edge 2,
+and have an inheritance γ randomly uniformly chosen in (0,0.5).
 
 If the resulting network is a DAG, satisfies the constraint(s),
 does not contain any 3-cycle (if `no3cycle=true`), and does not have
@@ -60,18 +67,27 @@ julia> writeTopology(net, round=true, digits=2)
 
 ```
 """
-function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool,
-        constraints=TopologyConstraint[]::Vector{TopologyConstraint};
-        maxattempts=10::Int, fixroot=false::Bool)
+function addhybridedge!(net::HybridNetwork, nolad::Bool, args...; kwargs...)
+    addhybridedge!(Random.default_rng(), net, nolad, args...; kwargs...)
+end
+function addhybridedge!(
+    rng::Random.AbstractRNG,
+    net::HybridNetwork,
+    nohybridladder::Bool,
+    no3cycle::Bool,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[];
+    maxattempts::Int=10,
+    fixroot::Bool=false
+)
     all(con.type == 1 for con in constraints) || error("only type-1 constraints implemented so far")
     numedges = length(net.edge)
     blacklist = Set{Tuple{Int,Int}}()
     nmax_blacklist = numedges * (numedges-1) # all sets of edge1 -> edge2
     nattempts = 0
     while nattempts < maxattempts && length(blacklist) < nmax_blacklist
-        e1 = Random.rand(1:numedges) # presumably faster than Random.randperm or Random.shuffle
+        e1 = Random.rand(rng, 1:numedges) # presumably faster than Random.randperm or Random.shuffle
         edge1 = net.edge[e1]
-        e2 = Random.rand(1:(numedges-1)) # e2 must be different from e1: only numedges-1 options
+        e2 = Random.rand(rng, 1:(numedges-1)) # e2 must be different from e1: only numedges-1 options
         edge2 = net.edge[(e2<e1 ? e2 : e2+1)]
         (e1,e2) ∉ blacklist || # try another pair without adding to the # of attempts
             continue           # if (e1,e2) was already attempted
@@ -101,7 +117,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
             push!(blacklist, (e1,e2))
             continue
         end
-        hybridpartnernew = (fixroot ? true : rand() > 0.2) # if true: partner hybrid = new edge above edge 2
+        hybridpartnernew = (fixroot ? true : rand(rng) > 0.2) # if true: partner hybrid = new edge above edge 2
         ## check that the new network will be a DAG: no directional conflict
         if directionalconflict(p1, edge2, hybridpartnernew)
             if fixroot # don't try to change the direction of edge2
@@ -114,7 +130,7 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
                 continue
             end # else: switching hybridpartnernew worked
         end
-        newgamma = rand()*0.5; # in (0,.5) to create a minor hybrid edge
+        newgamma = rand(rng)/2; # in (0,.5) to create a minor hybrid edge
         return addhybridedge!(net, edge1, edge2, hybridpartnernew, 0.01, newgamma)
     end
     # if we get here: none of the max number of attempts worked - return nothing.
@@ -123,8 +139,14 @@ function addhybridedge!(net::HybridNetwork, nohybridladder::Bool, no3cycle::Bool
 end
 
 """
-    addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
-                   edgelength=-1.0::Float64, gamma=-1.0::Float64)
+    addhybridedge!(
+        net::HybridNetwork,
+        edge1::Edge,
+        edge2::Edge,
+        hybridpartnernew::Bool,
+        edgelength::Float64=-1.0,
+        gamma::Float64=-1.0
+    )
 
 Add hybridization to `net` coming from `edge1` going into `edge2`.
 2 new nodes and 3 new edges are created: `edge1` are `edge2` are both cut into 2 edges,
@@ -164,8 +186,14 @@ julia> writeTopology(net)
 
 ```
 """
-function addhybridedge!(net::HybridNetwork, edge1::Edge, edge2::Edge, hybridpartnernew::Bool,
-                        edgelength::Float64=-1.0, gamma::Float64=-1.0)
+function addhybridedge!(
+    net::HybridNetwork,
+    edge1::Edge,
+    edge2::Edge,
+    hybridpartnernew::Bool,
+    edgelength::Float64=-1.0,
+    gamma::Float64=-1.0
+)
     gamma == -1.0 || (gamma <= 1.0 && gamma >= 0.0) || error("invalid γ to add a hybrid edge")
     gbar = (gamma == -1.0 ? -1.0 : 1.0 - gamma) # 1-gamma, with γ=-1 as missing
     newnode1_tree, edgeabovee1 = breakedge!(edge1, net) # new tree node
@@ -260,7 +288,7 @@ end
 # --- add alternative hybridizations found in bootstrap
 """
     addAlternativeHybridizations!(net::HybridNetwork, BSe::DataFrame;
-                                  cutoff=10::Number, top=3::Int)
+                                  cutoff::Number=10, top::Int=3)
 
 Modify the network `net` (the best estimated network) by adding some of
 the hybridizations present in the bootstrap networks. By default, it will only
@@ -317,7 +345,12 @@ julia> BSe[1:6,[:edge,:hybrid_clade,:sister_clade,:BS_hybrid_edge,:alternative]]
 julia> # using PhyloPlots; plot(bestnet, edgelabel=BSe[:,[:edge,:BS_hybrid_edge]]);
 ```
 """
-function addAlternativeHybridizations!(net::HybridNetwork,BSe::DataFrame; cutoff=10::Number,top=3::Int)
+function addAlternativeHybridizations!(
+    net::HybridNetwork,
+    BSe::DataFrame;
+    cutoff::Number=10,
+    top::Int=3
+)
     top > 0 || error("top must be greater than 0")
     BSe[!,:alternative] = falses(nrow(BSe))
     newBSe = subset(BSe,

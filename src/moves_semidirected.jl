@@ -274,7 +274,7 @@ nice to add: option to modify branch lengths during NNI
          e::Edge,
          nohybridladder::Bool=true,
          no3cycle::Bool=true,
-         constraints=TopologyConstraint[]::Vector{TopologyConstraint}
+         constraints::Vector{TopologyConstraint}=TopologyConstraint[]
     )
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
@@ -328,7 +328,7 @@ function nni!(
     e::Edge,
     nohybridladder::Bool=true,
     no3cycle::Bool=true,
-    constraints=TopologyConstraint[]::Vector{TopologyConstraint}
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
 )
     for con in constraints
         # reject NNI if the focus edge is the stem of a constraint.
@@ -873,13 +873,19 @@ end
 
 
 """
-    moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    moveroot!(
+        net::HybridNetwork,
+        constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+    )
 
 Move the root to a randomly chosen non-leaf node that is different from
 the current root, and not within a constraint clade or species.
 Output: `true` if successul, `nothing` otherwise.
 """
-function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function moveroot!(
+    net::HybridNetwork,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+)
     newrootrandomorder = Random.shuffle(1:length(net.node))
     oldroot = net.root
     for newrooti in newrootrandomorder
@@ -915,8 +921,13 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
 end
 
 """
-    fliphybrid!(net::HybridNetwork, minor=true::Bool, nohybridladder=false::Bool,
-                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    fliphybrid!(
+        [rng::AbstractRNG,]
+        net::HybridNetwork,
+        minor::Bool,
+        nohybridladder::Bool=false,
+        constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+    )
 
 Cycle through hybrid nodes in random order until an admissible flip is found.
 At this hybrid node, flip the indicated hybrid parent edge (minor or major).
@@ -936,10 +947,17 @@ original flip.
 - undoing the flip may not recover the original root in case
   the root position was modified during the original flip.
 """
-function fliphybrid!(net::HybridNetwork, minor=true::Bool,
-                     nohybridladder=false::Bool,
-                     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    hybridindex = Random.shuffle(1:length(net.hybrid)) # indices in net.hybrid
+function fliphybrid!(net::HybridNetwork, minor::Bool, args...)
+    fliphybrid!(Random.default_rng(), net, minor, args...)
+end
+function fliphybrid!(
+    rng::Random.AbstractRNG,
+    net::HybridNetwork,
+    minor::Bool,
+    nohybridladder::Bool=false,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+)
+    hybridindex = Random.shuffle(rng, 1:length(net.hybrid)) # indices in net.hybrid
     while !isempty(hybridindex) # all minor edges
         i = pop!(hybridindex)
         undoinfo = fliphybrid!(net, net.hybrid[i], minor, nohybridladder, constraints)
@@ -951,9 +969,13 @@ function fliphybrid!(net::HybridNetwork, minor=true::Bool,
 end
 
 """
-    fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
-                nohybridladder=false::Bool,
-                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    fliphybrid!(
+        net::HybridNetwork,
+        hybridnode::Node,
+        minor::Bool=true,
+        nohybridladder::Bool=false,
+        constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+    )
 
 Flip the direction of a single hybrid edge:
 the minor parent edge of `hybridnode` by default,
@@ -989,9 +1011,13 @@ old `hybridnode`.
 Warning: Undoing this move may not recover the original root if
 the root position was modified.
 """
-function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
-                     nohybridladder=false::Bool,
-                     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function fliphybrid!(
+    net::HybridNetwork,
+    hybridnode::Node,
+    minor::Bool=true,
+    nohybridladder::Bool=false,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+)
     #= for species constraints, there is nothing to check, because hybrids cannot point into or come out of the group
     for con in constraints
         if con.type == # 0x02/0x03 for types 2 and 3, need to consider more cases

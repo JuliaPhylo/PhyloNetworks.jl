@@ -400,7 +400,7 @@ function readFastaToArray(filename::AbstractString, sequencetype=BioSequences.Lo
 end
 
 """
-    readfastatodna(filename::String, countPatterns=false::Bool)
+    readfastatodna(filename::String, countPatterns::Bool=false)
 
 Read a fasta file to a dataframe containing a column for each site.
 If `countPatterns` is true, calculate weights and remove identical
@@ -416,7 +416,7 @@ Return a tuple containing:
 where each taxon name appears only once. For this one time, the corresponding
 sequence may be broken across several lines though.
 """
-function readfastatodna(fastafile::String, countPatterns=false::Bool)
+function readfastatodna(fastafile::String, countPatterns::Bool=false)
     reader = FASTX.FASTA.Reader(open(fastafile))
     siteList = Vector{Vector}(undef, 0) # vector of vectors: one for each site
     species = String[]
@@ -556,9 +556,11 @@ Use the fields `isChild1`,
 `isExtBadTriangle` to know which nodes are at the root of a blob, and
 `fromBadDiamondI` to know which edges are cut (below the minor parent of each hybrid).
 """
-function parsimonyGF(net::HybridNetwork, tips::Dict{String,T},
-                     criterion=:softwired::Symbol) where {T}
-    # T = type of characters. Typically Int if data are binary 0-1
+function parsimonyGF(
+    net::HybridNetwork,
+    tips::Dict{String,T},
+    criterion::Symbol=:softwired
+) where {T} # T = type of characters. Typically Int if data are binary 0-1
     species = String[]
     dat = Vector{T}[]
     for (k,v) in tips
@@ -569,9 +571,12 @@ function parsimonyGF(net::HybridNetwork, tips::Dict{String,T},
 end
 
 
-function parsimonyGF(net::HybridNetwork, species::Array{String},
-    sequenceData::AbstractArray, criterion=:softwired::Symbol)
-
+function parsimonyGF(
+    net::HybridNetwork,
+    species::Array{String},
+    sequenceData::AbstractArray,
+    criterion::Symbol=:softwired
+)
     resetNodeNumbers!(net) # direct edges and checks pre-order by default
     rootnumber = net.node[net.root].number
     nsites = length(sequenceData[1])
@@ -1033,9 +1038,17 @@ Extensions:
 - outgroup is currently String or Node number, but it would be good if it allowed Edge number as an option too.
   Not sure best way to distinguish between Node number and Edge number, which is why left as Node number for now.
 """
-function maxParsimonyNetRun1!(currT::HybridNetwork, tolAbs::Float64, Nfail::Integer, df::DataFrame, hmax::Integer,
-                              logfile::IO, writelog::Bool, outgroup::Union{AbstractString,Integer},
-                              criterion=:softwired::Symbol)
+function maxParsimonyNetRun1!(
+    currT::HybridNetwork,
+    tolAbs::Float64,
+    Nfail::Integer,
+    df::DataFrame,
+    hmax::Integer,
+    logfile::IO,
+    writelog::Bool,
+    outgroup::Union{AbstractString,Integer},
+    criterion::Symbol=:softwired
+)
     tolAbs >= 0 || error("tolAbs must be greater than zero: $(tolAbs)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     @debug begin printEverything(currT); "printed everything" end
@@ -1114,9 +1127,19 @@ end
 ## transform the starting topology first
 ## does not allow multiple alleles
 @doc (@doc maxParsimonyNetRun1!) maxParsimonyNetRun1
-function maxParsimonyNetRun1(currT0::HybridNetwork, df::DataFrame, Nfail::Integer, tolAbs::Float64,
-                                      hmax::Integer,seed::Integer,logfile::IO, writelog::Bool, probST::Float64,
-                                      outgroup::Union{AbstractString,Integer}, criterion=:softwired::Symbol)
+function maxParsimonyNetRun1(
+    currT0::HybridNetwork,
+    df::DataFrame,
+    Nfail::Integer,
+    tolAbs::Float64,
+    hmax::Integer,
+    seed::Integer,
+    logfile::IO,
+    writelog::Bool,
+    probST::Float64,
+    outgroup::Union{AbstractString,Integer},
+    criterion::Symbol=:softwired
+)
     Random.seed!(seed)
     currT = findStartingTopology!(currT0, probST, false,writelog, logfile, outgroup=outgroup)
     net = maxParsimonyNetRun1!(currT, tolAbs, Nfail, df, hmax,logfile,writelog, outgroup, criterion)
@@ -1182,11 +1205,19 @@ Optional arguments include
 For a roadmap of the functions inside maxParsimonyNet, see [`maxParsimonyNetRun1!`](@ref).
 """
 =#
-function maxParsimonyNet(currT::HybridNetwork, df::DataFrame;
-    tolAbs=fAbsBL::Float64, Nfail=numFails::Integer,
-    hmax=1::Integer, runs=10::Integer, outgroup="none"::Union{AbstractString,Integer},
-    rootname="mp"::AbstractString, seed=0::Integer, probST=0.3::Float64,
-    criterion=:softwired::Symbol)
+function maxParsimonyNet(
+    currT::HybridNetwork,
+    df::DataFrame;
+    tolAbs::Float64=fAbsBL,
+    Nfail::Integer=numFails,
+    hmax::Integer=1,
+    runs::Integer=10,
+    outgroup::Union{AbstractString,Integer}="none",
+    rootname::AbstractString="mp",
+    seed::Integer=0,
+    probST::Float64=0.3,
+    criterion::Symbol=:softwired
+)
     error("Function is temporarily broken after refactoring. Use PhyloNetworksv0.16.4 for a working version")
     #=
     currT0 = readTopologyUpdate(writeTopologyLevel1(currT)) # update all level-1 things

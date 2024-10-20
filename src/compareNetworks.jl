@@ -30,7 +30,11 @@ end
 # Mij=1 if species j is descendant of edge i, 0 ow.
 # allows for missing taxa:
 # Mij=0 if species not present in tree. This is handled in calculateObsCFAll with sameTaxa function
-function tree2Matrix(T::HybridNetwork, S::Union{Vector{String},Vector{Int}}; rooted=true::Bool)
+function tree2Matrix(
+    T::HybridNetwork,
+    S::Union{Vector{String},Vector{Int}};
+    rooted::Bool=true
+)
     length(T.hybrid)==0 || error("tree2Matrix only works on trees. Network has $(T.numHybrids) hybrid nodes.")
     # sort!(S) # why sort 'taxa', again and again for each tree? Benefits?
     ne = length(T.edge)-T.numTaxa # number of internal branch lengths
@@ -477,9 +481,14 @@ Warnings:
   If `nofuse` is true: the γ's of partner hybrid edges are unchanged.
 - assumes correct `isMajor` fields, and correct `isChild1` fields to update `containRoot`.
 """
-function deleteHybridThreshold!(net::HybridNetwork, gamma::Float64,
-                                nofuse=false::Bool, unroot=false::Bool,
-                                multgammas=false::Bool, keeporiginalroot=false::Bool)
+function deleteHybridThreshold!(
+    net::HybridNetwork,
+    gamma::Float64,
+    nofuse::Bool=false,
+    unroot::Bool=false,
+    multgammas::Bool=false,
+    keeporiginalroot::Bool=false
+)
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
@@ -510,9 +519,14 @@ If `keeporiginalroot` is true, the root is retained even if it is of degree 1.
 - the original network is modified: the minor edge removed.
 - returns one HybridNetwork object: the network with the major edge removed
 """
-function displayedNetworks!(net::HybridNetwork, node::Node,
-                            nofuse=false::Bool, unroot=false::Bool,
-                            multgammas=false::Bool, keeporiginalroot=false::Bool)
+function displayedNetworks!(
+    net::HybridNetwork,
+    node::Node,
+    nofuse::Bool=false,
+    unroot::Bool=false,
+    multgammas::Bool=false,
+    keeporiginalroot::Bool=false
+)
     node.hybrid || error("will not extract networks from tree node $(node.number)")
     ind = findfirst(x -> x===node, net.node)
     ind !== nothing || error("node $(node.number) was not found in net")
@@ -525,9 +539,9 @@ function displayedNetworks!(net::HybridNetwork, node::Node,
 end
 
 """
-    displayedTrees(net::HybridNetwork, gamma::Float64; nofuse=false::Bool,
-                   unroot=false::Bool, multgammas=false::Bool,
-                   keeporiginalroot=false::Bool)
+    displayedTrees(net::HybridNetwork, gamma::Float64; nofuse::Bool=false,
+                   unroot::Bool=false, multgammas::Bool=false,
+                   keeporiginalroot::Bool=false)
 
 Extracts all trees displayed in a network, following hybrid edges
 with heritability >= γ threshold (or >0.5 if threshold=0.5)
@@ -551,9 +565,14 @@ Warnings:
   their γ values unchanged, but their `isMajor` is changed to true
 - assume correct `isMajor` attributes.
 """
-function displayedTrees(net0::HybridNetwork, gamma::Float64;
-                        nofuse=false::Bool, unroot=false::Bool,
-                        multgammas=false::Bool, keeporiginalroot=false::Bool)
+function displayedTrees(
+    net0::HybridNetwork,
+    gamma::Float64;
+    nofuse::Bool=false,
+    unroot::Bool=false,
+    multgammas::Bool=false,
+    keeporiginalroot::Bool=false
+)
     trees = HybridNetwork[]
     net = deepcopy(net0)
     deleteHybridThreshold!(net,gamma,nofuse,unroot, multgammas, keeporiginalroot)
@@ -597,8 +616,8 @@ function inheritanceWeight(tree::HybridNetwork)
 end
 
 """
-    majorTree(net::HybridNetwork; nofuse=false::Bool, unroot=false::Bool,
-              keeporiginalroot=false::Bool)
+    majorTree(net::HybridNetwork; nofuse::Bool=false, unroot::Bool=false,
+              keeporiginalroot::Bool=false)
 
 Extract the major tree displayed in a network, keeping the major edge
 and dropping the minor edge at each hybrid node.
@@ -617,16 +636,24 @@ Warnings:
   have their γ values unchanged, but their `isMajor` is changed to true
 - assume correct `isMajor` attributes.
 """
-majorTree(net::HybridNetwork; nofuse=false::Bool, unroot=false::Bool,
-          keeporiginalroot=false::Bool) =
-    displayedTrees(net,0.5; nofuse=nofuse, unroot=unroot,
+majorTree(
+    net::HybridNetwork;
+    nofuse::Bool=false,
+    unroot::Bool=false,
+    keeporiginalroot::Bool=false
+) = displayedTrees(net,0.5; nofuse=nofuse, unroot=unroot,
                    keeporiginalroot=keeporiginalroot)[1]
 
 
 # expands current list of trees, with trees displayed in a given network
-function displayedTrees!(trees::Array{HybridNetwork,1}, net::HybridNetwork,
-                        nofuse=false::Bool, unroot=false::Bool,
-                        multgammas=false::Bool, keeporiginalroot=false::Bool)
+function displayedTrees!(
+    trees::Array{HybridNetwork,1},
+    net::HybridNetwork,
+    nofuse::Bool=false,
+    unroot::Bool=false,
+    multgammas::Bool=false,
+    keeporiginalroot::Bool=false
+)
     if isTree(net)
         # warning: no update of edges' containRoot (true) or edges' and nodes' inCycle (-1)
         push!(trees, net)
@@ -638,7 +665,7 @@ function displayedTrees!(trees::Array{HybridNetwork,1}, net::HybridNetwork,
 end
 
 """
-    minorTreeAt(net::HybridNetwork, hybindex::Integer, nofuse=false, unroot=false::Bool)
+    minorTreeAt(net::HybridNetwork, hybindex::Integer, nofuse=false, unroot::Bool=false)
 
 Extract the tree displayed in the network, following the major hybrid edge
 at each hybrid node, except at the ith hybrid node (i=`hybindex`),
@@ -648,8 +675,12 @@ If `unroot` is true, the root will be deleted if it becomes of degree 2.
 
 Warning: assume correct `isMajor` fields.
 """
-function minorTreeAt(net::HybridNetwork, hybindex::Integer,
-            nofuse=false::Bool, unroot=false::Bool)
+function minorTreeAt(
+    net::HybridNetwork,
+    hybindex::Integer,
+    nofuse::Bool=false,
+    unroot::Bool=false
+)
     hybindex <= length(net.hybrid) || error("network has fewer hybrid nodes than index $(hybindex).")
     tree = deepcopy(net)
     hybedge = getparentedge(tree.hybrid[hybindex])   # major parent
@@ -667,9 +698,13 @@ If `nofuse` is true, edges are not fused (degree-2 nodes are kept).
 
 Warning: assume correct `isMajor` fields.
 """
-function displayedNetworkAt!(net::HybridNetwork, node::Node,
-                             nofuse=false::Bool, unroot=false::Bool,
-                             multgammas=false::Bool)
+function displayedNetworkAt!(
+    net::HybridNetwork,
+    node::Node,
+    nofuse::Bool=false,
+    unroot::Bool=false,
+    multgammas::Bool=false
+)
     node.hybrid || error("will not extract network from tree node $(node.number)")
     for i = net.numHybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
