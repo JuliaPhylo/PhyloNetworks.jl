@@ -269,8 +269,13 @@ nice to add: option to modify branch lengths during NNI
 =#
 
 """
-    nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::Bool=true,
-         constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    nni!([rng::AbstractRNG,]
+         net::HybridNetwork,
+         e::Edge,
+         nohybridladder::Bool=true,
+         no3cycle::Bool=true,
+         constraints=TopologyConstraint[]::Vector{TopologyConstraint}
+    )
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
 randomly chosen among all possible NNIs (e.g 3, sometimes more depending on `e`)
@@ -282,10 +287,10 @@ The option `no3cycle` forbids moves that would create a 3-cycle in the network.
 When `no3cycle` = false, 2-cycle and 3-cycles may be generated.
 
 Note that the defaults values are for positional (not keyword) arguments, so
-two or more arguments can be used, but in a specific order: nni!(net, e) or
-nni!(net, e, nohybridladder),
-nni!(net, e, nohybridladder, no3cycle),
-nni!(net, e, nohybridladder, no3cycle, contraints).
+two or more arguments can be used, but in a specific order: `nni!(net, e)` or
+`nni!(net, e, nohybridladder)`,
+`nni!(net, e, nohybridladder, no3cycle)`,
+`nni!(net, e, nohybridladder, no3cycle, contraints)`.
 
 Assumptions:
 - The starting network does not have 3-cycles, if `no3cycle=true`.
@@ -316,8 +321,15 @@ julia> writeTopology(net) == str_network # net back to original topology: the NN
 true
 ```
 """
-function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::Bool=true,
-              constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+nni!(net::HybridNetwork, args...) = nni!(Random.default_rng(), net, args...)
+function nni!(
+    rng::Random.AbstractRNG,
+    net::HybridNetwork,
+    e::Edge,
+    nohybridladder::Bool=true,
+    no3cycle::Bool=true,
+    constraints=TopologyConstraint[]::Vector{TopologyConstraint}
+)
     for con in constraints
         # reject NNI if the focus edge is the stem of a constraint.
         # sufficient to maintain star species constraints
@@ -327,9 +339,9 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
         end
     end
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
-    nnis = Random.shuffle(nnirange)
+    nnis = Random.shuffle(rng, nnirange)
     for nummove in nnis # iterate through all possible NNIs, but in random order
-        moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
+        moveinfo = nni!(e, nummove, nohybridladder, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
         # if constraintviolated(net, constraints)
         #     # fixit for next PR: not needed for species constraints,
@@ -367,14 +379,13 @@ function nnimax(e::Edge)
 end
 
 """
-    nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
-         nohybridladder::Bool, no3cycle::Bool)
+    nni!(uv::Edge, nummove::UInt8, nohybridladder::Bool, no3cycle::Bool)
 
-Modify `net` with a nearest neighbor interchange (NNI) around edge `uv`.
+Modify a network with a nearest neighbor interchange (NNI) around its edge `uv`.
 Return the information necessary to undo the NNI, or `nothing` if the move
-was not successful (such as if the resulting graph was not acyclic (not a DAG) or if
-the focus edge is adjacent to a polytomy). If the move fails, the network is not
-modified.
+was not successful (such as if the resulting graph was not acyclic (not a DAG)
+or if the focus edge is adjacent to a polytomy).
+If the move fails, the network is not modified.
 `nummove` specifies which of the available NNIs is performed.
 
 rooted-NNI options according to Gambette et al. (2017), fig. 8:
@@ -395,10 +406,15 @@ that the input network does not have any 2- or 3-cycles.
 If `no3cycle` is false, 3-cycles can be generated, but NNIs generating
 2-cycles are prevented.
 
-The edge field `isChild1` is assumed to be correct according to the `net.root`.
+The edge field `isChild1` is assumed to be correct in the overall network
+(that is, in sync with the network's field `.root`).
 """
-function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
-              nohybridladder::Bool, no3cycle::Bool)
+function nni!(
+    uv::Edge,
+    nummove::UInt8,
+    nohybridladder::Bool,
+    no3cycle::Bool
+)
     nmovemax = nnimax(uv)
     if nmovemax == 0x00 # uv not internal, or polytomy e.g. species represented by polytomy with >2 indiv
         return nothing
@@ -556,7 +572,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
 end
 
 """
-    nni!(αu, u, uv::Edge, v, vδ)
+    nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge)
     nni!(αu,u,uv,v,vδ, flip::Bool, inner::Bool, indices)
 
 Transform a network locally around the focus edge `uv` with
@@ -591,7 +607,7 @@ These are interpreted as:
   * u not hybrid & v hybrid
   * u hybrid, v not hybrid, α -> u <- v -> δ
 - Because of this, `nni(αu,u,uv,v,vδ, ...)` should not be used directly;
-  use instead `nni!(net, uv, move_number)`.
+  use instead `nni!(uv, move_number)`.
 - nni!(undoinfo...) restores the topology, but edges below hybrid nodes
   will have length 0.0 even if they didn't before.
 
