@@ -375,9 +375,19 @@ net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
 @test string(c_species[1]) == "Species constraint, on tips: S1A, S1B, S1C\n stem edge number 4\n crown node number 3"
 @test c_species[1].taxonnames == ["S1A","S1B","S1C"]
 @test c_species[1].taxonnums == Set([11,12,13])
+@test c_species[1].node.number == 3
 @test writeTopology(net_level1_i) == "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
+# updateconstraints!
+PhyloNetworks.resetNodeNumbers!(net_level1_i)
+net_level1_i.node[22].number = 100 # S1C
+PhyloNetworks.updateconstraints!(c_species, net_level1_i)
+@test c_species[1].taxonnums == Set([8,9,100])
+@test c_species[1].node.number == 21 # S1, now internal node
+@test getparent(net_level1_i.node[22]).number == 21
+
 # test clade constraint contructor
+net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
 c_clade = PhyloNetworks.TopologyConstraint(0x02, ["S1A","S1B","S1C","S4"], net_level1_i)
 @test string(c_clade) == "Clade constraint, on tips: S1A, S1B, S1C, S4\n stem edge number 6\n crown node number -8"
 

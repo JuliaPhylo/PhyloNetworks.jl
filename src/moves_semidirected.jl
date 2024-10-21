@@ -113,16 +113,16 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
     comparator = zeros(Int8, size(matrix)[2]-2)
     comparator[1:ntax_clade] = ones(Int8, ntax_clade)
     # go through matrix row by row to find match with comparator. Return number
-    for i in 1:size(matrix, 1)
-        if matrix[i,2:size(matrix)[2]-1] == comparator # found the mrca!
+    for i in axes(matrix, 1)
+        if matrix[i,2:size(matrix,2)-1] == comparator # found the mrca!
             edgenum = matrix[i, 1]
             break
         end
     end
     if edgenum == 0
         comparator .= 1 .- comparator
-        for i in 1:size(matrix)[1]
-            if matrix[i,2:size(matrix)[2]-1] == comparator
+        for i in axes(matrix,1)
+            if matrix[i,2:size(matrix,2)-1] == comparator
                 error("""The clade given is not rooted correctly, making it a grade instead of a clade.
                 You can re-try after modifying the root of your network.""")
             end
@@ -149,9 +149,10 @@ end
 True if `network` violates one (or more) of the constraints of type 1
 (individuals in a species group) or type 2 (must be clades in the major tree).
 Warning: constraints of type 3 are not implemented.
+See [`TopologyConstraint`](@ref) for constraint types.
 """
 function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
-    # fixit next PR: add option to give a vector of constraint types to check,
+    # would be nice: option to give a vector of constraint types to check,
     #                then only check these constraint types
     if isempty(constraints)
         return false
