@@ -43,11 +43,11 @@ hardwiredClusterDistance(astraltree, net0, true)
 ```
 ```@example dist_reroot
 using PhyloPlots, RCall
-R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
-R"svg(name('net0_O.svg'), width=4, height=4)" 
+R"name <- function(x) file.path('..', 'assets', 'figures', x)"
+R"svg(name('net0_O.svg'), width=4, height=4)"
 R"par"(mar=[0,0,0,0])
 plot(net0);
-R"dev.off()" 
+R"dev.off()"
 nothing # hide
 ```
 ![net0_O](../assets/figures/net0_O.svg)
