@@ -108,11 +108,11 @@ nothing # hide
 ![net1_rotate2](../assets/figures/net1_rotate2.svg)
 
 We can now summarize our bootstrap networks.
-The functions `treeEdgesBootstrap` and `hybridBootstrapSupport`
+The functions `treeedges_support` and `hybridBootstrapSupport`
 read all bootstrap networks and map the edges / nodes
 onto a reference network: here net1.
 ```@example bootstrap
-BSe_tree, tree1 = treeEdgesBootstrap(bootnet,net1);
+BSe_tree, tree1 = treeedges_support(bootnet,net1);
 ```
 This calculates the major tree `tree1` displayed in `net1`, that is,
 the tree obtained by following the major parent (γ>0.5) of each hybrid node.

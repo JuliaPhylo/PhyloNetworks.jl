@@ -98,7 +98,7 @@ module PhyloNetworks
         checkroot!,
         treeedgecomponents,
         ## Network Bootstrap
-        treeEdgesBootstrap,
+        treeedges_support,
         hybridDetection,
         summarizeHFdf,
         hybridBootstrapSupport,

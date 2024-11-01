@@ -96,6 +96,61 @@ end
 
 
 """
+    treeedges_support(sample_net::Vector{HybridNetwork}, ref_net::HybridNetwork)`
+
+Read a sample of networks `sample_net` (such as a bootstrap sample or a
+posterior sample) and a reference network (`ref_net`),
+and calculate the support for the tree edges in the reference network.
+All minor hybrid edges (γ<0.5) are removed to extract the major tree from
+each network. All remaining edges are tree edges, each associated with a bipartition.
+
+output:
+
+- a data frame with one row per tree edge and two columns: edge number, bootstrap support
+  (as a percentage)
+- the major tree from the reference network, where minor hybrid edges (with γ<0.5)
+  have been removed.
+"""
+function treeedges_support(net::Vector{HybridNetwork}, net0::HybridNetwork)
+    # estimated network, major tree and matrix
+    S = tipLabels(net0)
+    tree0 = majorTree(net0, unroot=true)
+    M0 = tree2Matrix(tree0,S, rooted=false)
+
+    M = Matrix[]
+    tree = HybridNetwork[]
+    for n in net
+        t = majorTree(n, unroot=true)
+        push!(tree,t)
+        mm = tree2Matrix(t,S, rooted=false)
+        push!(M,mm)
+    end
+
+    df = DataFrame(edgeNumber=Int[], proportion=Float64[])
+
+    for i in axes(M0, 1) # rows in M0: internal edges
+        cnt = 0 # count
+        for j in eachindex(M) # for every M
+            for k in axes(M[j],1) # check every row in M
+                if M0[i,2:end] == M[j][k,2:end] || M0[i,2:end] == map(x->(x+1)%2,M[j][k,2:end]) #same row
+                    #println("found same row: $(M0[i,2:end]) and $(M[j][k,2:end])")
+                    cnt += 1
+                    break
+                end
+            end
+        end
+        push!(df,[M0[i,1] cnt*100/length(M)])
+        # if edges had an attribute for bootstrap/posterior support, we could
+        # set it to cnt/length(M) for the edge numbered M0[i,1].
+    end
+    @info """edge numbers in the data frame correspond to the current edge numbers in the network.
+       If the network is modified, the edge numbers in the (modified) network might not correspond
+       to those in the bootstrap table. Plot the bootstrap values onto the current network with
+       plot(network_name, edgelabel=bootstrap_table_name)"""
+    return df, tree0
+end
+
+"""
     hybridDetection(net::Vector{HybridNetwork}, net1::HybridNetwork, outgroup::AbstractString)
 
 function can only compare hybrid nodes in networks that have the same underlying major tree
