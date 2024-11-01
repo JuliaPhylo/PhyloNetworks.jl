@@ -29,15 +29,14 @@ To install the package, type inside Julia:
 using Pkg
 Pkg.add("PhyloNetworks")
 ```
-The first step can take a few minutes, be patient. If you already installed the package and want
-the latest registered version, just do this (which will update all of your packages):
+If you already installed the package and want
+the latest registered version, do this to update all of your packages:
 ```julia
 Pkg.update()
 ```
-Warning: It is important to update the package regularly as it is
+It is important to update the package regularly as it is
 undergoing constant development. Join the google group for updates
-[here]
-(https://groups.google.com/forum/#!forum/phylonetworks-users/new).
+[here](https://groups.google.com/forum/#!forum/phylonetworks-users/new).
 
 `Pkg.update()` will install the latest registered version, but there
 could be other improvements in the `master` branch of the
@@ -55,8 +54,8 @@ it. You can always free a pinned package with
 [here](https://docs.julialang.org/en/v1/stdlib/Pkg/).
 
 The PhyloNetworks package has dependencies like
-[NLopt](https://github.com/JuliaOpt/NLopt.jl) and
-[DataFrames](http://juliadata.github.io/DataFrames.jl/stable/)
+[NLopt](https://github.com/jump-dev/NLopt.jl) and
+[DataFrames](https://dataframes.juliadata.org/stable/)
 (see the `Project.toml` file for the full list), but everything is installed automatically.
 
 The companion package [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl)
@@ -80,7 +79,7 @@ This is something to type every time you start a Julia session:
 ```@example install
 using PhyloNetworks;
 ```
-This step can also take a while, if Julia needs to pre-compile the code (after a package
+This step can also take a while, to pre-compile the code (after a package
 update for instance).
 Here is a very small test for the installation of PhyloNetworks.
 
@@ -95,71 +94,86 @@ varinfo(PhyloNetworks)
 ```
 and press `?` inside Julia to switch to help mode,
 followed by the name of a function (or type) to get more details about it.
- 
+
 
 ## Julia types
 
 Each object in Julia has a *type*. We show here small examples on how to get more
 info on an object, what's its type, and how to manipulate objects.
-For example, let's take an object `raxmlCF` created from reading in some data
-(see [Input for SNaQ](@ref)):
+For example, let's read a list of gene trees:
 
 ```@repl install
-raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre");
-raxmlCF = readTrees2CF(raxmltrees);
+raxmltreefile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre");
+genetrees = readMultiTopology(raxmltreefile);
 ```
 
 Typing `varinfo()` will provide a list of objects and packages in memory,
-including `raxmlCF` that we just created.
+including `genetrees` that we just created.
 If we want to know the type of a particular object, we do:
 ```@repl install
-typeof(raxmlCF)
+typeof(genetrees)
 ```
-which shows us that `raxmlCF` is of type `DataCF`.
+which shows us that `genetrees` is of type `Vector{HybridNetwork}`, that is,
+a vector containing networks.
 If we want to know about the attributes the object has, we can type `?` in Julia,
-followed by `DataCF` for a description.
-We can also ask for a list of all its attributes with
+followed by `HybridNetwork` for a description.
+
+## Quick start
+
+Here we could check the length of our list of gene trees, as a sanity check
+to make sure we have all gene trees we expected, and check that the third tree
+has whatever taxon names we expected:
 
 ```@repl install
-fieldnames(typeof(raxmlCF))
+length(genetrees)
+tipLabels(genetrees[3])
 ```
-For example, we see that one attribute is `numQuartets`: its the number of 4-taxon subsets
-in the data. To see what this number is:
+
+We can also see some basic information on the third gene tree, say:
 ```@repl install
-raxmlCF.numQuartets
+genetrees[3]
 ```
-We also noticed an attribute `quartet`. It is a vector of Quartet objects inside `raxmlCF`, so
-```@repl install
-raxmlCF.quartet[2].taxon
+To visualize any of these gene trees, use the
+[PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl) package:
+```@example qcf
+using PhyloPlots
+using RCall # hide
+mkpath("../assets/figures") # hide
+R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
+R"svg(name('inputdata_gene3.svg'), width=4, height=3)" # hide
+R"par"(mar=[0,0,0,0])                          # hide
+plot(genetrees[3]); # tree for 3rd gene
+R"dev.off()"                                   # hide
+nothing # hide
 ```
-will provide the list of taxon names for the second 4-taxon subset in the data.
-To see the observed CF, we can type
+![gene3](../assets/figures/inputdata_gene3.svg)
+
+
+We can also read a network in Julia from a newick formatted string,
+and, for example, print a list of its edges:
+
 ```@repl install
-raxmlCF.quartet[2].obsCF
-```
-We can verify the type with
-```@repl install
-typeof(raxmlCF.quartet[2])
-```
-We can also read a simple network in Julia and print the list of edges
-```@repl install
-str = "(A,((B,#H1),(C,(D)#H1)));";
-net = readTopology(str);
+newickstring = "(A,((B,#H1),(C,(D)#H1)));";
+net = readTopology(newickstring);
 printEdges(net)
 ```
+
 We see that the edges do not have branch lengths,
-and the hybrid edges do not have gamma values. We can set them with
+and the hybrid edges do not have gamma (inheritance) values.
+We can set them with
+
 ```@repl install
-setLength!(net.edge[1],1.9)
-setGamma!(net.edge[3],0.8)
+setLength!(net.edge[1], 1.9)
+setGamma!(net.edge[3],  0.8)
 printEdges(net)
 ```
 where 1 and 3 correspond to the position of the given edge to modify in the list of edges.
-We can only change the gamma value of hybrid edges (not tree edges).
+We can only change the γ value of hybrid edges,
+not tree edges (for which γ=1 necessarily).
 Such an attempt below will cause an error with a message to explain that
 the edge was a tree edge:
 ```julia
-setGamma!(net.edge[4],0.7)
+setGamma!(net.edge[4], 0.7)
 # should return this:
 # ERROR: cannot change gamma in a tree edge
 ```

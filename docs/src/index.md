@@ -80,14 +80,9 @@ for network inference:
 Pages = [
     "man/installation.md",
     "man/netmanipulation.md",
-    # "man/inputdata.md",
-    # "man/ticr_howtogetQuartetCFs.md",
     # "man/snaq_plot.md",
     # "man/dist_reroot.md",
-    # "man/fixednetworkoptim.md",
-    # "man/expectedCFs.md",
     # "man/bootstrap.md",
-    # "man/multiplealleles.md",
     "man/parsimony.md",
     "man/nj.md"
 ]
