@@ -129,8 +129,8 @@ function nj!(
     net.root = net.numNodes # root = last created node, which is internal
     if neglenp > 0
         infostr = (force_nonnegative_edges ?
-                   "$neglenp branches had negative lengths, reset to 0" :
-                   "$neglenp branches have negative lengths" )
+                   "$neglenp branch(es) of negative length, reset to 0" :
+                   "$neglenp branch(es) of negative length" )
         @info infostr
     end
     return net
