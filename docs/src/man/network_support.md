@@ -2,58 +2,31 @@
 using PhyloNetworks
 mkpath("../assets/figures")
 ```
-# Bootstrap
+# Network support
 
-## Running a bootstrap analysis
+We show here how to summarize a sample of networks.
+This may be used to get bootstrap or posterior support for network features,
+if the sample of networks comes from a bootstrap analysis,
+as possible with [SNaQ](https://juliaphylo.github.io/SNaQ.jl/stable/man/bootstrap/#Bootstrap),
+or if it's a posterior sample of networks from a Bayesian analysis.
 
-There are two ways to do a bootstrap analysis.
-
-- From quartet CFs with credibility intervals, such as if we used BUCKy. The [TICR pipeline](@ref) outputs a CF table with extra columns for credibility intervals. We could then read that table and get bootstrap networks like this, and tweak options as needed:
-```julia
-using DataFrames, CSV
-df = DataFrame(CSV.File("tableCF_withCI.csv"); copycols = false)
-bootnet = bootsnaq(startnetwork, df, hmax=1, filename="bootstrap")
-```
-
-- Alternatively, we can use bootstrap gene trees: one file of bootstrap trees per gene. Here, the input is a text file that lists all the bootstrap files (one per gene). We demonstrate this option here.
-
-The names of all our bootstrap files are listed in "BSlistfiles".
-(ASTRAL can use the same file to do its own bootstrap, see the
-[wiki](https://github.com/juliaphylo/PhyloNetworks.jl/wiki/Gene-Trees:-RAxML)
-for more details).
-The function `readBootstrapTrees` can read this list of file names, then
-read each bootstrap file to get the bootstrap sample for each gene.
-We can use them to sample input gene trees at random, one per gene,
-and estimate a network from them. We ask the `bootsnaq` function
-to repeat this resampling of bootstrap gene trees several times.
-
-```julia
-bootTrees = readBootstrapTrees("BSlistfiles");
-bootnet = bootsnaq(net0, bootTrees, hmax=1, nrep=10, runs=3,
-                   filename="bootsnaq", seed=4321)
-```
-
-The bootstrap networks are saved in the `boostrap.out` file, so they
-can be read in a new session with
-`bootnet = readMultiTopology("bootsnaq.out")`. To save the bootstrap networks to
-a different file (perhaps after having re-rooted them with an
-outgroup), we could do this: `writeMultiTopology(bootnet, "bootstrapNets.tre")`.
-
-The example above asks for 10 bootstrap replicates,
-which is definitely too few, to make the example run faster.
-We might also increase the number of optimization runs (`runs`)
-done for each bootstrap replicate. This bootstrap was run with the
-default 10 runs per replicate, and 100 bootstrap replicates,
-and the 100 bootstrap networks come with the package:
+To demonstrate summarizing a sample of networks, we use here a sample of
+100 networks, obtained by running 100 bootstrap replicates of SNaQ.
+The file containing the 100 networks comes with the package:
 
 ```@example bootstrap
 bootnet = readMultiTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out"));
 length(bootnet)
 ```
 
-If we used a specified list of quartets on the original data, we
-should use that same list for the bootstrap analysis through the
-option `quartetfile`.
+Unlike for trees, there are a variety of features that we may summarize in
+a network. Here we summarize support for *tree edges*, for a clade to
+be of *hybrid origin*, or to be *sister* to a hybrid clade, or combinations.
+
+We also assume that we have a reference network, such as the best-fitting
+network on the original (non-bootstrapped) data, or some other "consensus"
+network. We focus on features (tree edges and clades) in this reference network
+and quantify the support for these features in the sample of networks.
 
 ## support for tree edges
 
