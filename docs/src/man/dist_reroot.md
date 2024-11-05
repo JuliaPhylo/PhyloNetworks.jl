@@ -22,7 +22,7 @@ net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","ne
 net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 ```
 
-## Robinson-Foulds and hardwired-cluster distance
+## Robinson-Foulds distance for trees
 
 Do the 2 trees `astraltree` and `net0` have the same topology, unrooted?
 We can calculate their Robinson-Foulds distance:
@@ -77,7 +77,7 @@ ways to rotate the children edges at some nodes to untangle some crossing edges.
 This can be done using the function `rotate!`.
 See an example in the [Network support](@ref) section, or type `?` then `rotate!`.
 
-## What if the root conflicts with the direction of a reticulation?
+## Does the root conflict with the direction of a reticulation?
 
 With 1 hybridization or more, the direction of hybrid edges
 constrain the position of the root. The root cannot be downstream of hybrid edges.
@@ -99,7 +99,7 @@ nothing # hide
 ```
 ![reroot net7taxa 1](../assets/figures/reroot_net7taxa_1.svg)
 
-Let's imagine that the A1 and A2 are our outgroups, and we estimated the network above.
+Let's imagine that A1 and A2 are our outgroups, and we estimated the network above.
 According to this network, time must flow from the hybrid node towards A1 and A2.
 So any attempt to reroot the network with A1 as outgroup, or with A2 as outgroup,
 or with the A clade (on edge 11), will fail with a `RootMismatch` error:
@@ -165,7 +165,7 @@ about [Candidate networks compatible with a known outgroup](@ref).
 
 ## Extracting the major tree
 
-We can also compare the networks estimated with h=0 (net0) and h=1 (net1):
+We can also compare the networks estimated with h=0 (`net0`) and h=1 (`net1`):
 ```@repl dist_reroot
 rootatnode!(net1, "O"); # the ; suppresses screen output
 hardwiredClusterDistance(net0, net1, true)
@@ -180,12 +180,12 @@ nothing # hide
 ![net1_O](../assets/figures/net1_O.svg)
 
 They differ by 2 clusters: that's because A is of hybrid descent
-in net1, not in net0.
+in `net1` (descendant of each hybrid edge), not in `net0`.
 
 To beyond this hybrid difference,
 we can extract the major tree from the network with 1 hybridization,
 that is, delete the hybrid edge supported by less than 50% of genes.
-Then we can compare this tree with the ASTRAL/SNaQ tree net0.
+Then we can compare this tree with the ASTRAL/SNaQ tree `net0`.
 ```@repl dist_reroot
 tree1 = majorTree(net1); # major tree from net1
 hardwiredClusterDistance(net0, tree1, true)
@@ -194,21 +194,22 @@ They are identical (at distance 0), so here the species network
 with 1 hybrid node is a refinement of the estimated species tree
 (this needs not be the case always).
 
-Is the SNaQ network with 1 hybrid node the same as the true network,
-the one that was initially used to simulate the data?
+## Hardwired-cluster dissimilarity between networks
 
-(digression on the data: gene trees were simulated under the coalescent
+Is `net1`, the SNaQ network with 1 hybrid node, the same as the true network,
+the network that was initially used to simulate the data?
+
+(Digression on this example's data: gene trees were simulated under the coalescent
 along some "true" network, then 500 base-pair alignments were simulated
 along each gene tree with the HKY model,
 gene trees were estimated from each alignment with RAxML, and
 these estimated gene trees served as input to both ASTRAL and SNaQ.)
 
-The true network is shown below, correctly rooted at the outgroup O,
+The "true" network is shown below, correctly rooted at the outgroup O,
 and plotted with branch lengths proportional to their
 values in coalescence units:
 ```@repl dist_reroot
 truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
-hardwiredClusterDistance(net1, truenet, true)
 ```
 ```@example dist_reroot
 R"svg(name('truenet_sim.svg'), width=4, height=4)" # hide
@@ -219,17 +220,40 @@ nothing # hide
 ```
 ![truenet](../assets/figures/truenet_sim.svg)
 
-Our estimated network is not the same as the true network:
+We can compare two networks using the hardwired-cluster dissimilarity.
+- This dissimilarity counts the number of hardwired clusters present in one network
+  but absent in the other.
+- The **hardwired cluster** associated with an edge is the set of *all* tips
+  descendant from that edge, i.e. all tips that inherited
+  at least *some* genetic material from that edge.
+- Each edge is associated with its hardwired cluster of descendants,
+  and also with a "tree" tag or "hybrid" tag depending on the edge type.
+
+!!! note "distance versus dissimilarity"
+    When comparing level-1 networks, or tree-child networks more generally,
+    the hardwired-cluster dissimilarity is a distance:
+    d(N, N') = 0 exactly when N and N' have the same topology.
+    ([Cardona et al. 2009](https://doi.org/10.1109/TCBB.2024.3361390),
+    [Bai et al.](https://doi.org/10.1016/j.mbs.2021.108537)
+    [Maxfield et al. 2024](https://arxiv.org/abs/2405.16035)).
+    Unfortunately, this is not generally true for complex network: there are
+    networks at hardwired-cluster 'distance' 0, that have different topologies.
+    But no dissimilarity measure can both be fast to calculate and
+    be a distance on the full space of phylogenetic networks
+    ([Cardona et al. 2014](https://doi.org/10.1155/2014/254279)).
+
+```@repl dist_reroot
+hardwiredClusterDistance(net1, truenet, true) # true: yes consider these networks as rooted
+```
+Our estimated network is at distance 4 (not 0), so it is *different* from the
+true network (there was estimation error). From the plots, we see that:
 - the underlying tree is correctly estimated
 - the origin of gene flow is correctly estimated: E
 - the target of gene flow is *not* correctly estimated: it was
   the lineage ancestral to (A,B), but it is estimated to be A only.
 
-For networks, the distance here is the hardwired cluster distance:
-the number of hardwired clusters found in one network and not
-in the other. The **hardwired cluster** associated with an edge is the
-set of *all* tips descendant from that edge, i.e. all tips that
-inherited at least *some* genetic material from that edge.
+The 4 cluster differences correspond to the 2 hybrid edges in `net1` (whose
+cluster is A) plus the 2 hybrid edges in `truenet` (whose cluster is AB).
 
 ## Displayed trees and subnetworks
 
