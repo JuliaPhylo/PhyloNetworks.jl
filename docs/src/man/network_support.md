@@ -83,7 +83,7 @@ nothing # hide
 ![net1_rotate2](../assets/figures/net1_rotate2.svg)
 
 We can now summarize our sample of networks.
-The functions `treeedges_support` and `hybridBootstrapSupport`
+The functions `treeedges_support` and `hybridclades_support`
 read all networks in the sample and map the edges / nodes
 onto a reference network, here `net1`.
 ```@example bootstrap
@@ -145,19 +145,24 @@ plot(net1, edgelabel=filter(row -> row[:proportion] < 100, BSe_tree));
 ## support for hybrid edges
 
 Summarizing the placement of reticulations is not standard.
-The function `hybridBootstrapSupport` attempts to do so.
-The descendants of a given hybrid node form the "recipient" or "hybrid" clade,
-and is obtained after removing all other reticulations.
-If reticulation is due to gene flow or introgression, the minor hybrid edge (with γ<0.5)
-represents this event. The descendants of the lineage from which gene flow originated
-is then a second "sister" of the hybrid clade. Because of the reticulation event,
-the hybrid clade has 2 sister clades, not 1: the major sister (through the major hybrid edge
-with γ>0.5) and the minor sister (through the minor hybrid edge with γ<0.5).
+The function `hybridclades_support` attempts to do so.
+
+- The descendants of a given hybrid node form the "recipient" or **"hybrid" clade**,
+  and is obtained *after removing all other reticulations*.
+- To remove the reticulations other than one reticulation of interest,
+  their minor hybrid parent edge (with γ<0.5) is removed.
+  If reticulation is due to introgression, we call this the "gene flow" edge.
+- The descendants of the lineage from which gene flow originated
+  is then a second "sister" of the hybrid clade.  
+  Because of the reticulation event, the hybrid clade has 2 **sister clades**,
+  not 1: the major sister (through the major hybrid edge with γ>0.5) and
+  the minor sister (through the minor hybrid edge with γ<0.5).
+
 Note that the network says *nothing* about the process: its shows the *relationships* only.
 We can calculate the frequency that each clade is a hybrid clade, or a major or minor sister
 for some other hybrid, in the sample of networks:
 ```@example bootstrap
-BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, net1);
+BSn, BSe, BSc, BSgam, BSedgenum = hybridclades_support(bootnet, net1);
 ```
 Let's look at the results.
 We can list all the clades and the percentage of sample networks (support)

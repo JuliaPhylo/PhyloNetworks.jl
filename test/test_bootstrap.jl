@@ -3,13 +3,13 @@
 exdir = joinpath(@__DIR__,"..","examples")
 # exdir = joinpath(dirname(pathof(PhyloNetworks)), "..","examples")
 
-@testset "testing hybridBootstrapSupport" begin
+@testset "testing hybridclades_support" begin
 bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));
 bootnet = readMultiTopology(joinpath(exdir,"fish3hyb_20boostrap.net"));
 # issues with bootstrap networks 12, 21, 42, 96
 # plot(bootnet[20], showedgenumber=true)
 # include(string(home, "bootstrap.jl"))
-resn, rese, resc, gam, edgenum = hybridBootstrapSupport(bootnet,bestnet);
+resn, rese, resc, gam, edgenum = hybridclades_support(bootnet,bestnet);
 #@show resn; @show rese; showall(gam); @show edgenum; resc
 # plot(bestnet, shownodenumber=true);
 
@@ -40,5 +40,5 @@ PhyloNetworks.addAlternativeHybridizations!(bestnet, rese, cutoff=4)
 @test rese[[5,10,11],:edge] == [54,57,60]
 @test ismissing(rese[6,:edge])
 @test length(bestnet.hybrid) == 5
-end # of testset, hybridBootstrapSupport
+end # of testset, hybridclades_support
 

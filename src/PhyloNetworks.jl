@@ -101,7 +101,7 @@ module PhyloNetworks
         treeedges_support,
         hybridDetection,
         summarizeHFdf,
-        hybridBootstrapSupport,
+        hybridclades_support,
         readBootstrapTrees,
         writeMultiTopology,
         readMultiTopology,

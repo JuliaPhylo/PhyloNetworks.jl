@@ -296,7 +296,7 @@ add hybrid edges with more than 10% bootstrap support (`cutoff`) and it will
 only include the top 3 hybridizations (`top`) sorted by bootstrap support.
 
 The dataframe `BSe` is also modified. In the original `BSe`,
-supposedly obtained with `hybridBootstrapSupport`, hybrid edges that do not
+supposedly obtained with `hybridclades_support`, hybrid edges that do not
 appear in the best network have a missing number.
 After hybrid edges from bootstrap networks are added,
 `BSe` is modified to include the edge numbers of the newly added hybrid edges.
@@ -314,7 +314,7 @@ julia> bootnet = readMultiTopology(joinpath(dirname(pathof(PhyloNetworks)), ".."
 
 julia> bestnet = readTopology("((O,(E,#H7:::0.196):0.314):0.332,(((A)#H7:::0.804,B):10.0,(C,D):10.0):0.332);");
 
-julia> BSn, BSe, BSc, BSgam, BSedgenum = hybridBootstrapSupport(bootnet, bestnet);
+julia> BSn, BSe, BSc, BSgam, BSedgenum = hybridclades_support(bootnet, bestnet);
 
 julia> BSe[1:6,[:edge,:hybrid_clade,:sister_clade,:BS_hybrid_edge]]
 6×4 DataFrame

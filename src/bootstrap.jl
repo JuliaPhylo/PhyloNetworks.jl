@@ -245,7 +245,7 @@ end
 
 
 """
-    hybridBootstrapSupport(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork; rooted=false)
+    hybridclades_support(boot_net::Vector{HybridNetwork}, ref_net::HybridNetwork; rooted=false)
 
 Match hybrid nodes in a reference network with those in an array of networks,
 like bootstrap networks.
@@ -315,7 +315,7 @@ The "edge" data frame has one row for each pair of clades, and 8 columns:
      major sister.
   - `:BS_minor`: same as previous, but minor
 """
-function hybridBootstrapSupport(
+function hybridclades_support(
     nets::Vector{HybridNetwork},
     refnet::HybridNetwork;
     rooted::Bool=false
