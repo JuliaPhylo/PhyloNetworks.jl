@@ -1,22 +1,30 @@
 ```@setup dist_reroot
 using PhyloNetworks
 mkpath("../assets/figures")
-raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
-raxmlCF = readTableCF(writeTableCF(countquartetsintrees(readMultiTopology(raxmltrees), showprogressbar=false)...))
+```
+# Comparing and manipulating networks
+
+Examples below use networks available from the package.
+We can load them as follows.
+`astraltree` is a tree estimated using ASTRAL,
+`net0` is a network estimated using SNaQ under the constraint of 0 reticulation,
+so it's also a tree, and
+`net1` is a network estimated under the constraint of 1 reticulation, so not a tree.
+
+All of them are to be interpreted as *semidirected* networks,
+because their root is not identifiable by the method used to estimate them.
+This affects how we want them.
+
+```@example dist_reroot
 astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
 net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
 net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
-net0.loglik = 53.53150526187732
-net1.loglik = 28.31506721890958
 ```
-# Comparing and manipulating networks
 
-Examples below follow those in [Getting a Network](@ref).
+## Robinson-Foulds and hardwired-cluster distance
 
-## Comparing networks / trees
-
-Is the SNaQ tree (network with h=0) the same as the ASTRAL tree?
+Do the 2 trees `astraltree` and `net0` have the same topology, unrooted?
 We can calculate their Robinson-Foulds distance:
 
 ```@repl dist_reroot
@@ -52,8 +60,9 @@ nothing # hide
 ```
 ![net0_O](../assets/figures/net0_O.svg)
 
-Note that, as in previous chapters, we use the possibilities of `RCall`
-to save the plot. We only show this commands once, but they will be run
+Note that we use the possibilities of
+[`RCall`](https://juliainterop.github.io/RCall.jl/stable/gettingstarted/)
+to save the plot. We only show these commands once, but they will be run
 behind the scene each time a plot is called.
 
 After trees/networks are rooted with a correct outgroup,
