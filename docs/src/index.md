@@ -80,7 +80,7 @@ for network inference:
 Pages = [
     "man/installation.md",
     "man/netmanipulation.md",
-    # "man/snaq_plot.md",
+    "man/net_plot.md",
     "man/dist_reroot.md",
     "man/network_support.md",
     "man/parsimony.md",

@@ -42,7 +42,7 @@ makedocs(
         "Manual" => [
             "Installation" => "man/installation.md",
             "Network manipulation" => "man/netmanipulation.md",
-            #"Network estimation and display" => "man/snaq_plot.md",
+            "Network visualization" => "man/net_plot.md",
             "Network comparison and manipulation" => "man/dist_reroot.md",
             "Network support" => "man/network_support.md",
             "Parsimony on networks" => "man/parsimony.md",
