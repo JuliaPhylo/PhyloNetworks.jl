@@ -32,8 +32,9 @@ The last 3 functions should return a boolean. If true: traversal continues.
 If false: traversal is stopped, that is, the next node is not processed.
 
 See also [`traversal_postorder`](@ref), and
-[`traversalupdate_default!`](@ref) for a default function that does nothing
-to `V` and returns true, with an adequate signature to be used here.
+[`traversalupdate_default!`](@ref PhyloNetworks.traversalupdate_default!)
+for a default function that does nothing to `V` and returns true,
+with an adequate signature to be used here.
 """
 function traversal_preorder(
     nodes::Vector{Node},
@@ -46,6 +47,7 @@ function traversal_preorder(
     M = init(nodes, params...)
     traversal_preorder!(nodes, M, updateRoot, updateTree, updateHybrid, params...)
 end
+
 @doc (@doc traversal_preorder) traversal_preorder!
 function traversal_preorder!(
     nodes::Vector{Node},
@@ -136,8 +138,9 @@ The last 3 functions should return a boolean. If true: traversal continues.
 If false: traversal is stopped, that is, the next node is not processed.
 
 See also [`traversal_preorder`](@ref), and
-[`traversalupdate_default!`](@ref) for a default function that does nothing
-to `V` and returns true, with an adequate signature to be used here.
+[`traversalupdate_default!`](@ref PhyloNetworks.traversalupdate_default!)
+for a default function that does nothing to `V` and returns true,
+    with an adequate signature to be used here.
 """
 function traversal_postorder(
     nodes::Vector{Node},

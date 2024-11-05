@@ -160,8 +160,6 @@ It would be the case if A1 was the only outgroup, and if A2 was an ingroup taxon
 In such a case, the outgroup knowledge tells us that our estimated network is wrong.
 One (or more) reticulation in the network must be incorrect.
 Its placement might be correct, but then its direction would be incorrect.
-If the network was estimated via `snaq!`, check tips
-about [Candidate networks compatible with a known outgroup](@ref).
 
 ## Extracting the major tree
 

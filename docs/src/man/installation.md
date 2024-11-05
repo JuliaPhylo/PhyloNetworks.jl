@@ -135,7 +135,7 @@ genetrees[3]
 ```
 To visualize any of these gene trees, use the
 [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl) package:
-```@example qcf
+```@example install
 using PhyloPlots
 using RCall # hide
 mkpath("../assets/figures") # hide

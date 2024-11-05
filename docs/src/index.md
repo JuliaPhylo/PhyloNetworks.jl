@@ -89,12 +89,14 @@ Pages = [
 Depth = 3
 ```
 
+## Library
+
 For help on individual functions, see the library:
 
 ```@contents
 Pages = [
     "lib/public.md",
-    "lib/internal.md",
+    "lib/internals.md",
 ]
 Depth = 3
 ```

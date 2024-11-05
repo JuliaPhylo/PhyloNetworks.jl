@@ -17,5 +17,5 @@ Order   = [:type,:function,:constant]
 ## index
 
 ```@index
-Pages = ["internal.md"]
+Pages = ["internals.md"]
 ```

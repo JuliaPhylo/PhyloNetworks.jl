@@ -980,34 +980,24 @@ end
 ## --------------------------------------------------
 ## Search for most parsimonious network
 
-## start the search from (or near) topology currT,
-## .loglik will save now parsimony score
-## fixit: we are using the functions for level1 network, we need to include level-k networks
-## this will be done by changing the current proposedTop! function
-## the current search/moves functions are the same for snaq, so they need a "good" semi-directed
-## network, so currently we propose new topology from this set of networks, and simply root to
-## compute the parsimony score (we do not keep rooted networks as the search objects),
-## that is, newT and currT are unrooted through the whole algorithm (because computing the parsimony destroys inCycle)
-## criterion=softwired by default
-## at this stage, currT is compatible with the outgroup, but still unrooted (for moves functions to work)
 ## tolAbs: could be set to 0.1 and removed from list of arguments. up to 0.5 should work,
 ##         because parsimony scores are integers, but Float64 to extend cost function later perhaps
 ##
-##
 ## Near-term fix: maxParsimonuNetRun1 and maxParsimonuNetRun1! are commented out.
-## The body of maxParsimonyNet is commented out and the only run code gives an error notifying the user of the issues of the function.
-## The functions are not exported, and their tests and documentation are commented out
+## The body of maxParsimonyNet is commented out, replaced by an error notifying the user of the issues of the function.
+## The functions are not exported. Their tests and documentation are commented out
 
 #=
 """
-Road map for various functions behind maxParsimonyNet
+Road map for various functions behind maxParsimonyNet: from v0.16 of PhyloNetworks.
+These functions will be completely re-implemented in a future version
 
     maxParsimonyNet
     maxParsimonyNetRun1
     maxParsimonyNetRun1!
 
-All return their optimized network. Only maxParsimonyNet returns a rooted network
-(though all functions guarantee that the returned networks agree with the outgroup).
+All return their optimized network. Only maxParsimonyNet returns a rooted network,
+though all functions guarantee that the returned networks agree with the outgroup.
 
 - maxParsimonyNet calls maxParsimonyNetRun1 per run, after a read(write(.)) of the starting network
   (to ensure level-1 and semi-directedness).
@@ -1122,11 +1112,14 @@ function maxParsimonyNetRun1!(
     return newT
 end
 
+"""
+    maxParsimonyNetRun1(input_network)
 
-## find the maximum parsimony network;
-## transform the starting topology first
-## does not allow multiple alleles
-@doc (@doc maxParsimonyNetRun1!) maxParsimonyNetRun1
+
+Search for the most parsimonious network, starting from a neighbor network
+of `input_network` after applying a move. The `input_network` is *not* modified.
+Then calls `maxParsimonyNetRun1!` to search the network space.
+"""
 function maxParsimonyNetRun1(
     currT0::HybridNetwork,
     df::DataFrame,
@@ -1148,14 +1141,20 @@ end
 
 
 
-## find the most parsimonious network over multiple runs
 ## no multiple alleles for now;
 ## if rootname not defined, it does not save output files
 ## fixit: now it only works if currT0 is tree, or level-1 network
 ## also, throws an error if outgroup not compatible with starting network
 ## (instead of choosing another root)
+=#
 """
     maxParsimonyNet(T::HybridNetwork, df::DataFrame)
+
+!!! warning "feature to be re-implemented"
+    This function has been disabled.
+    It will be re-implemented, without the level-1 restriction.
+    Please use version 0.16 of PhyloNetworks to access this older functionality,
+    until a better one is made available.
 
 Search for the most parsimonious network (or tree).
 A level-1 network is assumed.
@@ -1201,10 +1200,7 @@ Optional arguments include
 2. Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. (2015).
    On computing the Maximum Parsimony score of a phylogenetic network.
    SIAM J. Discrete Math., 29(1):559-585.
-
-For a roadmap of the functions inside maxParsimonyNet, see [`maxParsimonyNetRun1!`](@ref).
 """
-=#
 function maxParsimonyNet(
     currT::HybridNetwork,
     df::DataFrame;
@@ -1218,7 +1214,7 @@ function maxParsimonyNet(
     probST::Float64=0.3,
     criterion::Symbol=:softwired
 )
-    error("Function is temporarily broken after refactoring. Use PhyloNetworksv0.16.4 for a working version")
+    error("Function is temporarily broken after refactoring. Use PhyloNetworks v0.16.4 for a working version")
     #=
     currT0 = readTopologyUpdate(writeTopologyLevel1(currT)) # update all level-1 things
     flag = checkNet(currT0,true) # light checking only

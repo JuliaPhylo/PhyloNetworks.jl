@@ -84,13 +84,19 @@ score = parsimonyGF(net,species,traits,:softwired)
 
 ## Finding the most parsimonious network
 
-The function [`maxParsimonyNet`](@ref) searches for the most parsimonious
-level-1 network. It uses the `parsimonyGF` function, with softwired criterion
-as default, which will be extended to other criteria later.
+!!! warning "feature to be re-implemented"
+    The search for the most parsimonious network is no longer available.
+    It will be re-implemented, and without the level-1 restriction.
+    Please use version 0.16 of PhyloNetworks to access this older functionality,
+    until a better one is made available.
 
-Just like [`snaq!`](@ref), [`maxParsimonyNet`](@ref) requires a
-starting topology, which can be a tree or a level-1 network,
-and returns a level-1 network.
+The function [`maxParsimonyNet`](@ref PhyloNetworks.maxParsimonyNet) searches
+for the most parsimonious level-1 network.
+It uses the `parsimonyGF` function, with softwired criterion
+as default, which may be extended to other criteria later.
+
+`maxParsimonyNet` requires a starting topology, which can be a tree or a
+level-1 network, and returns a level-1 network.
 Taxa present in the data but absent from the starting topology
 will be ignored during the search.
 

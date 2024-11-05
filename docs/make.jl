@@ -33,8 +33,9 @@ makedocs(
         canonical="https://juliaphylo.github.io/PhyloNetworks.jl/stable/",
         edit_link="master",
     ),
-    # exception, so warning-only for :missing_docs. List all others:
-    warnonly = Documenter.except(:autodocs_block, :cross_references, :docs_block,
+    # exception, so warning-only for :cross_references. List all others:
+    warnonly = Documenter.except(:autodocs_block, :missing_docs, # :cross_references,
+        :docs_block,
         :doctest, :eval_block, :example_block, :footnote, :linkcheck_remotes,
         :linkcheck, :meta_block, :parse_error, :setup_block),
     pages = [
