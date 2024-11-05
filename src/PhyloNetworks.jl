@@ -81,6 +81,8 @@ module PhyloNetworks
         preorder!,
         cladewiseorder!,
         rotate!,
+        setlength!,
+        setlengths!,
         setGamma!,
         deleteHybridThreshold!,
         displayedTrees,

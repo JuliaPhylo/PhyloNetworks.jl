@@ -18,11 +18,14 @@ redirect_stdout(originalstdout)
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net = readTopology(str_level1_s)
 
-PhyloNetworks.setlengths!([net.edge[1]], [1.1])
+setlengths!([net.edge[1]], [1.1])
 @test net.edge[1].length == 1.1
-PhyloNetworks.setlengths!([net.edge[3], net.edge[4]], [3.3, 4.4])
+setlengths!([net.edge[3], net.edge[1]], [3.3, missing])
 @test net.edge[3].length == 3.3
-@test net.edge[4].length == 4.4
+@test net.edge[1].length == -1
+setlength!(net.edge[3], -1)
+@test net.edge[3].length == -1
+@test_throws "non negative" setlength!(net.edge[3], -0.5)
 
 PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 @test net.edge[18].gamma == 0.25

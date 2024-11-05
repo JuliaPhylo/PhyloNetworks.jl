@@ -1526,17 +1526,32 @@ function assignhybridnames!(net::HybridNetwork)
 end
 
 
+"""
+    setlength!(edge::Edge, new_length)
+
+Assign new length to `edge`. `new_length` should be non-negative,
+or `missing` (or -1, interpreted as missing).
+"""
+@inline function setlength!(edge::Edge, new_length)
+    if ismissing(new_length) || new_length == -1
+        edge.length = -1
+    else
+        new_length >= 0.0 || error("edge length must be non negative: $(new_length)")
+        edge.length = new_length
+    end
+    return nothing
+end
 
 """
     setlengths!(edges::Vector{Edge}, lengths::AbstractVector)
 
 Assign new lengths to a vector of `edges`.
-Warning: does *not* make any checks that the new edge lengths are non-negative
-(except for -1 values to be interpreted as missing).
+Checks that the new edge lengths are non-negative or `missing` (or -1 to be
+interpreted as missing).
 """
 @inline function setlengths!(edges::Vector{Edge}, lengths::AbstractVector)
     for (e,l) in zip(edges, lengths)
-        e.length = l
+        setlength!(e, l)
     end
 end
 

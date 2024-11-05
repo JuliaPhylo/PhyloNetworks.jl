@@ -45,7 +45,8 @@ writeTopology(net2, "mynetwork_net2.tre") # writes to file: creates or overwrite
 rm("mynetwork_net2.tre") # hide
 ```
 The option `di=true` is for the parenthetical format used by
-[Dendroscope](http://dendroscope.org/) (without reticulation heritabilities).
+[Dendroscope](https://software-ab.cs.uni-tuebingen.de/download/dendroscope/manual.pdf)
+(without reticulation heritabilities).
 Copy this parenthetical description and paste it into Dendroscope,
 or use the plotting function described below.
 
@@ -86,7 +87,7 @@ calculate the hardwired-cluster distance between them, which extends the
 Robinson-Foulds distance on trees.
 See [Comparing and manipulating networks](@ref) for more on this dissimilarity.
 
-```@example snaqplot
+```@repl snaqplot
 hardwiredClusterDistance(net2, net3, false) # rooted=false: to consider net2 and net3 as semidirected
 ```
 

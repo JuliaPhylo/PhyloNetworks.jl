@@ -1,6 +1,6 @@
 # Installation
 
-## Installation of Julia
+## Install Julia
 
 Julia is a high-level and interactive programming language (like R or Matlab),
 but it is also high-performance (like C).
@@ -12,17 +12,19 @@ Editors:
 
 - [Visual Studio Code](https://code.visualstudio.com) provides an editor
   and an integrated development environment (IDE) for Julia: highly recommended!
-- [Juno](http://junolab.org) provides an IDE for Julia,
-  based on the [Atom](http://atom.io/) editor.
-- you can also run Julia within a [Jupyter](http://jupyter.org) notebook
-  (formerly IPython notebook).
+  [Positron](https://github.com/posit-dev/positron) is a great (and similar)
+  alternative.
+- Install the [Julia extension](https://code.visualstudio.com/docs/languages/julia)
+  in VS Code or Positron.
+- We can also run Julia in a Pluto notebook.
+  [Pluto.jl](https://plutojl.org/) is a great to get started with Julia.
 
-IMPORTANT: Julia code is just-in-time compiled. This means that the
-first time you run a function, it will be compiled at that moment. So,
-please be patient! Future calls to the function will be much much
-faster. Trying out toy examples for the first calls is a good idea.
+Julia code is just-in-time compiled. This means that the
+first time we run a function, it will be compiled at that moment.
+Future calls to the function will be much faster.
+Trying out toy examples for the first calls is a good idea.
 
-## Installation of the package PhyloNetworks
+## Install PhyloNetworks
 
 To install the package, type inside Julia:
 ```julia
@@ -99,24 +101,30 @@ followed by the name of a function (or type) to get more details about it.
 ## Julia types
 
 Each object in Julia has a *type*. We show here small examples on how to get more
-info on an object, what's its type, and how to manipulate objects.
-For example, let's read a list of gene trees:
+info on an object.
+If we want to know the type of a particular object, use `typeof`
+For example, let's read a list of gene trees.
+First, we need the file name.
+
 
 ```@repl install
-raxmltreefile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre");
-genetrees = readMultiTopology(raxmltreefile);
+raxmltreefile = joinpath(dirname(dirname(pathof(PhyloNetworks))), "examples","raxmltrees.tre")
+typeof(raxmltreefile)
 ```
+The object `raxmltreefile` is a basic string (of letters).
+Let's create our list of gene trees by reading this file.
 
-Typing `varinfo()` will provide a list of objects and packages in memory,
-including `genetrees` that we just created.
-If we want to know the type of a particular object, we do:
 ```@repl install
+genetrees = readMultiTopology(raxmltreefile); # the semicolon suppresses info on the result
 typeof(genetrees)
 ```
 which shows us that `genetrees` is of type `Vector{HybridNetwork}`, that is,
 a vector containing networks.
 If we want to know about the attributes the object has, we can type `?` in Julia,
 followed by `HybridNetwork` for a description.
+
+Typing `varinfo()` will provide a list of objects and packages in memory,
+including `raxmltreefile` and `genetrees` that we just created.
 
 ## Quick start
 
@@ -149,7 +157,7 @@ nothing # hide
 ![gene3](../assets/figures/inputdata_gene3.svg)
 
 
-We can also read a network in Julia from a newick formatted string,
+We can also read a network from a newick formatted string,
 and, for example, print a list of its edges:
 
 ```@repl install
@@ -163,7 +171,7 @@ and the hybrid edges do not have gamma (inheritance) values.
 We can set them with
 
 ```@repl install
-setLength!(net.edge[1], 1.9)
+setlength!(net.edge[1], 1.9)
 setGamma!(net.edge[3],  0.8)
 printEdges(net)
 ```

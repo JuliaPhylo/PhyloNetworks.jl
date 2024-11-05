@@ -149,9 +149,10 @@ The function `hybridclades_support` attempts to do so.
 
 - The descendants of a given hybrid node form the "recipient" or **"hybrid" clade**,
   and is obtained *after removing all other reticulations*.
-- To remove the reticulations other than one reticulation of interest,
+- To remove the reticulations other than one of interest,
   their minor hybrid parent edge (with γ<0.5) is removed.
-  If reticulation is due to introgression, we call this the "gene flow" edge.
+  If a reticulation is due to introgression,
+  this minor edge may be interpreted as the "gene flow" edge.
 - The descendants of the lineage from which gene flow originated
   is then a second "sister" of the hybrid clade.  
   Because of the reticulation event, the hybrid clade has 2 **sister clades**,

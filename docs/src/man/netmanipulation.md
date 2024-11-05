@@ -1,11 +1,11 @@
 # Network manipulation
 
-The package contains a good number of utilities to manipulate phylogenetic
-networks. Functions that are not exported are more likely to experience
+The package contains many utilities to manipulate phylogenetic networks.
+Functions that are not exported are more likely to experience
 breaking changes in future versions, but can be used by prefixing their
-name with `PhyloNetworks.`.
+name with `PhyloNetworks.` .
 
-Here is a list of the most useful functions that can handle networks of any level.
+Here is a list of the most useful functions.
 They typically assume a bicombining network, that is, a network in which
 each hybrid node has exactly 2 parents (never more).
 
@@ -50,7 +50,8 @@ To modify a network, for example:
 To compare networks or compare nodes in a network, for example:
 - [`hardwiredClusterDistance`](@ref): extends the Robinson-Foulds distance,
   it's a dissimilarity measure on networks
-- [`pairwiseTaxonDistanceMatrix`](@ref) for *average* distances,
-  [`getNodeAges`](@ref) if ultrametric network,
-  [`getnodeheights`](@ref), [`getnodeheights_average`](@ref),
-  [`vcv`](@ref)
+- [`pairwiseTaxonDistanceMatrix`](@ref) for *average* distances
+- [`vcv`](@ref)
+- [`getNodeAges`](@ref) if the network is time-consistent and ultrametric
+- [`getnodeheights`](@ref), [`getnodeheights_average`](@ref),
+  [`getnodeheights_majortree`](@ref)

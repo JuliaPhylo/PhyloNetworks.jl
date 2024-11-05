@@ -20,12 +20,15 @@ astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tr
 astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
 net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
 net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
+nothing # hide
 ```
 
 ## Robinson-Foulds distance for trees
 
 Do the 2 trees `astraltree` and `net0` have the same topology, unrooted?
-We can calculate their Robinson-Foulds distance:
+We can calculate the Robinson-Foulds distance between them,
+using a function that extends the Robinson-Foulds distance to general networks
+(more on this below).
 
 ```@repl dist_reroot
 hardwiredClusterDistance(astraltree, net0, false)
@@ -192,7 +195,7 @@ They are identical (at distance 0), so here the species network
 with 1 hybrid node is a refinement of the estimated species tree
 (this needs not be the case always).
 
-## Hardwired-cluster dissimilarity between networks
+## Hardwired-cluster distance
 
 Is `net1`, the SNaQ network with 1 hybrid node, the same as the true network,
 the network that was initially used to simulate the data?
@@ -227,7 +230,7 @@ We can compare two networks using the hardwired-cluster dissimilarity.
 - Each edge is associated with its hardwired cluster of descendants,
   and also with a "tree" tag or "hybrid" tag depending on the edge type.
 
-!!! note "distance versus dissimilarity"
+!!! info "distance versus dissimilarity"
     When comparing level-1 networks, or tree-child networks more generally,
     the hardwired-cluster dissimilarity is a distance:
     d(N, N') = 0 exactly when N and N' have the same topology.
