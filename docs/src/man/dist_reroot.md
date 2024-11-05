@@ -61,12 +61,12 @@ their visualization is more meaningful.
 
 Networks can be re-rooted at a given node or along a given edge.
 Get help (type `?`) on the functions `rootatnode!` and `rootonedge!`
-for more info. There are examples in the [Bootstrap](@ref) section.
+for more info. There are examples in the [Network support](@ref) section.
 
 If the network is plotted with crossing edges, you may identify
 ways to rotate the children edges at some nodes to untangle some crossing edges.
 This can be done using the function `rotate!`.
-See an example in the [Bootstrap](@ref) section, or type `?` then `rotate!`.
+See an example in the [Network support](@ref) section, or type `?` then `rotate!`.
 
 ## What if the root conflicts with the direction of a reticulation?
 
