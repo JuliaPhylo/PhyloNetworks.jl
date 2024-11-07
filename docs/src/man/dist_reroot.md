@@ -17,7 +17,7 @@ This affects how we want them.
 
 ```@example dist_reroot
 astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
-astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
+astraltree = readmultitopology(astralfile)[102] # 102th tree = last tree here
 net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
 net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 nothing # hide

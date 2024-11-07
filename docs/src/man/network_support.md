@@ -15,7 +15,7 @@ To demonstrate summarizing a sample of networks, we use here a sample of
 The file containing the 100 networks comes with the package:
 
 ```@example bootstrap
-bootnet = readMultiTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out"));
+bootnet = readmultitopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out"));
 length(bootnet)
 ```
 

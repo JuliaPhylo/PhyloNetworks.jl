@@ -106,7 +106,7 @@ module PhyloNetworks
         hybridclades_support,
         readBootstrapTrees,
         writeMultiTopology,
-        readMultiTopology,
+        readmultitopology,
         ## Network Calibration
         getNodeAges,
         pairwiseTaxonDistanceMatrix,

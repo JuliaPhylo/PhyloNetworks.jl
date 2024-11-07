@@ -23,7 +23,7 @@ function readBootstrapTrees(filelist::AbstractString; relative2listfile::Bool=tr
     bf = (relative2listfile ? joinpath.(filelistdir, bootfiles[!,1]) : bootfiles[!,1])
     treelists = Array{Vector{HybridNetwork}}(undef, ngenes)
     for igene in 1:ngenes
-        treelists[igene] = readMultiTopology(bf[igene])
+        treelists[igene] = readmultitopology(bf[igene])
         print("read $igene/$ngenes bootstrap tree files\r") # using \r for better progress display
     end
     return treelists

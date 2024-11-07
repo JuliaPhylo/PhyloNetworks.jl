@@ -115,7 +115,7 @@ The object `raxmltreefile` is a basic string (of letters).
 Let's create our list of gene trees by reading this file.
 
 ```@repl install
-genetrees = readMultiTopology(raxmltreefile); # the semicolon suppresses info on the result
+genetrees = readmultitopology(raxmltreefile); # the semicolon suppresses info on the result
 typeof(genetrees)
 ```
 which shows us that `genetrees` is of type `Vector{HybridNetwork}`, that is,

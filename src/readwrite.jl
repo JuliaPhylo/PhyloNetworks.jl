@@ -845,8 +845,8 @@ end
 
 
 """
-    readMultiTopology(filename::AbstractString, fast=true)
-    readMultiTopology(newicktrees_list::Vector{<:AbstractString})
+    readmultitopology(filename::AbstractString, fast=true)
+    readmultitopology(newicktrees_list::Vector{<:AbstractString})
 
 
 Read a list of networks in parenthetical format, either from a file
@@ -866,20 +866,20 @@ Return an array of HybridNetwork objects.
 
 ```julia
 julia> multitreepath = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "multitrees.newick");
-julia> multitree = readMultiTopology(multitreepath) # vector of 25 HybridNetworks
-julia> multitree = readMultiTopology(multitreepath, false) # same but slower & safer
+julia> multitree = readmultitopology(multitreepath) # vector of 25 HybridNetworks
+julia> multitree = readmultitopology(multitreepath, false) # same but slower & safer
 julia> treestrings = readlines(multitreepath) # vector of 25 strings
-julia> multitree = readMultiTopology(treestrings)
-julia> readMultiTopology(treestrings, false) # same, but slower
+julia> multitree = readmultitopology(treestrings)
+julia> readmultitopology(treestrings, false) # same, but slower
 ```
 
 """
-function readMultiTopology(topologies::Vector{<:AbstractString}, fast::Bool=true)
+function readmultitopology(topologies::Vector{<:AbstractString}, fast::Bool=true)
     return (fast ? fmap(readTopology, topologies) : map(readTopology, topologies))
 end
-function readMultiTopology(file::AbstractString, fast::Bool=true)
+function readmultitopology(file::AbstractString, fast::Bool=true)
     if fast
-        return readMultiTopology(readlines(file), true)
+        return readmultitopology(readlines(file), true)
     end
     s = open(file)
     numl = 1
