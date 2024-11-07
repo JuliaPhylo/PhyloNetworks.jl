@@ -1,4 +1,6 @@
 @deprecate getHeights getnodeheights false
 @deprecate recursion_preorder  traversal_preorder  false
 @deprecate recursion_postorder traversal_postorder false
-@deprecate readMultiTopology readmultitopology
+@deprecate readTopology readnewick
+@deprecate readMultiTopology readmultinewick
+@deprecate readBootstrapTrees readmultinewick_files

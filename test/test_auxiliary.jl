@@ -16,7 +16,7 @@ redirect_stdout(devnull) # requires julia v1.6
 redirect_stdout(originalstdout)
 
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
-net = readTopology(str_level1_s)
+net = readnewick(str_level1_s)
 
 setlengths!([net.edge[1]], [1.1])
 @test net.edge[1].length == 1.1
@@ -36,7 +36,7 @@ PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 end
 
 @testset "hashybridladder" begin
-tree = readTopology("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
+tree = readnewick("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test !PhyloNetworks.hashybridladder(tree)
 PhyloNetworks.addhybridedge!(tree, tree.edge[5], tree.edge[1], true)
 PhyloNetworks.addhybridedge!(tree, tree.edge[2], tree.edge[1], true)
@@ -45,7 +45,7 @@ end # of testing hashybridladder
 
 @testset "shrink edges and cycles" begin
 # shrink 1 edge, and hassinglechild
-net = readTopology("((A:2.0,(((B1,B2):1.0)0.01)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5);")
+net = readnewick("((A:2.0,(((B1,B2):1.0)0.01)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5);")
 @test !PhyloNetworks.shrinkedge!(net, net.edge[10])
 @test_throws Exception PhyloNetworks.shrinkedge!(net, net.edge[6]) # hybrid edge
 @test_throws Exception PhyloNetworks.shrinkedge!(net, net.edge[3]) # external edge
@@ -55,7 +55,7 @@ net = readTopology("((A:2.0,(((B1,B2):1.0)0.01)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0:
 @test  PhyloNetworks.shrinkedge!(net, net.edge[4])
 @test !hassinglechild(net.hybrid[1])
 # shrink cycles
-net = readTopology("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
+net = readnewick("(((A:2.0,(B:1.0)#H1:0.1::0.9):1.5,(C:0.6,#H1:1.0::0.1):1.0):0.5,D:2.0);")
 @test !shrink2cycles!(net)
 @test !shrink3cycles!(net)
 PhyloNetworks.addhybridedge!(net, net.edge[7], net.edge[4], true, 0.1, 0.2)
@@ -65,14 +65,14 @@ PhyloNetworks.addhybridedge!(net, net.edge[7], net.edge[4], true, 0.1, 0.2)
 PhyloNetworks.addhybridedge!(net, net.edge[3], net.edge[6], true, 0.3, 0.4)
 @test shrink3cycles!(net) # hybrid case
 @test writeTopology(net, round=true, digits=5) == "(((A:2.0,(B:1.0)#H1:0.13191::0.94):1.37,(C:0.6,#H1:1.0::0.06):0.9):0.6,D:2.0);"
-net0 = readTopology("((((((a:1)#H1:1::.9)#H2:1::.8)#H3:1::.7,#H3:0.5):1,#H2:1):1,(#H1:1,b:1):1,c:1);")
+net0 = readnewick("((((((a:1)#H1:1::.9)#H2:1::.8)#H3:1::.7,#H3:0.5):1,#H2:1):1,(#H1:1,b:1):1,c:1);")
 net = deepcopy(net0) # new 2/3 cycles appear when some are shrunk
 @test shrink2cycles!(net)
 @test writeTopology(net, round=true) == "((#H1:1.0::0.1,b:1.0):1.0,c:1.0,(a:1.0)#H1:4.48::0.9);"
 @test shrink3cycles!(net0)
 writeTopology(net0, round=true) == "(c:1.1,a:5.132,b:1.9);"
 # non-tree-child network: w shape
-net0 = readTopology("((a:1,#H1:.1::.1):1,(((b:.5)#H3:1)#H1:1,(#H3:0.8::.4)#H2:1):1,(#H2:.2::.0,c:1):1);")
+net0 = readnewick("((a:1,#H1:.1::.1):1,(((b:.5)#H3:1)#H1:1,(#H3:0.8::.4)#H2:1):1,(#H2:.2::.0,c:1):1);")
 PhyloNetworks.deletehybridedge!(net0, net0.edge[2], false,true,false,false)
 net = deepcopy(net0) # delete edge 10 (with γ=0) then shrink 2-cycle
 PhyloNetworks.deletehybridedge!(net, net.edge[7], false,true,false,false)

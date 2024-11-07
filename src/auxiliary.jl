@@ -968,7 +968,7 @@ See also: [`istimeconsistent`](@ref) and [`getnodeheights_average`](@ref).
 Examples:
 
 ```jldoctest
-julia> net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2)root;");
+julia> net = readnewick("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2)root;");
 
 julia> # using PhyloPlots; plot(net, useedgelength=true, showedgelength=true, shownodenumber=true); # to see
 

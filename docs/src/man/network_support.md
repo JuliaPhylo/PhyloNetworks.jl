@@ -15,7 +15,7 @@ To demonstrate summarizing a sample of networks, we use here a sample of
 The file containing the 100 networks comes with the package:
 
 ```@example bootstrap
-bootnet = readmultitopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out"));
+bootnet = readmultinewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out"));
 length(bootnet)
 ```
 
@@ -40,7 +40,7 @@ As our reference network, we use here a network with 1 reticulation
 (best-fitting network on the original data):
 
 ```@example bootstrap
-net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
+net1 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 ```
 
 It turns out that the direction of gene flow is quite uncertain

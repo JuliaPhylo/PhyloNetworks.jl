@@ -17,9 +17,9 @@ This affects how we want them.
 
 ```@example dist_reroot
 astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
-astraltree = readmultitopology(astralfile)[102] # 102th tree = last tree here
-net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
-net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
+astraltree = readmultinewick(astralfile)[102] # 102th tree = last tree here
+net0 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
+net1 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 nothing # hide
 ```
 
@@ -93,7 +93,7 @@ network below. We plotted the edge numbers, because we will want to use them
 later to place the root.
 
 ```@example dist_reroot
-net7taxa = readTopology("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(((A1,A2))#H7:::0.804,B):10.0):10.0);")
+net7taxa = readnewick("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(((A1,A2))#H7:::0.804,B):10.0):10.0);")
 R"svg(name('reroot_net7taxa_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(net7taxa, showgamma=true, showedgenumber=true, tipoffset=0.2);
@@ -210,7 +210,7 @@ The "true" network is shown below, correctly rooted at the outgroup O,
 and plotted with branch lengths proportional to their
 values in coalescence units:
 ```@repl dist_reroot
-truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
+truenet = readnewick("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 ```
 ```@example dist_reroot
 R"svg(name('truenet_sim.svg'), width=4, height=4)" # hide

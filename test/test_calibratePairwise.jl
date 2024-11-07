@@ -1,5 +1,5 @@
 @testset "calibrate with distances: 3-cycle, non-identifiable example" begin
-net2 = readTopology("((((D:0.1,C:0.2):1.5,(B:0.1)#H1:0.9::0.7):0.1,(#H1:0.01::0.3,A:0.3):0.8):0.1);")
+net2 = readnewick("((((D:0.1,C:0.2):1.5,(B:0.1)#H1:0.9::0.7):0.1,(#H1:0.01::0.3,A:0.3):0.8):0.1);")
 dAll = pairwiseTaxonDistanceMatrix(net2, keepInternal=true)
 @test dAll ≈ [0.0 .8 1.1 .1 .943 1.043 1.6 1.8 1.7
  0.8   0.0   0.3   0.9   1.263 1.363 2.4   2.6   2.5
@@ -27,7 +27,7 @@ g = PhyloNetworks.pairwiseTaxonDistanceGrad(net2, nodeAges=na);
  1 2 2 0 .6 .6 0 0 0; 1 2 2 0 .6 .6 0 0 0; 1 2 2 0 .6 .6 0 0 0]
 
 global net
-net  = readTopology("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
+net  = readnewick("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
 # same topology, unrooted, different BL, leaves ordered differently
 # here: branch lengths not identifiable, even if minor fixed to 0
 calibrateFromPairwiseDistances!(net, net2distances, taxa, #verbose=true,
@@ -43,7 +43,7 @@ est = pairwiseTaxonDistanceMatrix(net, checkPreorder=false)
 # second call, starting from solution:
 # got 0.0 at [0.00536, 1.32092, 0.14155, 0.84493, 0.2, 0.1, 1.37373] after 29 iterations (returned FTOL_REACHED)
 
-net = readTopology("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
+net = readnewick("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
 calibrateFromPairwiseDistances!(net, net2distances, taxa,
   verbose=false, forceMinorLength0=false, ultrametric=false)
 est = pairwiseTaxonDistanceMatrix(net)
@@ -56,11 +56,11 @@ end
 # minor hybrid to length 0 and ultrametric network
 # not identifiable otherwise
 global net
-net = readTopology("((Ag:3.0,(#H1:0.0::0.2,Ak:2.5):0.5):0.5,(((((Az:0.2,Ag2:0.2):1.3,As:1.5):1.0)#H1:0.3::0.8,Ap:2.8):0.2,Ar:3.0):0.5);");
+net = readnewick("((Ag:3.0,(#H1:0.0::0.2,Ak:2.5):0.5):0.5,(((((Az:0.2,Ag2:0.2):1.3,As:1.5):1.0)#H1:0.3::0.8,Ap:2.8):0.2,Ar:3.0):0.5);");
 taxa = [l.name for l in net.leaf];
 netdist = pairwiseTaxonDistanceMatrix(net);
 @test getNodeAges(net) ≈ [3.5,3,0,2.8,0,3,2.5,0,2.5,1.5,0,.2,0,0,0]
-net = readTopology("((((((Ag2,Az),As))#H1:::0.8,Ap),Ar),(Ag,(#H1:::0.2,Ak)));");
+net = readnewick("((((((Ag2,Az),As))#H1:::0.8,Ap),Ar),(Ag,(#H1:::0.2,Ak)));");
 # same topology, no BL, leaves ordered differently
 o = [4,3,5,6,7,1,2]; # to get leaves in same order as in taxa. inverse: [6,7,2,1,3,4,5]
 calibrateFromPairwiseDistances!(net, netdist, taxa,
@@ -73,7 +73,7 @@ est = pairwiseTaxonDistanceMatrix(net, checkPreorder=false)
 #   when the optimization uses LN_BOBYQA
 # - the 3 edges connecting to the hybrid node: lack of identifiability?
 
-net = readTopology("((((((Ag2,Az),As))#H1:::0.8,Ap),Ar),(Ag,(#H1:::0.2,Ak)));");
+net = readnewick("((((((Ag2,Az),As))#H1:::0.8,Ap),Ar),(Ag,(#H1:::0.2,Ak)));");
 # same topology, no BL, leaf ordered differently
 for e in net.edge e.length=1.0; end
 preorder!(net)
@@ -117,7 +117,7 @@ trait_dat = Vector{Vector{Union{Missings.Missing,Int}}}([
   [4,3,1,missing,missing],
   [4,3,1,4,2], # taxon 5
 ])
-net = readTopology("((t1,t2),(t3,t4),t5);");
+net = readnewick("((t1,t2),(t3,t4),t5);");
 # printNodes(net) # leaf named "ti" does have node.number i
 PhyloNetworks.startingBL!(net, trait_dat, trait_weights)
 # ((t1:0.159,t2:0.0):0.099,(t3:0.018,t4:0.0):0.0,t5:0.146);

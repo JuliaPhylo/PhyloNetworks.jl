@@ -147,7 +147,7 @@ matrix between all the nodes of the network.
 ```jldoctest
 julia> tree_str = "(((t2:0.14,t4:0.33):0.59,t3:0.96):0.14,(t5:0.70,t1:0.18):0.90);";
 
-julia> tree = readTopology(tree_str);
+julia> tree = readnewick(tree_str);
 
 julia> C = vcv(tree)
 5×5 DataFrame
@@ -181,7 +181,7 @@ t1 0.00 0.00 0.00 0.9 1.08
 The covariance can also be calculated on a network
 (for the model, see Bastide et al. 2018)
 ```jldoctest
-julia> net = readTopology("((t1:1.0,#H1:0.1::0.30):0.5,((t2:0.9)#H1:0.2::0.70,t3:1.1):0.4);");
+julia> net = readnewick("((t1:1.0,#H1:0.1::0.30):0.5,((t2:0.9)#H1:0.2::0.70,t3:1.1):0.4);");
 
 julia> C = vcv(net)
 3×3 DataFrame

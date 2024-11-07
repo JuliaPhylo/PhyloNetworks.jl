@@ -4,7 +4,7 @@ if !(@isdefined doalltests) doalltests = false; end
 
 @testset "test: auxiliary" begin
 global net
-net = readTopology("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.123456789)S1,(#H1,A_coolname)S2)S3)S4);")
+net = readnewick("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.123456789)S1,(#H1,A_coolname)S2)S3)S4);")
 s = IOBuffer()
 @test_logs printEdges(s, net)
 @test String(take!(s)) == """
@@ -71,7 +71,7 @@ deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 @test net.numNodes == 5; @test net.numEdges == 6;
 
 ## test nodeheights functions
-net = readTopology("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")
+net = readnewick("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")
 nh0 = [0.0,5.2,1.0,3.2,5.2,2.0,3.5,4.5,3.0]
 @test getnodeheights(net) == nh0
 @test getnodeheights_majortree(net) == nh0
@@ -108,7 +108,7 @@ nh = (@test_logs getnodeheights_majortree(net, false, warn=false))
 
 # below: 3 taxa, h=2, hybrid ladder but no 2-cycle. pruning t9 removes both hybrids.
 nwkstring = "((t7:0.23,#H19:0.29::0.47):0.15,(((#H23:0.02::0.34)#H19:0.15::0.53,(t9:0.06)#H23:0.02::0.66):0.09,t6:0.17):0.21);"
-net = readTopology(nwkstring)
+net = readnewick(nwkstring)
 @test_throws Exception deleteleaf!(net, "t1") # no leaf named t1
 net.node[1].name = "t9"
 @test_throws Exception deleteleaf!(net, "t9") # 2+ leaves named t1
@@ -127,7 +127,7 @@ end
 # on a tree, then on a network with h=2"
 
 if doalltests
-tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
+tre = readnewick("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 tre.edge[1].isChild1=false; tre.edge[17].isChild1=false
 directEdges!(tre)
 tre.edge[1].isChild1  || error("directEdges! didn't correct the direction of 1st edge")
@@ -139,12 +139,12 @@ directEdges!(tre);
 for i=1:18
  tre.edge[i].containRoot || error("directEdges! didn't correct containRoot of $(i)th edge.")
 end
-tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
+tre = readnewick("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 rootatnode!(tre, -9); ## clau: previously -8
 end
 
 global net
-net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
+net = readnewick("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -7 (clau: previously -6).
 net.root = 5
 @test_logs directEdges!(net);
@@ -172,18 +172,18 @@ net.root = 5
 # example with one hybridization below another
 
 if doalltests
-net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
+net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 # sum([!e.containRoot for e in net.edge]) # only 4.
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids")
 sum([!e.containRoot for e in net.edge]) == 16 ||
  error("directEdges! wrong on net with 2 stacked hybrids");
 plot(net, showedgenumber=true, showedgelength=false, shownodenumber=true);
-net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
+net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=19; # node number -13 (clau: previously -12)
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids");
 end
 
-net = readTopology("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
+net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.root=15; # node number -5 (clau: previously -4)
 @test_throws PhyloNetworks.RootMismatch directEdges!(net);
 # occursin(r"non-leaf node 9 had 0 children",e.msg))
@@ -200,8 +200,8 @@ end # of testset for directEdges! and re-rootings
 @testset "testing preorder!" begin
 # on a tree, then on a network with h=2
 global net
-tre = readTopology("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
-net = readTopology("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
+tre = readnewick("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
+net = readnewick("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 
 if doalltests
 preorder!(tre)
@@ -219,7 +219,7 @@ nodeN = [-2,14,-15,13,12,-3,-10,11,-11,10,-4,-5,-6,-7,-8,5,6,4,3,2,-13,9,-14,8,7
 @test [n.number for n in net.nodes_changed] == nodeN
 
 cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
-net3  = readTopology(cui3str);
+net3  = readnewick(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
 deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
 # now: net3 has a 2-cycle
@@ -250,14 +250,14 @@ end # of testset for cladewiseorder!
 # to change the order of children edges at a given node
 
 if doalltests
-net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+net = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 rotate!(net, -5) ## clau: previously -4
 [e.number for e in net.node[13].edge] == [14,12,15] || error("rotate didn't work at node -5"); ## clau: previously -4
 plot(net); # just to check no error.
 end
 
 global net
-net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
+net=readnewick("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
 @test_logs rotate!(net, -2, orderedEdgeNum=[1,12,9])
 @test [e.number for e in net.node[12].edge] == [1,12,9] # or: rotate didn't work at node -2
 
@@ -265,39 +265,39 @@ end # of testset for rotate
 
 @testset "other in manipulateNet" begin
 
-net0 = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
+net0 = readnewick("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
 removedegree2nodes!(net0, true) # true: to keep the root of degree-2
 @test writeTopology(net0, round=true) == "((C:1.1,A:2.0):1.4,B:3.4);"
 
 #--- delete above least stable ancestor ---#
 # 3 blobs above LSA: cut edge + level-2 blob + cut edge.
-net = readTopology("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
+net = readnewick("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
 PhyloNetworks.deleteaboveLSA!(net)
 @test writeTopology(net) == "(t2:0.1,t1);"
 # 2 separate non-trivial clades + root edge
-net = readTopology("((((t1,t2):0.1,(t3:0.3,t4)):0.4));")
+net = readnewick("((((t1,t2):0.1,(t3:0.3,t4)):0.4));")
 PhyloNetworks.deleteaboveLSA!(net)
 @test writeTopology(net) == "((t1,t2):0.1,(t3:0.3,t4));"
 # 1 tip + 2-cycle above it, no extra root edge above, hybrid LSA
-net = readTopology("((t1)#H22:::0.8,#H22);")
+net = readnewick("((t1)#H22:::0.8,#H22);")
 PhyloNetworks.deleteaboveLSA!(net)
 @test writeTopology(net) == "(t1)H22;"
 @test isempty(net.hybrid)
 @test [n.name for n in net.nodes_changed] == ["H22","t1"]
 
 # deleteleaf! and removedegree2nodes! when the root starts a 2-cycle
-net = readTopology("((a,(((b)#H1,#H1))#H2),(#H2));")
+net = readnewick("((a,(((b)#H1,#H1))#H2),(#H2));")
 deleteleaf!(net, "a")
 @test writeTopology(net) == "((#H2),(((b)#H1,#H1))#H2);"
 removedegree2nodes!(net)
 @test writeTopology(net) == "((((b)#H1,#H1))#H2,#H2);"
-net = readTopology("((a,(((b)#H1,#H1))#H2),#H2);") # no degree-2 node adjacent to root this time
+net = readnewick("((a,(((b)#H1,#H1))#H2),#H2);") # no degree-2 node adjacent to root this time
 deleteleaf!(net, "a", unroot=true)
 @test writeTopology(net) == "(b)H1;"
 
 # unzip_canonical! and rezip_canonical!
 netstr = "(#H2:0.1::0.2,((C:0.2,((B:0.3)#H1:0.4)#H2:0.5::0.8):0.6,(#H1:0.7,((A1:0.8)#H3:0.01,(A2:0.9,#H3:0.02):0.03):1.0):1.1):1.2,O:1.3);"
-net = readTopology(netstr)
+net = readnewick(netstr)
 # 2 reticulation in a hybrid ladder, and another isolated reticulation
 undoinfo = PhyloNetworks.unzip_canonical!(net)
 @test all(getchildedge(h).length == 0.0 for h in net.hybrid) # unzipped

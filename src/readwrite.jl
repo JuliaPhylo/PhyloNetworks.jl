@@ -422,7 +422,7 @@ end
 """
     readSubtree!(s::IO, parentNode, numLeft, net, hybrids)
 
-Recursive helper method for `readTopology`:
+Recursive helper method for `readnewick`:
 read a subtree from an extended Newick topology.
 input `s`: IOStream/IOBuffer.
 
@@ -480,9 +480,9 @@ end
 
 # function to read topology from parenthetical format
 # input: file name or tree in parenthetical format
-# calls readTopology(s::IO)
+# calls readnewick(s::IO)
 # warning: crashes if file name starts with (
-function readTopology(input::AbstractString,verbose::Bool)
+function readnewick(input::AbstractString,verbose::Bool)
     if(input[1] == '(') # input = parenthetical description
        s = IOBuffer(input)
     else # input = file name
@@ -493,14 +493,14 @@ function readTopology(input::AbstractString,verbose::Bool)
         end
        s = open(input)
     end
-    net = readTopology(s,verbose)
+    net = readnewick(s,verbose)
     return net
 end
 
 """
-    readTopology(file name)
-    readTopology(parenthetical description)
-    readTopology(IO)
+    readnewick(file name)
+    readnewick(parenthetical description)
+    readnewick(IO)
 
 Read tree or network topology from parenthetical format (extended Newick).
 If the root node has a single child: ignore (i.e. delete from the topology)
@@ -515,9 +515,9 @@ after (or instead) of a node name, and before/after an edge length.
 A root edge, not enclosed within a pair a parentheses, is ignored.
 If the root node has a single edge, this one edge is removed.
 """
-readTopology(input::AbstractString) = readTopology(input,true)
+readnewick(input::AbstractString) = readnewick(input,true)
 
-function readTopology(s::IO,verbose::Bool)
+function readnewick(s::IO,verbose::Bool)
     net = HybridNetwork()
     line = readuntil(s,";", keep=true);
     if(line[end] != ';')
@@ -581,7 +581,7 @@ function readTopology(s::IO,verbose::Bool)
     return net
 end
 
-readTopology(s::IO) = readTopology(s,true)
+readnewick(s::IO) = readnewick(s,true)
 
 """
     checkNumHybEdges!(net)
@@ -782,7 +782,7 @@ This is useful to write a subtree starting at a non-root node.
 Example:
 
 ```julia
-net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
+net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 directEdges!(net)
 s = IOBuffer()
 writeSubTree!(s, net.node[7], nothing, false, true)
@@ -845,8 +845,8 @@ end
 
 
 """
-    readmultitopology(filename::AbstractString, fast=true)
-    readmultitopology(newicktrees_list::Vector{<:AbstractString})
+    readmultinewick(filename::AbstractString, fast=true)
+    readmultinewick(newicktrees_list::Vector{<:AbstractString})
 
 
 Read a list of networks in parenthetical format, either from a file
@@ -858,7 +858,7 @@ reading the newick trees into of HybridNetwork-type objects.
 The option `fast=false` corresponds to the behavior up until v0.14.3:
 with a file name as input, it prints a message (without failing) when a
 phylogeny cannot be parsed, and allows for empty lines.
-Each network is read with [`readTopology`](@ref).
+Each network is read with [`readnewick`](@ref).
 
 Return an array of HybridNetwork objects.
 
@@ -866,20 +866,20 @@ Return an array of HybridNetwork objects.
 
 ```julia
 julia> multitreepath = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "multitrees.newick");
-julia> multitree = readmultitopology(multitreepath) # vector of 25 HybridNetworks
-julia> multitree = readmultitopology(multitreepath, false) # same but slower & safer
+julia> multitree = readmultinewick(multitreepath) # vector of 25 HybridNetworks
+julia> multitree = readmultinewick(multitreepath, false) # same but slower & safer
 julia> treestrings = readlines(multitreepath) # vector of 25 strings
-julia> multitree = readmultitopology(treestrings)
-julia> readmultitopology(treestrings, false) # same, but slower
+julia> multitree = readmultinewick(treestrings)
+julia> readmultinewick(treestrings, false) # same, but slower
 ```
 
 """
-function readmultitopology(topologies::Vector{<:AbstractString}, fast::Bool=true)
-    return (fast ? fmap(readTopology, topologies) : map(readTopology, topologies))
+function readmultinewick(topologies::Vector{<:AbstractString}, fast::Bool=true)
+    return (fast ? fmap(readnewick, topologies) : map(readnewick, topologies))
 end
-function readmultitopology(file::AbstractString, fast::Bool=true)
+function readmultinewick(file::AbstractString, fast::Bool=true)
     if fast
-        return readmultitopology(readlines(file), true)
+        return readmultinewick(readlines(file), true)
     end
     s = open(file)
     numl = 1
@@ -889,7 +889,7 @@ function readmultitopology(file::AbstractString, fast::Bool=true)
         c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
-               push!(vnet, readTopology(line,false)) # false for non-verbose
+               push!(vnet, readnewick(line,false)) # false for non-verbose
            catch err
                print("skipped phylogeny on line $(numl) of file $file: ")
                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
@@ -903,7 +903,7 @@ end
 
 
 @doc raw"""
-    readnexus_treeblock(filename, treereader=readTopology, args...;
+    readnexus_treeblock(filename, treereader=readnewick, args...;
                         reticulate=true, stringmodifier=[r"#(\d+)" => s"#H\1"])
 
 Read the *first* "trees" block of a nexus-formatted file, using the translate
@@ -934,7 +934,7 @@ or like this, as output by SpeciesNetwork
 
 In this example, the corresponding edge to hybrid H11 has γ=0.08.
 """
-function readnexus_treeblock(file::AbstractString, treereader::Function=readTopology, args...;
+function readnexus_treeblock(file::AbstractString, treereader::Function=readnewick, args...;
             reticulate=true, stringmodifier=[r"#(\d+)\b" => s"#H\1"]) # add H
     vnet = HybridNetwork[]
     rx_start = r"^\s*begin\s+trees\s*;"i
@@ -1113,8 +1113,8 @@ Each network is written with `writeTopology`.
 
 # Examples
 ```julia
-julia> net = [readTopology("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
-              readTopology("(A,(B,C));"),readTopology("(E,F);"),readTopology("(G,H,F);")];
+julia> net = [readnewick("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
+              readnewick("(A,(B,C));"),readnewick("(E,F);"),readnewick("(G,H,F);")];
 
 julia> writeMultiTopology(net, "fournets.net") # to (over)write to file "fournets.net"
 julia> writeMultiTopology(net, "fournets.net", append=true) # to append to this file
@@ -1272,7 +1272,7 @@ See [`nameinternalnodes!`](@ref) to add node names.
 # examples
 
 ```jldoctest
-julia> net = readTopology("((a:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);");
+julia> net = readnewick("((a:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);");
 
 julia> hybridlambdaformat(net) # net is unchanged here
 "((a:1.0,(b:1.0)H1#0.8:1.0)I1:5.0,(H1#0.8:0.0,c:1.0)I2:1.0)I3;"
@@ -1287,7 +1287,7 @@ julia> writeTopology(net) # now the minor edge with γ=0.2 appears first
 julia> hybridlambdaformat(net)
 "((H1#0.2:0.0,c:1.0)I2:1.0,(a:1.0,(b:1.0)H1#0.2:1.0)I1:5.0)I3;"
 
-julia> net = readTopology("((((B)#H1:::.6)#H2,((D,C,#H2:::0.8),(#H1,A))));"); # 2 reticulations, no branch lengths
+julia> net = readnewick("((((B)#H1:::.6)#H2,((D,C,#H2:::0.8),(#H1,A))));"); # 2 reticulations, no branch lengths
 
 julia> writeTopology(net, round=true)
 "(#H2:::0.2,((D,C,((B)#H1:::0.6)#H2:::0.8),(#H1:::0.4,A)));"
@@ -1343,7 +1343,7 @@ New node names will be of the form "prefixI" where I is an integer.
 
 # examples
 ```jldoctest
-julia> net = readTopology("((a:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);");
+julia> net = readnewick("((a:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);");
 
 julia> PhyloNetworks.nameinternalnodes!(net, "I") # by default, shown without internal node names
 HybridNetwork, Rooted Network
@@ -1355,7 +1355,7 @@ tip labels: a, b, c
 julia> writeTopology(net; internallabel=false) # by default, writeTopology shows internal names if they exist
 "((a:1.0,(b:1.0)#H1:1.0::0.8):5.0,(#H1:0.0::0.2,c:1.0):1.0);"
 
-julia> net = readTopology("((int5:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);"); # one taxon name starts with "int"
+julia> net = readnewick("((int5:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);"); # one taxon name starts with "int"
 
 julia> PhyloNetworks.nameinternalnodes!(net, "int");
 

@@ -65,7 +65,7 @@ from coming into or going out of a species group.
 # examples
 
 ```jldoctest
-julia> net = readTopology("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
+julia> net = readnewick("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
 
 julia> c_species1 = PhyloNetworks.TopologyConstraint(0x01, ["1a","1b","1c"], net)
 Species constraint, on tips: 1a, 1b, 1c
@@ -184,7 +184,7 @@ Warning: does *not* check that the names of leaves with numbers in `taxonnum`
 are `taxonnames`.
 
 ```jldoctest
-julia> net = readTopology("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
+julia> net = readnewick("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
 
 julia> c_species1 = PhyloNetworks.TopologyConstraint(0x01, ["1a","1b","1c"], net)
 Species constraint, on tips: 1a, 1b, 1c
@@ -307,7 +307,7 @@ information indicating how to undo the move or `nothing` if all NNIs failed.
 ```jldoctest
 julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
-julia> net = readTopology(str_network);
+julia> net = readnewick(str_network);
 
 julia> using Random; Random.seed!(3);
 
@@ -770,7 +770,7 @@ Output: individual-level network and vector of species constraint(s).
 # examples
 
 ```jldoctest
-julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+julia> species_net = readnewick("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
 
 julia> filename = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv");
 
@@ -824,7 +824,7 @@ Called by [`mapindividuals`](@ref).
 # examples
 
 ```jldoctest
-julia> net = readTopology("(S8,(((S1,S4),(S5)#H1),(#H1,S6)));");
+julia> net = readnewick("(S8,(((S1,S4),(S5)#H1),(#H1,S6)));");
 
 julia> PhyloNetworks.addindividuals!(net, "S1", ["S1A", "S1B", "S1C"])
 Species constraint, on tips: S1A, S1B, S1C

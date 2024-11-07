@@ -36,7 +36,7 @@ module PhyloNetworks
     export
         ## Network Definition
         HybridNetwork,
-        readTopology,
+        readnewick,
         writeTopology,
         writeSubTree!,
         hybridlambdaformat,
@@ -106,7 +106,7 @@ module PhyloNetworks
         hybridclades_support,
         readBootstrapTrees,
         writeMultiTopology,
-        readmultitopology,
+        readmultinewick,
         ## Network Calibration
         getNodeAges,
         pairwiseTaxonDistanceMatrix,

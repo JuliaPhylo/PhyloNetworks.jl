@@ -4,8 +4,8 @@ exdir = joinpath(@__DIR__,"..","examples")
 # exdir = joinpath(dirname(pathof(PhyloNetworks)), "..","examples")
 
 @testset "testing hybridclades_support" begin
-bestnet = readTopology(joinpath(exdir,"fish2hyb.net"));
-bootnet = readmultitopology(joinpath(exdir,"fish3hyb_20boostrap.net"));
+bestnet = readnewick(joinpath(exdir,"fish2hyb.net"));
+bootnet = readmultinewick(joinpath(exdir,"fish3hyb_20boostrap.net"));
 # issues with bootstrap networks 12, 21, 42, 96
 # plot(bootnet[20], showedgenumber=true)
 # include(string(home, "bootstrap.jl"))

@@ -43,7 +43,7 @@ requires to flip the direction of edge 2, and to move the root accordingly
 # examples
 
 ```jldoctest
-julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
+julia> net = readnewick("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
 julia> using Random
 
@@ -165,7 +165,7 @@ Output: new hybrid node (middle of the old `edge2`) and new hybrid edge.
 # examples
 
 ```jldoctest
-julia> net = readTopology("((S8,(((S1,(S5)#H1),(#H1,S6)))#H2),(#H2,S10));");
+julia> net = readnewick("((S8,(((S1,(S5)#H1),(#H1,S6)))#H2),(#H2,S10));");
 
 julia> hybnode, hybedge = PhyloNetworks.addhybridedge!(net, net.edge[13], net.edge[8], true, 0.0, 0.2)
 (PhyloNetworks.Node:
@@ -310,9 +310,9 @@ major tree topology.
 # example
 
 ```jldoctest
-julia> bootnet = readmultitopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples", "bootsnaq.out")); # vector of 10 networks
+julia> bootnet = readmultinewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples", "bootsnaq.out")); # vector of 10 networks
 
-julia> bestnet = readTopology("((O,(E,#H7:::0.196):0.314):0.332,(((A)#H7:::0.804,B):10.0,(C,D):10.0):0.332);");
+julia> bestnet = readnewick("((O,(E,#H7:::0.196):0.314):0.332,(((A)#H7:::0.804,B):10.0,(C,D):10.0):0.332);");
 
 julia> BSn, BSe, BSc, BSgam, BSedgenum = hybridclades_support(bootnet, bestnet);
 

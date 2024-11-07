@@ -1,7 +1,7 @@
 ```@setup snaqplot
 using PhyloNetworks
 mkpath("../assets/figures")
-net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
+net1 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 rotate!(net1, -6)
 ```
 # Network Visualization
@@ -17,8 +17,8 @@ To get started, we load a few networks that we will later visualize.
 They are available in files that come with the package.
 
 ```@example snaqplot
-net2 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net2.out"))
-net3 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net3.out"))
+net2 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net2.out"))
+net3 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net3.out"))
 ```
 
 These networks are stored in extended newick parenthetical format,

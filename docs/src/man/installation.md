@@ -86,7 +86,7 @@ update for instance).
 Here is a very small test for the installation of PhyloNetworks.
 
 ```@repl install
-net = readTopology("(A,(B,(C,D)));");
+net = readnewick("(A,(B,(C,D)));");
 tipLabels(net)
 ```
 
@@ -115,7 +115,7 @@ The object `raxmltreefile` is a basic string (of letters).
 Let's create our list of gene trees by reading this file.
 
 ```@repl install
-genetrees = readmultitopology(raxmltreefile); # the semicolon suppresses info on the result
+genetrees = readmultinewick(raxmltreefile); # the semicolon suppresses info on the result
 typeof(genetrees)
 ```
 which shows us that `genetrees` is of type `Vector{HybridNetwork}`, that is,
@@ -162,7 +162,7 @@ and, for example, print a list of its edges:
 
 ```@repl install
 newickstring = "(A,((B,#H1),(C,(D)#H1)));";
-net = readTopology(newickstring);
+net = readnewick(newickstring);
 printEdges(net)
 ```
 

@@ -2,7 +2,7 @@
 @testset "traits: shared path, vcv, descendence matrix" begin
 
 tree_str= "(A:0.5,((B:1,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);"
-net = readTopology(tree_str)
+net = readnewick(tree_str)
 preorder!(net)
 
 ## V matrix
@@ -66,7 +66,7 @@ names_R = ["t2", "t4", "t3", "t5", "t1"]
 ## Descendence Matrix Test
 ########################
 tree_str= "(A:0.5,((B:1,#H1:1::0.4):1,(C:1,(D:1)#H1:1::0.6):1):0.5);"
-net = readTopology(tree_str)
+net = readnewick(tree_str)
 preorder!(net)
 
 T = descendenceMatrix(net)
@@ -87,7 +87,7 @@ T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
 ## New formula
 #################
 
-net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);")
+net = readnewick("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);")
 preorder!(net)
 V1 = sharedPathMatrix(net)
 

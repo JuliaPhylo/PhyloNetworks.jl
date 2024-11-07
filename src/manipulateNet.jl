@@ -155,7 +155,7 @@ networks like `inCycle`, `partition`, `gammaz`, etc.
 # examples
 
 ```jldoctest
-julia> net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+julia> net = readnewick("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
 
 julia> length(net.node)
 19
@@ -289,7 +289,7 @@ If `keeproot` is true, then the root is kept even if it's of degree 2.
 See [`fuseedgesat!`](@ref).
 
 ```jldoctest
-julia> net = readTopology("(((((S1,(S2)#H1),(#H1,S3)))#H2),(#H2,S4));");
+julia> net = readnewick("(((((S1,(S2)#H1),(#H1,S3)))#H2),(#H2,S4));");
 
 julia> PhyloNetworks.breakedge!(net.edge[3], net); # create a degree-2 node along hybrid edge
 
@@ -305,7 +305,7 @@ julia> removedegree2nodes!(net);
 julia> writeTopology(net) # even the root is gone
 "(#H2,S4,(((S1,(S2)#H1),(#H1,S3)))#H2);"
 
-julia> net = readTopology("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
+julia> net = readnewick("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
 
 julia> removedegree2nodes!(net, true);
 
@@ -344,7 +344,7 @@ output: newly created leaf node.
 # examples
 
 ```jldoctest
-julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
+julia> net = readnewick("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
 julia> net.node[6].name # leaf S4
 "S4"
@@ -361,7 +361,7 @@ julia> writeTopology(net, internallabel=true)
 ```
 
 ```jldoctest
-julia> net = readTopology("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
+julia> net = readnewick("((S1,(((S2,(S3)#H1),(#H1,S4)))#H2),(#H2,S5));");
 
 julia> [n.name for n in net.edge[7].node] # external edge to S4
 2-element Vector{String}:
@@ -579,12 +579,12 @@ by `plot(net)`. Otherwise run `directEdges!(net)`.
 # Example
 
 ```julia
-julia> net = readTopology("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
+julia> net = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 julia> using PhyloPlots
 julia> plot(net, shownodenumber=true)
 julia> rotate!(net, -4)
 julia> plot(net)
-julia> net=readTopology("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
+julia> net=readnewick("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.136):10.0);");
 julia> plot(net, shownodenumber=true, showedgenumber=true)
 julia> rotate!(net, -1, orderedEdgeNum=[1,12,9])
 julia> plot(net, shownodenumber=true, showedgenumber=true)
@@ -1039,7 +1039,7 @@ keyword arguments:
 # Examples
 
 ```jldoctest
-julia> net = readTopology("(A,(B,(C,D)));");
+julia> net = readnewick("(A,(B,(C,D)));");
 
 julia> PhyloNetworks.resetNodeNumbers!(net)
 
@@ -1053,7 +1053,7 @@ node leaf  hybrid hasHybEdge name inCycle edges'numbers
 6    false false  false           -1      2    5    6   
 5    false false  false           -1      1    6   
 
-julia> net = readTopology("(A,(B,(C,D)));");
+julia> net = readnewick("(A,(B,(C,D)));");
 
 julia> PhyloNetworks.resetNodeNumbers!(net; type=:postorder)
 

@@ -1,5 +1,5 @@
 """
-    readBootstrapTrees(listfile; relative2listfile=true)
+    readmultinewick_files(listfile; relative2listfile=true)
 
 Read the list of file names in `listfile`, then read all the trees in each of
 these files. Output: vector of vectors of trees (networks with h>0 allowed).
@@ -13,7 +13,7 @@ Otherwise, use option `relative2listfile=false`, in which case the file names
 are interpreted as usual: relative to the user's current directory
 if not given as absolute paths.
 """
-function readBootstrapTrees(filelist::AbstractString; relative2listfile::Bool=true)
+function readmultinewick_files(filelist::AbstractString; relative2listfile::Bool=true)
     filelistdir = dirname(filelist)
     bootfiles = DataFrame(CSV.File(filelist, header=false, types=Dict(1=>String));
         copycols=false)
@@ -23,7 +23,7 @@ function readBootstrapTrees(filelist::AbstractString; relative2listfile::Bool=tr
     bf = (relative2listfile ? joinpath.(filelistdir, bootfiles[!,1]) : bootfiles[!,1])
     treelists = Array{Vector{HybridNetwork}}(undef, ngenes)
     for igene in 1:ngenes
-        treelists[igene] = readmultitopology(bf[igene])
+        treelists[igene] = readmultinewick(bf[igene])
         print("read $igene/$ngenes bootstrap tree files\r") # using \r for better progress display
     end
     return treelists
@@ -36,7 +36,7 @@ end
 Sample bootstrap gene trees, 1 tree per gene.
 Set the seed with keyword argument `seed`, which is 0 by default.
 When `seed=0`, the actual seed is set using the clock.
-Assumes a vector of vectors of networks (see `readBootstrapTrees`),
+Assumes a vector of vectors of networks (see `readmultinewick_files`),
 each one of length 1 or more (error if one vector is empty, tested in `bootsnaq`).
 
 - site resampling: always, from sampling one bootstrap tree from each given list.

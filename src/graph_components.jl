@@ -450,7 +450,7 @@ Warning: only use the output component ID after calling the second version
 `checkroot!(net, membership)`.
 
 ```jldoctest
-julia> net = readTopology("(#H1:::0.1,#H2:::0.2,(((b)#H1)#H2,a));");
+julia> net = readnewick("(#H1:::0.1,#H2:::0.2,(((b)#H1)#H2,a));");
 
 julia> membership = treeedgecomponents(net);
 

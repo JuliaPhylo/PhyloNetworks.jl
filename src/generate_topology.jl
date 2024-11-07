@@ -13,7 +13,7 @@ end
 
 String for the Newick parenthetical description of a symmetric tree with
 2^n tips, numbered from i to i+2^n-1. All branch lengths are set equal to `ell`.
-The tree can be created later by reading the string with [`readTopology`](@ref).
+The tree can be created later by reading the string with [`readnewick`](@ref).
 """
 function symmetrictree_newick(n::Int, ell::Real, i::Int=1)
     tree = "A$(i-1+2^n):$(ell)"

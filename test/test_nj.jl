@@ -2,7 +2,7 @@
     D = CSV.read(joinpath(@__DIR__,"..","examples","caudata_dist.txt"),  DataFrame)
     tree = nj(D)
     # read results from ape implementation of nj
-    apetree = readTopology(joinpath(@__DIR__, "..", "examples", "caudata_dist_nj.txt"))
+    apetree = readnewick(joinpath(@__DIR__, "..", "examples", "caudata_dist_nj.txt"))
     @test hardwiredClusterDistance(tree, apetree, false) == 0
     # also check branch lengths (more or less)
     @test sort!([e.length for e in tree.edge]) ≈ sort!([e.length for e in apetree.edge])

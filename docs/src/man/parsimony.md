@@ -25,7 +25,7 @@ using PhyloNetworks
 mkpath("../assets/figures")
 using RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)"
-# net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","swadesh.out"))
+# net1 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","swadesh.out"))
 # we would get net1 from analyzing the complete data, but not available with the package
 ```
 
@@ -54,7 +54,7 @@ traits
 Then, we read the network as usual:
 
 ```@repl parsimony
-net = readTopology("(Spanish,((English)#H1,(Norwegian,(German,#H1))));");
+net = readnewick("(Spanish,((English)#H1,(Norwegian,(German,#H1))));");
 ```
 
 ```@example parsimony
@@ -101,7 +101,7 @@ Taxa present in the data but absent from the starting topology
 will be ignored during the search.
 
 ```julia
-starttree = readTopology("(((English,German),Norwegian),Spanish);");
+starttree = readnewick("(((English,German),Norwegian),Spanish);");
 net1 = maxParsimonyNet(starttree, dat, hmax=1, outgroup="Spanish", rootname="swadesh")
 ```
 

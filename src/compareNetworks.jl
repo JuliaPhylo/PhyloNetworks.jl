@@ -158,7 +158,7 @@ visited: vector of node numbers, of all visited nodes.
 
 # Examples:
 ```jldoctest
-julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
+julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directEdges! ;
 
 julia> taxa = net5 |> tipLabels # ABC EF D
 6-element Vector{String}:
@@ -225,7 +225,7 @@ and the function does not test for this.
 
 ## Examples
 ```jldoctest
-julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readTopology |> directEdges! ;
+julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directEdges! ;
 
 julia> PhyloNetworks.descendants(net5.edge[12], true) # descendants of 12th edge: all of them
 7-element Vector{Int64}:
@@ -362,7 +362,7 @@ WARNING: assumes that
 
 # examples
 ```jldoctest
-julia> tree = readTopology("(O,A,((B1,B2),(E,(C,D))));");
+julia> tree = readnewick("(O,A,((B1,B2),(E,(C,D))));");
 
 julia> PhyloNetworks.resetNodeNumbers!(tree; checkPreorder=true, type=:postorder)
 
@@ -595,7 +595,7 @@ and the function returns `missing`.
 # Example
 
 ```julia-repl
-julia> net = readTopology("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
+julia> net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 
 julia> trees = displayedTrees(net,0.0; nofuse=true);
 
@@ -742,7 +742,7 @@ and [Huson, Rupp, Scornavacca (2010)](https://doi.org/10.1017/CBO9780511974076).
 ## Example
 
 ```jldoctest
-julia> net1 = readTopology("(t6,(t5,((t4,(t3,((t2,t1))#H1)),#H1)));");
+julia> net1 = readnewick("(t6,(t5,((t4,(t3,((t2,t1))#H1)),#H1)));");
 
 julia> taxa = sort(tipLabels(net1)); # t1 through t6, sorted alphabetically
 
@@ -759,7 +759,7 @@ julia> # in matrix below: column 1: edge number. last column: tree (10) vs hybri
   8  1  1  0  0  0  0  11
   7  1  1  0  0  0  0  10
 
-julia> net2 = readTopology("(t6,(t5,((t4,(t3)#H1),(#H1,(t1,t2)))));");
+julia> net2 = readnewick("(t6,(t5,((t4,(t3)#H1),(#H1,(t1,t2)))));");
 
 julia> hardwiredClusters(net2, taxa)
 6×8 Matrix{Int64}:
