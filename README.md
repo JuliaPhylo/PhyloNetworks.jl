@@ -30,11 +30,15 @@ ancestral populations / species, and edge lengths represent evolutionary time.
 Utilities in this core package include:
 - read / write phylogenies in (extended) Newick format
 - manipulate networks: re-root, prune taxa, remove hybrid edges,
+  transform a network with a semidirected nearest-neighbor interchange (sNNI),
   extract the major tree from a network, extract displayed networks / trees
 - compare networks with dissimilarity measures
   (e.g. the Robinson-Foulds distance on trees)
 - summarize samples of networks with support for local features
   (edges and clades of hybrid origin or sister to a hybrid clade)
+- fit edges lengths from average pairwise distances between leaves,
+  using least-squares
+- network traversal routines
 
 To get help, check
 
