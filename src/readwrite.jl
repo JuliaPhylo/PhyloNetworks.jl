@@ -789,7 +789,7 @@ writeSubTree!(s, net.node[7], nothing, false, true)
 String(take!(s))
 ```
 
-Used by [`writeTopology`](@ref).
+Used by [`writenewick`](@ref).
 """
 writeSubTree!(s,n,parent,di,namelabel) =
     writeSubTree!(s,n,parent,di,namelabel, true,3,true)
@@ -1103,40 +1103,40 @@ function readnexus_assigngammas!(net::HybridNetwork, id2gamma::Dict)
 end
 
 """
-    writeMultiTopology(nets, file_name; append=false)
-    writeMultiTopology(nets, IO)
+    writemultinewick(nets, file_name; append=false)
+    writemultinewick(nets, IO)
 
 Write an array of networks in parenthetical extended Newick format, one network per line.
 Use the option append=true to append to the file. Otherwise, the default is to create a new
 file or overwrite it, if it already existed.
-Each network is written with `writeTopology`.
+Each network is written with `writenewick`.
 
 # Examples
 ```julia
 julia> net = [readnewick("(D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10);"),
               readnewick("(A,(B,C));"),readnewick("(E,F);"),readnewick("(G,H,F);")];
 
-julia> writeMultiTopology(net, "fournets.net") # to (over)write to file "fournets.net"
-julia> writeMultiTopology(net, "fournets.net", append=true) # to append to this file
-julia> writeMultiTopology(net, stdout)         # to write to the screen (standard out)
+julia> writemultinewick(net, "fournets.net") # to (over)write to file "fournets.net"
+julia> writemultinewick(net, "fournets.net", append=true) # to append to this file
+julia> writemultinewick(net, stdout)         # to write to the screen (standard out)
 (D,((A,(B)#H7:::0.864):2.069,(F,E):3.423):0.265,(C,#H7:::0.1361111):10.0);
 (A,(B,C));
 (E,F);
 (G,H,F);
 ```
 """
-function writeMultiTopology(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
+function writemultinewick(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
     mode = (append ? "a" : "w")
     open(file, mode) do s
-    writeMultiTopology(n,s)
+    writemultinewick(n,s)
     end # closes file safely
 end
 
-function writeMultiTopology(net::Vector{HybridNetwork},s::IO)
+function writemultinewick(net::Vector{HybridNetwork},s::IO)
     for i in 1:length(net)
       try
         # writeTopologyLevel1(net[i],s,false,true,"none",false,false,3)
-        writeTopology(net[i],s) # no rounding, not for dendroscope
+        writenewick(net[i],s) # no rounding, not for dendroscope
         write(s,"\n")
       catch err
         if isa(err, RootMismatch) # continue writing other networks in list
@@ -1148,9 +1148,9 @@ end
 
 
 """
-    writeTopology(net)
-    writeTopology(net, filename)
-    writeTopology(net, IO)
+    writenewick(net)
+    writenewick(net, filename)
+    writenewick(net, IO)
 
 Write the parenthetical extended Newick format of a network,
 as a string, to a file or to an IO buffer / stream.
@@ -1167,7 +1167,7 @@ The network is updated with this new root placement, if successful.
 
 Uses lower-level function [`writeSubTree!`](@ref).
 """
-function writeTopology(
+function writenewick(
     n::HybridNetwork,
     file::AbstractString;
     append::Bool=false,
@@ -1178,12 +1178,12 @@ function writeTopology(
 )
     mode = (append ? "a" : "w")
     s = open(file, mode)
-    writeTopology(n,s,round,digits,di,internallabel)
+    writenewick(n,s,round,digits,di,internallabel)
     write(s,"\n")
     close(s)
 end
 
-function writeTopology(
+function writenewick(
     n::HybridNetwork;
     round::Bool=false,
     digits::Integer=3,
@@ -1191,11 +1191,11 @@ function writeTopology(
     internallabel::Bool=true
 )
     s = IOBuffer()
-    writeTopology(n,s,round,digits,di,internallabel)
+    writenewick(n,s,round,digits,di,internallabel)
     return String(take!(s))
 end
 
-function writeTopology(
+function writenewick(
     net::HybridNetwork,
     s::IO,
     round::Bool=false,
@@ -1281,7 +1281,7 @@ julia> # using PhyloPlots; plot(net, shownodenumber=true) # shows that node -2 i
 
 julia> rotate!(net, -2)
 
-julia> writeTopology(net) # now the minor edge with γ=0.2 appears first
+julia> writenewick(net) # now the minor edge with γ=0.2 appears first
 "((#H1:0.0::0.2,c:1.0):1.0,(a:1.0,(b:1.0)#H1:1.0::0.8):5.0);"
 
 julia> hybridlambdaformat(net)
@@ -1289,7 +1289,7 @@ julia> hybridlambdaformat(net)
 
 julia> net = readnewick("((((B)#H1:::.6)#H2,((D,C,#H2:::0.8),(#H1,A))));"); # 2 reticulations, no branch lengths
 
-julia> writeTopology(net, round=true)
+julia> writenewick(net, round=true)
 "(#H2:::0.2,((D,C,((B)#H1:::0.6)#H2:::0.8),(#H1:::0.4,A)));"
 
 julia> hybridlambdaformat(net; prefix="int")
@@ -1312,7 +1312,7 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
     no.name = "" # erase any exisiting name: especially bootstrap values
   end
   nameinternalnodes!(net, prefix)
-  str1 = writeTopology(net, round=true, digits=15) # internallabels=true by default
+  str1 = writenewick(net, round=true, digits=15) # internallabels=true by default
   rx_noBL = r"#(H[\w\d]+)::\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
   subst_noBL = s"\1#\2"
   rx_withBL = r"#(H[\w\d]+):(\d*\.?\d*(?:e[+-]?\d+)?):\d*\.?\d*(?:e[+-]?\d+)?:(\d*\.?\d*(?:e[+-]?\d+)?)"
@@ -1352,14 +1352,14 @@ HybridNetwork, Rooted Network
 tip labels: a, b, c
 ((a:1.0,(b:1.0)#H1:1.0::0.8)I1:5.0,(#H1:0.0::0.2,c:1.0)I2:1.0)I3;
 
-julia> writeTopology(net; internallabel=false) # by default, writeTopology shows internal names if they exist
+julia> writenewick(net; internallabel=false) # by default, writenewick shows internal names if they exist
 "((a:1.0,(b:1.0)#H1:1.0::0.8):5.0,(#H1:0.0::0.2,c:1.0):1.0);"
 
 julia> net = readnewick("((int5:1,(b:1)#H1:1::0.8):5,(#H1:0::0.2,c:1):1);"); # one taxon name starts with "int"
 
 julia> PhyloNetworks.nameinternalnodes!(net, "int");
 
-julia> writeTopology(net)
+julia> writenewick(net)
 "((int5:1.0,(b:1.0)#H1:1.0::0.8)int6:5.0,(#H1:0.0::0.2,c:1.0)int7:1.0)int8;"
 ```
 """

@@ -46,7 +46,7 @@ net_hybridladder = readnewick(str_hybridladder);
     end
     nni!(undoinfo...); # undo the move
     # confirm we're back to original topology
-    @test writeTopology(net_level1) == str_level1
+    @test writenewick(net_level1) == str_level1
 end # of level1 edge 3: BB undirected
 
 @testset "level1 test edge 13: BR directed move $move" for move in 0x01:0x03
@@ -62,7 +62,7 @@ end # of level1 edge 3: BB undirected
         @test !(-11 in nodes)
         @test getchild(net_level1.edge[13]).number == -11
         nni!(undoinfo...); # undo move
-        @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+        @test writenewick(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
         # confirm we're back to original topology (but now with 0.0 branch lengths)
     else
         undoinfo = nni!(net_level1.edge[13], move, true, false);
@@ -83,7 +83,7 @@ end # of level1 edge 3: BB undirected
         # check directionality
         @test getchild(net_level1.edge[13]).number == 8
         nni!(undoinfo...); # undo move
-        @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"# confirm we're back to original topology
+        @test writenewick(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"# confirm we're back to original topology
     end
 end # of level1 edge 13: BR directed
 
@@ -101,7 +101,7 @@ end # of level1 edge 13: BR directed
     # check directionality node -11 child of edge 16 in both cases
     @test getchild(net_level1.edge[16]).number == -11
     nni!(undoinfo...); # undo move
-    @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+    @test writenewick(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
         # confirm we're back to original topology
 end #of level1 edge 16: BB directed
 
@@ -123,7 +123,7 @@ end #of level1 edge 16: BB directed
         # check directionality node -6 child of edge 17 in both cases
         @test getchild(net_level1.edge[17]).number == -6
         nni!(undoinfo...); # undo move
-        @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+        @test writenewick(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
     else
         @test isnothing(nni!(net_level1.edge[17], move, true, true))
         undoinfo = nni!(net_level1.edge[17], move, true, false) # should work if we dont check for 3cycles
@@ -135,7 +135,7 @@ end #of level1 edge 16: BB directed
         # check directionality node -11 child of edge 17 in both cases
         @test getchild(net_level1.edge[17]).number == -6
         nni!(undoinfo...); # undo move
-        @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+        @test writenewick(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
     end
 end # of level1 edge 17: BB directed
 
@@ -159,7 +159,7 @@ end # of level1 edge 17: BB directed
     @test getchild(net_level1.edge[18]).number == 11
     nni!(undoinfo...);
     # edge below hybrid of length 0.0 now
-    @test writeTopology(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))):0.0)#H2),(#H2,S10));"
+    @test writenewick(net_level1) == "(((S8,S9),(((((S1,S2,S3),S4),(S5:0.0)#H1),(#H1,(S6,S7))):0.0)#H2),(#H2,S10));"
 end # of level1 edge 18: RR (directed)
 
 @testset "non tree child net edge 3: RB (directed) move $move" for move in 0x01:0x04
@@ -184,7 +184,7 @@ end # of level1 edge 18: RR (directed)
     @test getchild(net_nontreechild.edge[3]).number == 3
     nni!(undoinfo...);
     # length 0.0 below hybrid, but otherwise topology completely restored
-    @test writeTopology(net_nontreechild) == "((((Ag,E):0.0)#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
+    @test writenewick(net_nontreechild) == "((((Ag,E):0.0)#H3,(#H1:7.159::0.056,((M:0.0)#H2:::0.996,(Ak,(#H3:0.08,#H2:0.0::0.004):0.023):0.078):2.49):2.214):0.026,((Az:2.13,As:2.027):1.697)#H1:0.0::0.944,Ap);"
 end #of non tree child net edge 5: RB (directed)
 
 @testset "hybrid ladder net edge 1: BR undirected (u at root, potential nonDAG, 3cycle) move $move" for move in 0x01:0x06
@@ -208,7 +208,7 @@ end #of non tree child net edge 5: RB (directed)
         # check directionality (edge should point toward u, node -2)
         @test getchild(net_hybridladder.edge[1]).number == 1
         nni!(undoinfo...);
-        @test writeTopology(net_hybridladder)== "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
+        @test writenewick(net_hybridladder)== "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
     elseif move == 0x02
         undoinfo = nni!(net_hybridladder.edge[1], move, true, true);
         nodes = [n.number for n in net_hybridladder.edge[12].node] # α
@@ -218,7 +218,7 @@ end #of non tree child net edge 5: RB (directed)
         # check directionality (edge should point toward u, node -2)
         @test getchild(net_hybridladder.edge[1]).number == 1
         nni!(undoinfo...);
-        @test writeTopology(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
+        @test writenewick(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
     end
 end # of hybrid ladder net edge 1: BR undirected
 
@@ -238,7 +238,7 @@ end # of hybrid ladder net edge 1: BR undirected
     #check directionality (should point toward u, node 1)
     @test getchild(net_hybridladder.edge[4]).number == 1
     nni!(undoinfo...);
-    @test writeTopology(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
+    @test writenewick(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
 end #of hybrid ladder net edge 4: RR (directed)
 
 @testset "hybrid ladder net edge 5: BR undirected move $move" for move in 0x01:0x06
@@ -274,7 +274,7 @@ end #of hybrid ladder net edge 4: RR (directed)
         @test getchild(net_hybridladder.edge[5]).number == 1
     end
     nni!(undoinfo...);
-    @test writeTopology(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
+    @test writenewick(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
 end #of hybrid ladder net edge 5: BR undirected
 
 @testset "hybrid ladder net edge 12: BB undirected (edge below root) move $move" for move in 0x01:0x08
@@ -301,7 +301,7 @@ end #of hybrid ladder net edge 5: BR undirected
     #check directionality
     @test getchild(net_hybridladder.edge[12]).number == -3
     nni!(undoinfo...);
-    @test writeTopology(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
+    @test writenewick(net_hybridladder) == "(#H2:::0.2,((C,((B)#H1:0.0)#H2:::0.8),(#H1,(A1,A2))),O);" # restored but edge below hybrid node constrained at 0.0
 end # of hybrid ladder net edge 12: BB undirected (edge below root)
 
 @testset "test isdescendant and isconnected functions" begin
@@ -363,9 +363,9 @@ PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1A", "S1B", "S1C"])
 # spaces in name
 net_level1_s = readnewick(str_level1_s)
 @test_logs (:warn, r"^species S 1 not") PhyloNetworks.addindividuals!(net_level1_s, "S 1", ["S1A", "S1B", "S1C"])
-@test writeTopology(net_level1_s) == str_level1_s # network unchanged
+@test writenewick(net_level1_s) == str_level1_s # network unchanged
 @test_logs (:warn, r"^Spaces in \"S1 A\" may cause errors") PhyloNetworks.addindividuals!(net_level1_s, "S1", ["S1 A", "S1B", "S1C"])
-@test writeTopology(net_level1_s) == "(((S8,S9),(((((S1_A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+@test writenewick(net_level1_s) == "(((S8,S9),(((((S1_A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 # test mapindividuals function
 net_level1_s = readnewick(str_level1_s)
 # in net env
@@ -376,7 +376,7 @@ net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
 @test c_species[1].taxonnames == ["S1A","S1B","S1C"]
 @test c_species[1].taxonnums == Set([11,12,13])
 @test c_species[1].node.number == 3
-@test writeTopology(net_level1_i) == "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
+@test writenewick(net_level1_i) == "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 # updateconstraints!
 PhyloNetworks.resetNodeNumbers!(net_level1_i)
@@ -409,7 +409,7 @@ rng = StableRNG(222) # to propose these moves: 1,2,... (ei=8), 6,... (ei=3), 1,2
     undoinfo = nni!(rng, net_level1_i , net_level1_i.edge[ei], true, true, c_species);
     @test undoinfo !== nothing
     nni!(undoinfo...); # orignal net restored, except when ei=8 move 2: length 0 below H1
-    @test writeTopology(net_level1_i) == (ei==8 ? str_0belowH1 : str_level1_i)
+    @test writenewick(net_level1_i) == (ei==8 ? str_0belowH1 : str_level1_i)
     net_level1_i.edge[7].length = -1 # reset to missing edge length
 end
 end # of species constraints
@@ -421,9 +421,9 @@ con = [PhyloNetworks.TopologyConstraint(0x01, ["S1A","S1B","S1C"], netl1_i),
        PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)]
 Random.seed!(765);
 @test PhyloNetworks.moveroot!(netl1_i, con) # only 2 options
-writeTopology(netl1_i) == "(((S1A,S1B,S1C)S1,S4),#H1,(((S5)#H1,(S6,S7))));" # now unrooted
+writenewick(netl1_i) == "(((S1A,S1B,S1C)S1,S4),#H1,(((S5)#H1,(S6,S7))));" # now unrooted
 @test PhyloNetworks.moveroot!(netl1_i, con) # only 1 option
-writeTopology(netl1_i) == "((S1A,S1B,S1C)S1,S4,(#H1,(((S5)#H1,(S6,S7)))));"
+writenewick(netl1_i) == "((S1A,S1B,S1C)S1,S4,(#H1,(((S5)#H1,(S6,S7)))));"
 netl1_i.root = 14 # back to original rooted network. This node is still of degree 2
 @test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # false: root *at* clade crown
 @test netl1_i.root == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
@@ -485,7 +485,7 @@ n6h1d = deepcopy(n6h1) # hybrid node = node number 5
 @test !isnothing(PhyloNetworks.fliphybrid!(n6h1d, n6h1d.hybrid[1], false)) # flips major edge
 @test n6h1d.hybrid[1].number == -4
 @test n6h1d.hybrid[1].name == "H1"
-@test writeTopology(n6h1d) == "((#H1:2.0::0.3,(((3:0.4,4:0.4):1.1,((1:0.2,2:0.2):2.4)#H1:1.1::0.7):0.0,5:1.5):3.1):1.0,6:5.6);"
+@test writenewick(n6h1d) == "((#H1:2.0::0.3,(((3:0.4,4:0.4):1.1,((1:0.2,2:0.2):2.4)#H1:1.1::0.7):0.0,5:1.5):3.1):1.0,6:5.6);"
 
 # hybrid ladder network
 hybridladderstring = "(#H2:::0.2,((C,((B)#H1)#H2:::0.8),(#H1,(A1,A2))),O);"
@@ -498,7 +498,7 @@ net_hl = readnewick(hybridladderstring); # hybrid 1 = H1, node number 4
 @test !isnothing(PhyloNetworks.fliphybrid!(net_hl, net_hl.hybrid[2], false, true))
 @test net_hl.hybrid[2].number == -4
 @test net_hl.hybrid[2].name == "H2"
-@test writeTopology(net_hl) == "(((B)#H1,(C)#H2:::0.8),(#H2:::0.2,(#H1,(A1,A2))),O);"
+@test writenewick(net_hl) == "(((B)#H1,(C)#H2:::0.8),(#H2:::0.2,(#H1,(A1,A2))),O);"
 
 # W structure network
 wstring = "(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.151::0.4):0.0274):0.4812);"
@@ -507,21 +507,21 @@ net_W = readnewick(wstring) # hybrid 1: H2, node number 3, hybrid 2: H1, number 
 @test isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2], true, true)) # same
 @test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2])) # hybrid ladders allowed
 @test net_W.hybrid[2].number == -7
-@test writeTopology(net_W) == "(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0,#H1:0.151::0.4):0.0,(#H2:0.0001::0.0244)#H1:0.0274::0.6):0.4812);"
+@test writenewick(net_W) == "(C:0.0262,(B:0.0)#H2:0.03::0.9756,(((D:0.1,A:0.1274):0.0,#H1:0.151::0.4):0.0,(#H2:0.0001::0.0244)#H1:0.0274::0.6):0.4812);"
 
 ## cases when the root needs to be reset (to former hybrid node)
 # newhybridnode < current root
 net_W = readnewick(wstring)
 @test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2], false)) # root was reset
 @test net_W.root == 7
-@test writeTopology(net_W) == "((D:0.1,A:0.1274):0.0,((C:0.0262,(B:0.0)#H2:0.03::0.9756):0.4812)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.0274::0.4):0.151);"
+@test writenewick(net_W) == "((D:0.1,A:0.1274):0.0,((C:0.0262,(B:0.0)#H2:0.03::0.9756):0.4812)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.0274::0.4):0.151);"
 # newhybridnode = current root
 # new root will have 2 children hybrid edges, because of former hybrid ladder
 net_hl = readnewick(hybridladderstring)  # hybrid 2 = H2, node number 1
 @test !isnothing(PhyloNetworks.fliphybrid!(net_hl, net_hl.hybrid[2], true, false))
 @test net_hl.hybrid[2].number == -2 # this is the former root
 @test net_hl.root == 4 # new root index is as expected
-@test writeTopology(net_hl) == "((B)#H1,#H2:::0.2,(C,((#H1,(A1,A2)),(O)#H2:::0.8)));"
+@test writenewick(net_hl) == "((B)#H1,#H2:::0.2,(C,((#H1,(A1,A2)),(O)#H2:::0.8)));"
 #= other examples in which newhybridnode = current root
 n6h1 = readnewick("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
 n6h1.root = 10
@@ -529,13 +529,13 @@ directEdges!(n6h1)
 @test n6h1.hybrid[1].number == 5
 @test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1])) # flips minor by default
 @test n6h1.hybrid[1].number == -8
-@test writeTopology(n6h1) == "((3:0.4,4:0.4):1.1,((1:0.2,2:0.2):2.4,((5:1.5)#H1:3.1::0.7,(6:5.6):1.0):2.0):1.1,#H1:0.0::0.3);"
+@test writenewick(n6h1) == "((3:0.4,4:0.4):1.1,((1:0.2,2:0.2):2.4,((5:1.5)#H1:3.1::0.7,(6:5.6):1.0):2.0):1.1,#H1:0.0::0.3);"
 
 net_W = readnewick(wstring)
 @test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], false)) # move major edge
 # this moves root to node number -4
 @test net_W.root == 3 # index
-@test writeTopology(net_W) == "(B:0.0,(C:0.0262)#H2:0.03::0.9756,(#H1:0.151::0.4,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,#H2:0.4812::0.0244):0.0274):0.0001);"
+@test writenewick(net_W) == "(B:0.0,(C:0.0262)#H2:0.03::0.9756,(#H1:0.151::0.4,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,#H2:0.4812::0.0244):0.0274):0.0001);"
 =#
 
 # flip hybrid would create a directed cycle
@@ -546,16 +546,16 @@ netc = readnewick(tangledstring) # hybrid 1: H2, number 4
 # flip edge cannot contain root, yet flip admissible, and has hybrid ladder: edgetoflip = bottom rung
 @test  isnothing(PhyloNetworks.fliphybrid!(netc, netc.hybrid[1],false, true))
 @test !isnothing(PhyloNetworks.fliphybrid!(netc, netc.hybrid[1],false))
-@test writeTopology(netc) == "((a:0.01,(#H2:0.01)#H1:0.01::0.8):0.01,e:0.01,((#H1:0.01::0.2,d:0.01):0.005,(c:0.005,(b:0.01)#H2:0.005)):0.005);"
+@test writenewick(netc) == "((a:0.01,(#H2:0.01)#H1:0.01::0.8):0.01,e:0.01,((#H1:0.01::0.2,d:0.01):0.005,(c:0.005,(b:0.01)#H2:0.005)):0.005);"
 
 # case when the new hybrid edge = child edge of the new hybrid node
 net_ex = readnewick("(((c:0.01,(a:0.005,#H1):0.005):0.01,(b:0.005)#H1:0.005):0.01,d:0.01);")
 @test !isnothing(PhyloNetworks.fliphybrid!(net_ex, net_ex.hybrid[1], false)) # flip major edge
 @test net_ex.root == 6 # index
 @test net_ex.hybrid[1].number == -3
-# @test writeTopology(net_ex) == "(b:0.005,(a:0.005,(c:0.01,#H1:0.01):0.005),((d:0.01):0.01)#H1:0.005);"
+# @test writenewick(net_ex) == "(b:0.005,(a:0.005,(c:0.01,#H1:0.01):0.005),((d:0.01):0.01)#H1:0.005);"
 PhyloNetworks.fliphybrid!(net_ex, net_ex.hybrid[1], false) # undo: except that different root
-@test writeTopology(net_ex) == "((c:0.01,(a:0.005,#H1):0.005):0.01,(b:0.005)#H1:0.005,(d:0.01):0.01);"
+@test writenewick(net_ex) == "((c:0.01,(a:0.005,#H1):0.005):0.01,(b:0.005)#H1:0.005,(d:0.01):0.01);"
 # degree-2 node exists, but not rooted at that node
 
 # case when sum_isdesc is 1, but corresponds to a hybrid edge

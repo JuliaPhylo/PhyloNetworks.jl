@@ -38,10 +38,10 @@ reticulation event.
 Let's see this newick format, printed to the screen or written to a file:
 ```@repl snaqplot
 net1
-writeTopology(net2)  # writes to screen, full precision for branch lengths and γ
-writeTopology(net2, round=true, digits=2)
-writeTopology(net2, di=true) # γ omitted: for dendroscope
-writeTopology(net2, "mynetwork_net2.tre") # writes to file: creates or overwrites file
+writenewick(net2)  # writes to screen, full precision for branch lengths and γ
+writenewick(net2, round=true, digits=2)
+writenewick(net2, di=true) # γ omitted: for dendroscope
+writenewick(net2, "mynetwork_net2.tre") # writes to file: creates or overwrites file
 rm("mynetwork_net2.tre") # hide
 ```
 The option `di=true` is for the parenthetical format used by

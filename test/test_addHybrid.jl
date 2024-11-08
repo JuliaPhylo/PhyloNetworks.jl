@@ -39,21 +39,21 @@ newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, netl1.edge[3]
 @test PhyloNetworks.getparentedgeminor(newhybridnode).gamma == 0.2
 netl1 = readnewick(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[15], netl1.edge[3], true))
-@test writeTopology(netl1) == "(((((((S1,S4),(S5)#H1),(#H1,(S6,S7))),#H3))#H2,((S8,S9))#H3),(#H2,S10));"
+@test writenewick(netl1) == "(((((((S1,S4),(S5)#H1),(#H1,(S6,S7))),#H3))#H2,((S8,S9))#H3),(#H2,S10));"
 netl1 = readnewick(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[2], netl1.edge[17], true))
-@test writeTopology(netl1) == "((#H2,S10),(((S8,(S9,#H3)),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2))#H3);"
+@test writenewick(netl1) == "((#H2,S10),(((S8,(S9,#H3)),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2))#H3);"
 netl1 = readnewick(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[20], netl1.edge[16], true))
-@test writeTopology(netl1) == "(((S8,S9),(((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2)#H3),((#H2,S10),#H3));"
+@test writenewick(netl1) == "(((S8,S9),(((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2)#H3),((#H2,S10),#H3));"
 netl1 = readnewick(str_level1); # good hybrid edge choice leads to a DAG when reverting the direction of edge2
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[6], netl1.edge[20], false))
 @test netl1.root < 19 # the root must have been changed due to changing some edges' directions
-@test writeTopology(netl1) == "(#H2,S10,((((S8,S9),((((S5)#H1,((S1,S4),#H3)),(#H1,(S6,S7))))#H2)))#H3);"
+@test writenewick(netl1) == "(#H2,S10,((((S8,S9),((((S5)#H1,((S1,S4),#H3)),(#H1,(S6,S7))))#H2)))#H3);"
 # new hybrid into an existing hybrid edge
 netl1 = readnewick(str_level1);
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[9], netl1.edge[10], true))
-@test writeTopology(netl1) == "(((S8,S9),((((S6,S7),(#H1)#H3),(((S1,S4),(S5)#H1),#H3)))#H2),(#H2,S10));"
+@test writenewick(netl1) == "(((S8,S9),((((S6,S7),(#H1)#H3),(((S1,S4),(S5)#H1),#H3)))#H2),(#H2,S10));"
 end # of addhybridedge! helper function
 
 @testset "edge checking functions" begin

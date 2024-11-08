@@ -273,7 +273,7 @@ then returns a tuple: the forest and the array of blob roots.
 
 Warnings:
 - the forest is represented by a single HybridNetwork object,
-  on which most functions don't work (like `writeTopology`, plotting etc.)
+  on which most functions don't work (like `writenewick`, plotting etc.)
   because the network is disconnected (to make the forest).
   Revert back to low-level functions, e.g. `printEdges` and `printNodes`.
 - see [`biconnectedComponents`](@ref) for node

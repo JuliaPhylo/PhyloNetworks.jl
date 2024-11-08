@@ -19,7 +19,7 @@ end
 
 # function that we need to overwrite to avoid printing useless scary
 # output for HybridNetworks
-# PROBLEM: writeTopology changes the network and thus show changes the network
+# PROBLEM: writenewick changes the network and thus show changes the network
 function Base.show(io::IO, obj::HybridNetwork)
     disp = "$(typeof(obj)), "
     if obj.isRooted
@@ -42,7 +42,7 @@ function Base.show(io::IO, obj::HybridNetwork)
     end
     par = ""
     try
-        # par = writeTopology(obj,round=true) # but writeTopology changes the network, not good
+        # par = writenewick(obj,round=true) # but writenewick changes the network, not good
         s = IOBuffer()
         writeSubTree!(s, obj, false,true, true,3,true)
         par = String(take!(s))

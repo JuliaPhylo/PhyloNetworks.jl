@@ -115,9 +115,9 @@ net.node[1].name = "t9"
 @test_throws Exception deleteleaf!(net, 10, index=true) # <10 nodes
 net.node[1].name = "t7" # back to original name
 deleteleaf!(net, "t9", nofuse=true)
-@test writeTopology(net) == "((t7:0.23):0.15,(t6:0.17):0.21);"
+@test writenewick(net) == "((t7:0.23):0.15,(t6:0.17):0.21);"
 deleteleaf!(net, "t7")
-@test writeTopology(net) == "(t6:0.17);"
+@test writenewick(net) == "(t6:0.17);"
 @test_logs (:warn, r"^Only 1 node") deleteleaf!(net, "t6")
 @test isempty(net.edge)
 @test isempty(net.node)
@@ -267,33 +267,33 @@ end # of testset for rotate
 
 net0 = readnewick("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
 removedegree2nodes!(net0, true) # true: to keep the root of degree-2
-@test writeTopology(net0, round=true) == "((C:1.1,A:2.0):1.4,B:3.4);"
+@test writenewick(net0, round=true) == "((C:1.1,A:2.0):1.4,B:3.4);"
 
 #--- delete above least stable ancestor ---#
 # 3 blobs above LSA: cut edge + level-2 blob + cut edge.
 net = readnewick("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
 PhyloNetworks.deleteaboveLSA!(net)
-@test writeTopology(net) == "(t2:0.1,t1);"
+@test writenewick(net) == "(t2:0.1,t1);"
 # 2 separate non-trivial clades + root edge
 net = readnewick("((((t1,t2):0.1,(t3:0.3,t4)):0.4));")
 PhyloNetworks.deleteaboveLSA!(net)
-@test writeTopology(net) == "((t1,t2):0.1,(t3:0.3,t4));"
+@test writenewick(net) == "((t1,t2):0.1,(t3:0.3,t4));"
 # 1 tip + 2-cycle above it, no extra root edge above, hybrid LSA
 net = readnewick("((t1)#H22:::0.8,#H22);")
 PhyloNetworks.deleteaboveLSA!(net)
-@test writeTopology(net) == "(t1)H22;"
+@test writenewick(net) == "(t1)H22;"
 @test isempty(net.hybrid)
 @test [n.name for n in net.nodes_changed] == ["H22","t1"]
 
 # deleteleaf! and removedegree2nodes! when the root starts a 2-cycle
 net = readnewick("((a,(((b)#H1,#H1))#H2),(#H2));")
 deleteleaf!(net, "a")
-@test writeTopology(net) == "((#H2),(((b)#H1,#H1))#H2);"
+@test writenewick(net) == "((#H2),(((b)#H1,#H1))#H2);"
 removedegree2nodes!(net)
-@test writeTopology(net) == "((((b)#H1,#H1))#H2,#H2);"
+@test writenewick(net) == "((((b)#H1,#H1))#H2,#H2);"
 net = readnewick("((a,(((b)#H1,#H1))#H2),#H2);") # no degree-2 node adjacent to root this time
 deleteleaf!(net, "a", unroot=true)
-@test writeTopology(net) == "(b)H1;"
+@test writenewick(net) == "(b)H1;"
 
 # unzip_canonical! and rezip_canonical!
 netstr = "(#H2:0.1::0.2,((C:0.2,((B:0.3)#H1:0.4)#H2:0.5::0.8):0.6,(#H1:0.7,((A1:0.8)#H3:0.01,(A2:0.9,#H3:0.02):0.03):1.0):1.1):1.2,O:1.3);"
@@ -301,9 +301,9 @@ net = readnewick(netstr)
 # 2 reticulation in a hybrid ladder, and another isolated reticulation
 undoinfo = PhyloNetworks.unzip_canonical!(net)
 @test all(getchildedge(h).length == 0.0 for h in net.hybrid) # unzipped
-@test writeTopology(net, round=true) == "(#H2:0.8::0.2,((C:0.2,((B:0.0)#H1:0.0)#H2:1.2::0.8):0.6,(#H1:1.0,((A1:0.0)#H3:0.81,(A2:0.9,#H3:0.82):0.03):1.0):1.1):1.2,O:1.3);"
+@test writenewick(net, round=true) == "(#H2:0.8::0.2,((C:0.2,((B:0.0)#H1:0.0)#H2:1.2::0.8):0.6,(#H1:1.0,((A1:0.0)#H3:0.81,(A2:0.9,#H3:0.82):0.03):1.0):1.1):1.2,O:1.3);"
 PhyloNetworks.rezip_canonical!(undoinfo...)
-@test writeTopology(net, round=true) == netstr
+@test writenewick(net, round=true) == netstr
 
 end # of testset for other functions in manipulateNet
 

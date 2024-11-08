@@ -186,7 +186,7 @@ PhyloNetworks.EdgeT{PhyloNetworks.Node}:
  attached to 2 node(s) (parent first): 11 3
 
 
-julia> writeTopology(net) # note extra pair of parentheses around S1
+julia> writenewick(net) # note extra pair of parentheses around S1
 "(((S8,S9),((((S4,(S1)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 ```
 
@@ -297,19 +297,19 @@ julia> PhyloNetworks.breakedge!(net.edge[3], net); # another one: 2 in a row
 
 julia> PhyloNetworks.breakedge!(net.edge[10], net); # another one, elsewhere
 
-julia> writeTopology(net) # extra pairs of parentheses
+julia> writenewick(net) # extra pairs of parentheses
 "((#H2,S4),(((((S1,(((S2)#H1))),(#H1,S3)))#H2)));"
 
 julia> removedegree2nodes!(net);
 
-julia> writeTopology(net) # even the root is gone
+julia> writenewick(net) # even the root is gone
 "(#H2,S4,(((S1,(S2)#H1),(#H1,S3)))#H2);"
 
 julia> net = readnewick("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
 
 julia> removedegree2nodes!(net, true);
 
-julia> writeTopology(net, round=true) # the root was kept
+julia> writenewick(net, round=true) # the root was kept
 "((C:1.1,A:2.0):1.4,B:3.4);"
 
 ```
@@ -351,12 +351,12 @@ julia> net.node[6].name # leaf S4
 
 julia> PhyloNetworks.addleaf!(net, net.node[6], "4a"); # adding leaf to a node
 
-julia> writeTopology(net, internallabel=true)
+julia> writenewick(net, internallabel=true)
 "((S1,(((S2,(S3)#H1),(#H1,(4a)S4)))#H2),(#H2,S5));"
 
 julia> PhyloNetworks.addleaf!(net, net.node[6], "4b");
 
-julia> writeTopology(net, internallabel=true)
+julia> writenewick(net, internallabel=true)
 "((S1,(((S2,(S3)#H1),(#H1,(4a,4b)S4)))#H2),(#H2,S5));"
 ```
 
@@ -370,7 +370,7 @@ julia> [n.name for n in net.edge[7].node] # external edge to S4
 
 julia> PhyloNetworks.addleaf!(net, net.edge[7], "4a"); # adding leaf to an edge
 
-julia> writeTopology(net, internallabel=true)
+julia> writenewick(net, internallabel=true)
 "((S1,(((S2,(S3)#H1),(#H1,(S4,4a))))#H2),(#H2,S5));"
 ```
 """

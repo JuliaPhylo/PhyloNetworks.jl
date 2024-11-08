@@ -69,7 +69,7 @@ summarize character states at nodes, assuming a *tree*
 """
 function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int,Set{T}}) where {T}
     println("node number => character states on tree ",
-            writeTopology(tree,di=true,round=true,digits=1))
+            writenewick(tree,di=true,round=true,digits=1))
     for n in tree.node
         haskey(nodestates, n.number) || continue
         print(n.number)
@@ -1249,7 +1249,7 @@ function maxParsimonyNet(
                                 ##but we need a semi-directed level-1 "good" network (currT0) for search
 
     str *= (writelog ? "rootname for files: $(rootname)\n" : "no output files\n")
-    str *= "BEGIN: $(runs) runs on starting tree $(writeTopology(currT0))\n"
+    str *= "BEGIN: $(runs) runs on starting tree $(writenewick(currT0))\n"
     if Distributed.nprocs()>1
         str *= "       using $(Distributed.nprocs()) processors\n"
     end
@@ -1295,7 +1295,7 @@ function maxParsimonyNet(
                                                 probST,outgroup,criterion);
             logstr *= "\nFINISHED Max $(string(criterion)) parsimony for run $(i), parsimony of best: $(best.loglik)\n"
             if writelog_1proc
-                logstr = writeTopology(best)
+                logstr = writenewick(best)
                 logstr *= "\n---------------------\n"
                 write(logfile, logstr)
                 flush(logfile)
@@ -1331,20 +1331,20 @@ function maxParsimonyNet(
 
     rootatnode!(maxNet,outgroup)
     writelog &&
-    write(logfile,"\nMaxNet is $(writeTopology(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
-    print(stdout,"\nMaxNet is $(writeTopology(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
+    write(logfile,"\nMaxNet is $(writenewick(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
+    print(stdout,"\nMaxNet is $(writenewick(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
 
     s = writelog ? open(juliaout,"w") : stdout
-    str = writeTopology(maxNet) * """
+    str = writenewick(maxNet) * """
      $(string(criterion)) parsimony score = $(maxNet.loglik)
-     Dendroscope: $(writeTopology(maxNet,di=true))
+     Dendroscope: $(writenewick(maxNet,di=true))
      Elapsed time: $(telapsed) seconds, $(runs) attempted runs
     -------
     List of estimated networks for all runs (sorted by $(string(criterion)) parsimony score; the smaller, the better):
     """
     for n in bestnet
         str *= " "
-        str *= writeTopology(rootatnode!(n,outgroup))
+        str *= writenewick(rootatnode!(n,outgroup))
         str *= ", with $(string(criterion)) parsimony $(n.loglik)\n"
     end
     str *= "-------\n"

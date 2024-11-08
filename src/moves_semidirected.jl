@@ -313,12 +313,12 @@ julia> using Random; Random.seed!(3);
 
 julia> undoinfo = nni!(net, net.edge[3], true, true); # true's to avoid hybrid ladders and 3-cycles
 
-julia> writeTopology(net)
+julia> writenewick(net)
 "(((S8,(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),S9),(#H2,S10));"
 
 julia> nni!(undoinfo...);
 
-julia> writeTopology(net) == str_network # net back to original topology: the NNI was "undone"
+julia> writenewick(net) == str_network # net back to original topology: the NNI was "undone"
 true
 ```
 """
@@ -782,7 +782,7 @@ S1,S1C
 
 julia> individual_net, species_constraints = PhyloNetworks.mapindividuals(species_net, filename);
 
-julia> writeTopology(individual_net, internallabel=true)
+julia> writenewick(individual_net, internallabel=true)
 "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 julia> species_constraints
@@ -831,7 +831,7 @@ Species constraint, on tips: S1A, S1B, S1C
  stem edge number 2
  crown node number 2
 
-julia> writeTopology(net) # 3 new nodes, S1 now internal: not a tip
+julia> writenewick(net) # 3 new nodes, S1 now internal: not a tip
 "(S8,((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,S6)));"
 ```
 """

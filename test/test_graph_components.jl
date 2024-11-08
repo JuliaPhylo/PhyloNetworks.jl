@@ -40,7 +40,7 @@ r,major,minor = PhyloNetworks.blobInfo(net);
 @test [[e.number for e in h] for h in minor] == [[13,9],[21],[]]
 forest, blobs = blobDecomposition(net);
 @test length(blobs)==3
-@test writeTopology(forest) == "(dummy -3,dummy -11);"
+@test writenewick(forest) == "(dummy -3,dummy -11);"
 s = IOBuffer()
 writeSubTree!(s, blobs[1], nothing, false, true)
 @test String(take!(s)) == "(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));"

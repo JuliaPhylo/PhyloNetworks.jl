@@ -266,8 +266,8 @@ with heritability γ at or above a threshold.
 Below we use a γ threshold of 0, so we get all displayed trees:
 ```@repl dist_reroot
 t = displayedTrees(net1, 0.0) # list of trees displayed in network
-writeTopology(t[1], round=true)
-writeTopology(t[2], round=true)
+writenewick(t[1], round=true)
+writenewick(t[2], round=true)
 ```
 If we decide to keep edges with γ>0.2 only, then we are
 left with a single tree in the list (the major tree).

@@ -62,7 +62,7 @@ julia> PhyloNetworks.addhybridedge!(net, true, true)
  attached to 2 node(s) (parent first): 8 9
 )
 
-julia> writeTopology(net, round=true, digits=2)
+julia> writenewick(net, round=true, digits=2)
 "((S1,(((#H1,S4),((S2,(S3)#H1))#H3:::0.67))#H2),((#H2,S5),#H3:0.01::0.33));"
 
 ```
@@ -181,7 +181,7 @@ julia> hybnode, hybedge = PhyloNetworks.addhybridedge!(net, net.edge[13], net.ed
 )
 
 
-julia> writeTopology(net)
+julia> writenewick(net)
 "((S8,(((S1,(S5)#H1),((#H1,S6))#H3:::0.8))#H2),(#H2,(S10,#H3:0.0::0.2)));"
 
 ```
