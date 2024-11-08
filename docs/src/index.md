@@ -46,18 +46,12 @@ It is used by other packages for more specialized tasks, such as
 
 See their [bibtex format](https://github.com/juliaphylo/PhyloNetworks.jl/blob/master/CITATION.bib).
 
-for the package:
+for the package in particular, please cite:
 - Claudia Solís-Lemus, Paul Bastide and Cécile Ané (2017).
   PhyloNetworks: a package for phylogenetic networks.
   [Molecular Biology and Evolution](https://academic.oup.com/mbe/article/doi/10.1093/molbev/msx235/4103410/PhyloNetworks-a-package-for-phylogenetic-networks?guestAccessKey=230afceb-df28-4160-832d-aa7c73f86369)
   34(12):3292–3298.
   [doi:10.1093/molbev/msx235](https://doi.org/10.1093/molbev/msx235)
-
-for network inference:
-- Claudia Solís-Lemus and Cécile Ané (2016).
-  Inferring Phylogenetic Networks with Maximum Pseudolikelihood under Incomplete Lineage Sorting.
-  [PLoS Genet](http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1005896)
-  12(3):e1005896. [doi:10.1371/journal.pgen.1005896](https://doi.org/10.1371/journal.pgen.1005896)
 
 ## Manual
 
