@@ -101,8 +101,6 @@ module PhyloNetworks
         treeedgecomponents,
         ## Network support
         treeedges_support,
-        hybridDetection,
-        summarizeHFdf,
         hybridclades_support,
         readmultinewick_files,
         writemultinewick,
