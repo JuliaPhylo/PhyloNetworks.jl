@@ -1,4 +1,4 @@
-# PhyloNetworks: analysis for phylogenetic networks <img src="docs/src/logo_text.png" align=right>
+# PhyloNetworks: utilities for phylogenetic networks <img src="docs/src/logo_text.png" align=right>
 
 [![doc stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/stable)
 [![doc dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/dev)
