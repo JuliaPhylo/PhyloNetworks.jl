@@ -104,7 +104,7 @@ module PhyloNetworks
         hybridDetection,
         summarizeHFdf,
         hybridclades_support,
-        readBootstrapTrees,
+        readmultinewick_files,
         writemultinewick,
         readmultinewick,
         ## Network Calibration
