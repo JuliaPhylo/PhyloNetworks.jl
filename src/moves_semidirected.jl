@@ -309,12 +309,30 @@ julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),
 
 julia> net = readnewick(str_network);
 
-julia> using Random; Random.seed!(3);
+julia> # using Random; Random.seed!(3); ## commented out for doctest reproducibility across julia versions, but users can use this line to set the seed in their analyses.
 
 julia> undoinfo = nni!(net, net.edge[3], true, true); # true's to avoid hybrid ladders and 3-cycles
+```
+
+In the next example, we use a stable RNG to make the example reproducible
+across julia versions. However, this particular RNG is *not* recommended.
+The RNG used by default is better (e.g. much more efficient).
+
+```jldoctest nni
+julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
+
+julia> net = readnewick(str_network);
+
+julia> # using Pkg; Pkg.add("StableRNGs") # to install StableRNGs if not done earlier
+
+julia> using StableRNGs
+
+julia> rng = StableRNG(791);
+
+julia> undoinfo = nni!(rng, net, net.edge[3], true, true); # true's to avoid hybrid ladders and 3-cycles
 
 julia> writenewick(net)
-"(((S8,(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),S9),(#H2,S10));"
+"((S9,((((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2,S8)),(#H2,S10));"
 
 julia> nni!(undoinfo...);
 

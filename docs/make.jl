@@ -3,9 +3,12 @@ using Documenter
 # fixit: this installs the dev version of PhyloPlots for compatibility.
 # edit back to install the "master" version of PhyloPlots
 # and remove PhyloTraits when that package is registered
-using Pkg
-Pkg.add(PackageSpec(name="PhyloPlots", rev="dev11"))
-Pkg.add(PackageSpec(url="https://github.com/JuliaPhylo/PhyloTraits.jl", rev="dev01"))
+# update: we comment these lines because we are tracking Manifest.toml now
+# change this when PhyloTraits and PhyloPlots are registered
+# using Pkg
+# Pkg.add(PackageSpec(url="https://github.com/JuliaPhylo/PhyloTraits.jl", rev="dev01"))
+# Pkg.add(PackageSpec(name="PhyloPlots", rev="dev11"))
+
 
 using PhyloNetworks
 
