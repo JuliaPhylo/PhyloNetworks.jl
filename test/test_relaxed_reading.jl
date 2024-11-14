@@ -35,7 +35,7 @@ global net
     @test_throws Exception readnewick("(E,((B)#H1") # doesn't end with ;
     @test_throws Exception readnewick(IOBuffer("E;")) # Expected beginning of tree with (
 end
-@testset "isMajor and gamma consistency" begin
+@testset "ismajor and gamma consistency" begin
     net = readnewick("((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));");
     @test writenewick(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
     net = readnewick("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
@@ -51,7 +51,7 @@ end
     # writenewick(net) == "((a,(b)#H1)i1,(#H1,c)i2);"
     # readnewick("((((a,(b)#H1)i1,(#H1,c)i2)root:0.5));"); still has 1 (of the 2) root edges
     # writemultinewick([n1,n2], stdout)
-    n11.root = 2 # below the hybrid node: will trigger RootMismatch and message below
+    n11.rooti = 2 # below the hybrid node: will trigger RootMismatch and message below
     originalstdout = stdout
     redirect_stdout(devnull)
     writemultinewick([n11,n12], "test_relaxedreading.net")

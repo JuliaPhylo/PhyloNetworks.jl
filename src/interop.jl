@@ -21,7 +21,7 @@ end
 
 Matrix of major edges from `net` where edge[i,1] is the number of the
 parent node of edge i and edge[i,2] is the number of the child node of edge i.
-Assume `nodes_changed` was updated, to list nodes in pre-order.
+Assume `vec_node` was updated, to list nodes in pre-order.
 
 # Examples
 
@@ -43,13 +43,13 @@ julia> PhyloNetworks.majoredgematrix(net)
 function majoredgematrix(net::HybridNetwork)
     edge = Matrix{Int}(undef, length(net.edge)-length(net.hybrid), 2) # major edges
     i = 1 #row index for edge matrix
-    for n in net.nodes_changed # topological pre-order
+    for n in net.vec_node # topological pre-order
         !n.leaf || continue # skip leaves: associate node with children edges
         for e in n.edge
-            if e.node[e.isChild1 ? 2 : 1] == n && e.isMajor
+            if e.node[e.ischild1 ? 2 : 1] == n && e.ismajor
                 #exclude parent edge and minor hybrid edges
                 edge[i,1] = n.number # parent
-                edge[i,2] = e.node[e.isChild1 ? 1 : 2].number # child
+                edge[i,2] = e.node[e.ischild1 ? 1 : 2].number # child
                 i += 1
             end
         end
@@ -65,7 +65,7 @@ as the `edge` matrix created via `majoredgematrix`. Considers values of `-1.0` a
 missing values, recognized as NA in `R`.
 Output: vector allowing for missing values.
 
-Assume `nodes_changed` was updated, to list nodes in pre-order.
+Assume `vec_node` was updated, to list nodes in pre-order.
 
 # Examples
 
@@ -89,10 +89,10 @@ julia> PhyloNetworks.majoredgelength(net)
 function majoredgelength(net::HybridNetwork)
     edgeLength = Array{Union{Float64,Missing}}(undef, length(net.edge)-length(net.hybrid))
     i=1
-    for n in net.nodes_changed # topological pre-order
+    for n in net.vec_node # topological pre-order
         if !n.leaf
             for e in n.edge # for parent major edge below
-                if e.node[e.isChild1 ? 2 : 1] == n && e.isMajor
+                if e.node[e.ischild1 ? 2 : 1] == n && e.ismajor
                     edgeLength[i] = e.length
                     i=i+1
                 end
@@ -111,7 +111,7 @@ Matrix of integers, representing the minor hybrid edges in `net`.
 edge[i,1] is the number of the parent node of the ith minor hybrid edge,
 and edge[i,2] is the number of its child node.
 Node numbers may be negative, unless they were modified by `resetNodeNumbers!`.
-Assumes correct `isChild1` fields.
+Assumes correct `ischild1` fields.
 
 # Examples
 
@@ -126,7 +126,7 @@ function minorreticulationmatrix(net::HybridNetwork)
     reticulation = Matrix{Int}(undef, length(net.hybrid), 2) # initialize
     j = 1 # row index, row = reticulate edge
     for e in net.edge
-        if !e.isMajor # minor (hybrid) edges only
+        if !e.ismajor # minor (hybrid) edges only
             reticulation[j,1] = getparent(e).number
             reticulation[j,2] = getchild(e).number
             j += 1
@@ -156,7 +156,7 @@ julia> PhyloNetworks.minorreticulationlength(net)
 function minorreticulationlength(net::HybridNetwork)
     reticulationLength = Vector{Union{Float64,Missing}}(undef, 0) # initialize
     for e in net.edge
-        if !e.isMajor #find minor hybrid edge
+        if !e.ismajor #find minor hybrid edge
             push!(reticulationLength, e.length)
         end
     end
@@ -185,7 +185,7 @@ julia> PhyloNetworks.minorreticulationgamma(net)
 function minorreticulationgamma(net::HybridNetwork)
     reticulationGamma = Vector{Union{Float64,Missing}}(undef, 0) #initialize
     for e in net.edge
-        if !e.isMajor # minor hybrid edges only
+        if !e.ismajor # minor hybrid edges only
             push!(reticulationGamma, e.gamma)
         end
     end

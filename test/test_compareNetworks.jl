@@ -21,7 +21,7 @@ net = readnewick(netstr)
 @test writenewick(net) == "(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
 @test  net.edge[5].gamma == 0.1
 @test !net.edge[5].hybrid
-@test  net.edge[5].isMajor
+@test  net.edge[5].ismajor
 @test  net.node[3].name == "H1"
 @test !net.node[3].hybrid
 
@@ -63,16 +63,16 @@ end
 
 # example with wrong attributed inChild1
 net=readnewick("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.1361111):10.0);");
-net.edge[5].isChild1 = false;
+net.edge[5].ischild1 = false;
 @test_logs PN.deletehybridedge!(net, net.edge[4]);
 @test writenewick(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);"
-# or: deletehybridedge! didn't work on 4th edge when isChild1 was outdated
+# or: deletehybridedge! didn't work on 4th edge when ischild1 was outdated
 
 if doalltests
 net = readnewick("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
-net.edge[5].isChild1 = false # edge incident to the root, now pointing towards the root
-# tests that deletehybridedge! and writenewick don't use isChild1,
-# now in conflict with net.root: node -2 instead of -3 as would isChild1 suggest
+net.edge[5].ischild1 = false # edge incident to the root, now pointing towards the root
+# tests that deletehybridedge! and writenewick don't use ischild1,
+# now in conflict with net.rooti: node -2 instead of -3 as would ischild1 suggest
 PN.deletehybridedge!(net, net.edge[10]);
 @test writenewick(net) == "((Adif:1.0,(Aech:0.122,(Asub:1.0,Agem:1.0):10.0):10.0):1.614,Aten:1.0);"
 end
@@ -89,7 +89,7 @@ net = deepcopy(net0)
 net0 = readnewick("(africa_east:0.003,((#H3:0::0.003,(non_africa_west:0.2,non_africa_east:0.2)#H1:0.3::1):0.3,(#H1:0::0)#H3:0::0.997)H2:0);");
 PN.deletehybridedge!(net0, net0.edge[2], false, false, false, true, false)
 @test all(!n.hybrid for n in net0.node)
-@test all(e.containRoot for e in net0.edge)
+@test all(e.containroot for e in net0.edge)
 @test writenewick(net0) == "(africa_east:0.003,(non_africa_west:0.2,non_africa_east:0.2)H1:0.0);"
 
 end # of testing deletehybridedge!
@@ -135,18 +135,18 @@ net3  = readnewick(cui3str);
 @test hardwiredClusterDistance(net2, net3, true) == 4
 @test hardwiredClusterDistance(net2, net3, false) == 4
 @test_logs deleteleaf!(net3,"Xmayae"; unroot=true);    #plot(net3);
-@test net3.numHybrids == 2
+@test net3.numhybrids == 2
 # using simplify=false in deleteleaf!
 net3  = readnewick(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
 deleteleaf!(net3,"Xmayae", simplify=false);
-@test net3.numHybrids==3
-@test net3.numNodes == 47
+@test net3.numhybrids==3
+@test net3.numnodes == 47
 net3  = readnewick(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
 deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
-@test net3.numHybrids==3
-@test net3.numNodes == 46
+@test net3.numhybrids==3
+@test net3.numnodes == 46
 
 end # of testset for deleteleaf! and hardwiredClusterDistance
 
@@ -419,7 +419,7 @@ hardwiredClusterDistance(trunet,estnet,true) == 0 ||
 net51 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
 directEdges!(net51); # doing this avoids a warning on the next line:
 displayedNetworkAt!(net51, net51.hybrid[1]) # H2
-# "WARNING: node -3 being the root is contradicted by isChild1 of its edges."
+# "WARNING: node -3 being the root is contradicted by ischild1 of its edges."
 rootatnode!(net51, "A");
 writenewick(net51) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);" ||
   error("wrong net51 after displayedNetworkAt!");

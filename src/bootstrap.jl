@@ -232,7 +232,7 @@ function hybridclades_support(
 )
     numNets = length(nets)
     numNets>0 || error("there aren't any networks in the sample")
-    numHybs = refnet.numHybrids
+    numHybs = refnet.numhybrids
     numHybs>0 || error("there aren't any hybrid in reference network")
     try directEdges!(refnet)
     catch err
@@ -259,16 +259,16 @@ function hybridclades_support(
     minsisind = Int[]    #                                   minor
     # hybind, hybnode, majsis*, minsis*: same size = number of hybrid nodes in reference network
 
-    if !rooted && length(refnet.node[refnet.root].edge)==2 && any(e -> e.hybrid, refnet.node[refnet.root].edge)
+    if !rooted && length(refnet.node[refnet.rooti].edge)==2 && any(e -> e.hybrid, refnet.node[refnet.rooti].edge)
         refnet = deepcopy(refnet) # new binding inside function
-        fuseedgesat!(refnet.root, refnet)
+        fuseedgesat!(refnet.rooti, refnet)
     end # issues otherwise: correct tree edge for root bipartitions, find sister clades, ...
 
     reftre = majorTree(refnet, unroot=true)
-    skipone = (!rooted && length(reftre.node[reftre.root].edge)<3) # not count same bipartition twice
+    skipone = (!rooted && length(reftre.node[reftre.rooti].edge)<3) # not count same bipartition twice
     for pe in reftre.edge
         hwc = hardwiredCluster(pe,taxa) # not very efficient, but human readable
-        if skipone && refnet.node[refnet.root] ≡ getparent(pe) && sum(hwc)>1
+        if skipone && refnet.node[refnet.rooti] ≡ getparent(pe) && sum(hwc)>1
             skipone = false             # wrong algo for trivial 2-taxon rooted tree (A,B);
             println("skip edge $(pe.number)")
         else
@@ -285,8 +285,8 @@ function hybridclades_support(
         displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
         hn = net0.hybrid[1]
         hemaj, hemin, ce = hybridEdges(hn) # assumes no polytomy at hybrid nodes and correct node.hybrid
-        (hemin.hybrid && !hemin.isMajor) || error("edge should be hybrid and minor")
-        (hemaj.hybrid &&  hemaj.isMajor) || error("edge should be hybrid and major")
+        (hemin.hybrid && !hemin.ismajor) || error("edge should be hybrid and minor")
+        (hemaj.hybrid &&  hemaj.ismajor) || error("edge should be hybrid and major")
         ic = findfirst(isequal(ce.number), treeedge)
         ic !== nothing || error("hybrid node $(hn.number): child edge not found in major tree")
         hybparent[ic] = trueh
@@ -297,7 +297,7 @@ function hybridclades_support(
         for sis in ["min","maj"]
           he = (sis=="min" ? hemin : hemaj)
           pn = getparent(he) # parent node of sister (origin of gene flow if minor)
-          atroot = (!rooted && pn ≡ net0.node[net0.root]) # polytomy at root pn of degree 3: will exclude one child edge
+          atroot = (!rooted && pn ≡ net0.node[net0.rooti]) # polytomy at root pn of degree 3: will exclude one child edge
           hwc = zeros(Bool,ntax) # new binding each time. pushed to clade below.
           for ce in pn.edge    # important if polytomy
             if ce ≢ he && pn ≡ getparent(ce)
@@ -381,24 +381,24 @@ function hybridclades_support(
           end
           rethrow(err)
         end
-        for esth = 1:net.numHybrids   # try to match estimated hybrid edge
+        for esth = 1:net.numhybrids   # try to match estimated hybrid edge
             hwcPar = zeros(Bool,ntax)   # minor sister clade
             hwcChi = zeros(Bool,ntax)   #       child  clade
             hwcSib = zeros(Bool,ntax)   # major sister clade
             net1 = deepcopy(net)
             displayedNetworkAt!(net1, net1.hybrid[esth])
             hn = net1.hybrid[1]
-            if !rooted && length(net1.node[net1.root].edge)==2 && any(e -> e.hybrid, net1.node[net1.root].edge)
-                fuseedgesat!(net1.root, net1)
+            if !rooted && length(net1.node[net1.rooti].edge)==2 && any(e -> e.hybrid, net1.node[net1.rooti].edge)
+                fuseedgesat!(net1.rooti, net1)
             end
             hemaj, hemin, ce = hybridEdges(hn) # assumes no polytomy at hybrid node
-            (hemin.hybrid && !hemin.isMajor) || error("edge should be hybrid and minor")
-            (hemaj.hybrid &&  hemaj.isMajor) || error("edge should be hybrid and major")
+            (hemin.hybrid && !hemin.ismajor) || error("edge should be hybrid and minor")
+            (hemaj.hybrid &&  hemaj.ismajor) || error("edge should be hybrid and major")
             hardwiredCluster!(hwcChi,hemin,taxa)
             for sis in ["min","maj"]
                 he = (sis=="min" ? hemin : hemaj)
                 pn = getparent(he) # parent of hybrid edge
-                atroot = (!rooted && pn ≡ net1.node[net1.root])
+                atroot = (!rooted && pn ≡ net1.node[net1.rooti])
                 # if at root: exclude the child edge in the same cycle as he.
                 # its cluster includes hwcChi. all other child edges do not interest hwcChi.
                 # if (atroot) @show i; @warn "$(sis)or edge is at the root!"; end

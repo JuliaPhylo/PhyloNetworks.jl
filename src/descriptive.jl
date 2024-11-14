@@ -22,22 +22,22 @@ end
 # PROBLEM: writenewick changes the network and thus show changes the network
 function Base.show(io::IO, obj::HybridNetwork)
     disp = "$(typeof(obj)), "
-    if obj.isRooted
+    if obj.isrooted
         disp = disp * "Rooted Network"
     else
-        disp = disp * "Un-rooted Network"
+        disp = disp * "Semidirected Network"
     end
-    disp = disp * "\n$(obj.numEdges) edges\n"
-    disp = disp * "$(obj.numNodes) nodes: $(obj.numTaxa) tips, "
-    disp = disp * "$(obj.numHybrids) hybrid nodes, "
-    disp = disp * "$(obj.numNodes - obj.numTaxa - obj.numHybrids) internal tree nodes.\n"
+    disp = disp * "\n$(obj.numedges) edges\n"
+    disp = disp * "$(obj.numnodes) nodes: $(obj.numtaxa) tips, "
+    disp = disp * "$(obj.numhybrids) hybrid nodes, "
+    disp = disp * "$(obj.numnodes - obj.numtaxa - obj.numhybrids) internal tree nodes.\n"
     tipslabels = [n.name for n in obj.leaf]
     if length(tipslabels) > 1 || !all(tipslabels .== "")
         disptipslabels = "$(tipslabels[1])"
-        for i in 2:min(obj.numTaxa, 4)
+        for i in 2:min(obj.numtaxa, 4)
             disptipslabels = disptipslabels * ", $(tipslabels[i])"
         end
-        if obj.numTaxa > 4 disptipslabels = disptipslabels * ", ..." end
+        if obj.numtaxa > 4 disptipslabels = disptipslabels * ", ..." end
         disp *= "tip labels: " * disptipslabels
     end
     par = ""
@@ -74,16 +74,16 @@ function Base.show(io::IO, obj::Edge)
     disp *= "\n number:$(obj.number)"
     disp *= "\n length:$(obj.length)"
     if (obj.hybrid)
-        disp *= "\n " * (obj.isMajor ? "major" : "minor")
+        disp *= "\n " * (obj.ismajor ? "major" : "minor")
         disp *= " hybrid edge with gamma=$(obj.gamma)"
-    elseif (!obj.isMajor)
+    elseif (!obj.ismajor)
         disp *= "\n minor tree edge"
     end
     disp *= "\n attached to $(length(obj.node)) node(s) (parent first):"
     if (length(obj.node)==1) disp *= " $(obj.node[1].number)";
     elseif (length(obj.node)==2)
-        disp *= " $(obj.node[obj.isChild1 ? 2 : 1].number)"
-        disp *= " $(obj.node[obj.isChild1 ? 1 : 2].number)"
+        disp *= " $(obj.node[obj.ischild1 ? 2 : 1].number)"
+        disp *= " $(obj.node[obj.ischild1 ? 1 : 2].number)"
     end
     println(io, disp)
 end

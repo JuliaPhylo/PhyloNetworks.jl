@@ -1,17 +1,17 @@
 """
     getNodeAges(net)
 
-vector of node ages in pre-order, as in `nodes_changed`.
+vector of node ages in pre-order, as in `vec_node`.
 
 *Warnings*: `net` is assumed to
-- have been preordered before (to calculate `nodes_changed`)
+- have been preordered before (to calculate `vec_node`)
 - be time-consistent (all paths to the root to a given hybrid have the same length)
 - be ultrametric (all leaves have the same age: 0)
 """
 function getNodeAges(net::HybridNetwork)
-    x = Vector{Float64}(undef, length(net.nodes_changed))
-    for i in reverse(1:length(net.nodes_changed)) # post-order
-        n = net.nodes_changed[i]
+    x = Vector{Float64}(undef, length(net.vec_node))
+    for i in reverse(1:length(net.vec_node)) # post-order
+        n = net.vec_node[i]
         if n.leaf
             x[i] = 0.0
             continue
@@ -19,7 +19,7 @@ function getNodeAges(net::HybridNetwork)
         for e in n.edge
             if getparent(e) == n # n parent of e
                 childnode = getchild(e)
-                childIndex = getIndex(childnode, net.nodes_changed)
+                childIndex = getIndex(childnode, net.vec_node)
                 x[i] = x[childIndex] + e.length
                 break # use 1st child, ignores all others
             end
@@ -36,7 +36,7 @@ end
 Return the matrix `M` of pairwise distances between nodes in the network:
 - between all nodes (internal and leaves) if `keepInternal=true`,
   in which case the nodes are listed in `M` in the
-  order in which they appear in `net.nodes_changed`
+  order in which they appear in `net.vec_node`
 - between taxa only otherwise, in which case the nodes are listed
   in `M` in the order in which they appear in `tipLabels(net)`
   (i.e. same order as in `net.leaf`)
@@ -51,11 +51,11 @@ if branch lengths are in substitutions/site.
 
 optional arguments:
 
-- `checkPreorder`: if true, `net.nodes_changed` is updated to get a
+- `checkPreorder`: if true, `net.vec_node` is updated to get a
   topological ordering of nodes.
 - `nodeAges`: if not provided, i.e. empty vector, the network is *not* modified.  
   If provided and non-empty, `nodeAges` should list node ages in the
-  pre-order in which nodes are listed in `nodes_changed` (including leaves),
+  pre-order in which nodes are listed in `vec_node` (including leaves),
   and **edge lengths** in `net` **are modified** accordingly.
 
 Providing node ages hence makes the network time consistent: such that
@@ -68,11 +68,11 @@ function pairwiseTaxonDistanceMatrix(
     checkPreorder::Bool=true,
     nodeAges::Vector{Float64}=Float64[]
 )
-    net.isRooted || error("net needs to be rooted for preorder recursion")
+    net.isrooted || error("net needs to be rooted for preorder recursion")
     if(checkPreorder)
         preorder!(net)
     end
-    nnodes = net.numNodes
+    nnodes = net.numnodes
     M = zeros(Float64,nnodes,nnodes)
     isempty(nodeAges) || length(nodeAges) == nnodes ||
         error("there should be $nnodes node ages")
@@ -87,14 +87,14 @@ end
 
 Extract submatrix of M, with rows and/or columns corresponding to
 tips in the network, ordered like in `net.leaf`.
-In M, rows and/or columns are assumed ordered as in `net.nodes_changed`.
+In M, rows and/or columns are assumed ordered as in `net.vec_node`.
 
 indexation: one of `:rows`, `:cols` or `:both`: are nodes numbers indexed
 in the matrix by rows, by columns, or both? Subsetting is taken accordingly.
 
 """
 function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
-    nodenames = [n.name for n in net.nodes_changed]
+    nodenames = [n.name for n in net.vec_node]
     tipind = Int[]
     for l in tipLabels(net)
         push!(tipind, findfirst(isequal(l), nodenames))
@@ -111,7 +111,7 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
 end
 
 function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)
-    traversal_preorder!(net.nodes_changed, M, # updates M in place
+    traversal_preorder!(net.vec_node, M, # updates M in place
             traversalupdate_default!, # does nothing
             updateTreePairwiseTaxonDistanceMatrix!,
             updateHybridPairwiseTaxonDistanceMatrix!,
@@ -123,7 +123,7 @@ function updateTreePairwiseTaxonDistanceMatrix!(
     i::Int,
     parindx::Int, # index of parent node
     edge::Edge,
-    nodeages, # assumed pre-ordered, as in nodes_changed
+    nodeages, # assumed pre-ordered, as in vec_node
 )
     if !isempty(nodeages)
         edge.length = nodeages[parindx] - nodeages[i]
@@ -164,7 +164,7 @@ end
 3-dim array: gradient of pairwise distances between all nodes.
 (internal and leaves); gradient with respect to edge lengths
 if `nodeAges` is empty; with respect to node ages otherwise.
-Assume correct `net.nodes_changed` (preorder).  
+Assume correct `net.vec_node` (preorder).  
 This gradient depends on the network's topology and γ's only,
 not on branch lengths or node ages (distances are linear in either).
 
@@ -176,16 +176,16 @@ function pairwiseTaxonDistanceGrad(
     nodeAges::Vector{Float64}=Float64[]
 )
     if checkEdgeNumber
-      sort([e.number for e in net.edge]) == collect(1:net.numEdges) ||
+      sort([e.number for e in net.edge]) == collect(1:net.numedges) ||
         error("edge numbers must range between 1 and #edges")
     end
-    n = (length(nodeAges)==0 ? net.numEdges : net.numNodes)
-    M = zeros(Float64, net.numNodes, net.numNodes, n)
-    traversal_preorder!(net.nodes_changed, M,
+    n = (length(nodeAges)==0 ? net.numedges : net.numnodes)
+    M = zeros(Float64, net.numnodes, net.numnodes, n)
+    traversal_preorder!(net.vec_node, M,
             traversalupdate_default!,  # does nothing
             updateTreePairwiseTaxonDistanceGrad!,
             updateHybridPairwiseTaxonDistanceGrad!,
-            nodeAges) # nodeAges assumed pre-ordered, like nodes_changed
+            nodeAges) # nodeAges assumed pre-ordered, like vec_node
     return M
 end
 function updateTreePairwiseTaxonDistanceGrad!(
@@ -298,37 +298,37 @@ function calibrateFromPairwiseDistances!(
     else na = Float64[]; end
     # get number and indices of edge/nodes to be optimized
     if forceMinorLength0 && !ultrametric
-        parind = filter(i -> net.edge[i].isMajor, 1:net.numEdges)
+        parind = filter(i -> net.edge[i].ismajor, 1:net.numedges)
         nparams = length(parind) # edges to be optimized: indices
         par = [e.length for e in net.edge][parind] # and lengths
-        for i in 1:net.numEdges
-            if !net.edge[i].isMajor net.edge[i].length=0.0; end
+        for i in 1:net.numedges
+            if !net.edge[i].ismajor net.edge[i].length=0.0; end
         end
     elseif !forceMinorLength0 && !ultrametric
         nparams = length(net.edge) # number of parameters to optimize
         par = [e.length for e in net.edge]
         parind = 1:nparams
     elseif !forceMinorLength0 && ultrametric
-        nparams = net.numNodes - net.numTaxa # internal nodes to be optimized
-        parind = filter(i -> !net.nodes_changed[i].leaf, 1:net.numNodes)
+        nparams = net.numnodes - net.numtaxa # internal nodes to be optimized
+        parind = filter(i -> !net.vec_node[i].leaf, 1:net.numnodes)
         par = na[parind]
     else # forceMinorLength0 && ultrametric
-        nparams = net.numNodes - net.numTaxa - net.numHybrids
-        parind = filter(i -> !(net.nodes_changed[i].leaf || net.nodes_changed[i].hybrid),
-                        1:net.numNodes)
+        nparams = net.numnodes - net.numtaxa - net.numhybrids
+        parind = filter(i -> !(net.vec_node[i].leaf || net.vec_node[i].hybrid),
+                        1:net.numnodes)
         par = na[parind]
-        hybInd = filter(i -> net.nodes_changed[i].hybrid, 1:net.numNodes)
-        hybParentInd = Int[] # index in nodes_changed of minor parent
+        hybInd = filter(i -> net.vec_node[i].hybrid, 1:net.numnodes)
+        hybParentInd = Int[] # index in vec_node of minor parent
         hybGParentI = Int[] # index in 1:nparams of minor (grand-)parent in param list
         for i in hybInd
-            n = net.nodes_changed[i]
+            n = net.vec_node[i]
             p = getparentminor(n)
-            pi = findfirst(n -> n===p, net.nodes_changed)
+            pi = findfirst(n -> n===p, net.vec_node)
             push!(hybParentInd, pi)
             pii = findfirst(isequal(pi), parind)
             while pii===nothing # in case minor parent of n is also hybrid node
                 p = getparentminor(p)
-                pi = findfirst(n -> n===p, net.nodes_changed)
+                pi = findfirst(n -> n===p, net.vec_node)
                 pii = findfirst(isequal(pi), parind)
             end
             push!(hybGParentI, pii)
@@ -337,14 +337,14 @@ function calibrateFromPairwiseDistances!(
     # initialize M=dist b/w all nodes, G=gradient (constant)
     M = pairwiseTaxonDistanceMatrix(net, keepInternal=true,
             checkPreorder=false, nodeAges=na)
-    if !ultrametric && sort([e.number for e in net.edge]) != collect(1:net.numEdges)
-        for i in 1:net.numEdges # renumber edges, needed for G
+    if !ultrametric && sort([e.number for e in net.edge]) != collect(1:net.numedges)
+        for i in 1:net.numedges # renumber edges, needed for G
             net.edge[i].number = i
         end
     end # G assumes edges numbered 1:#edges, if optim edge lengths
     G = pairwiseTaxonDistanceGrad(net, checkEdgeNumber=false, nodeAges=na) .* 2
     # match order of leaves in input matrix, versus pre-order
-    nodenames = [n.name for n in net.nodes_changed] # pre-ordered
+    nodenames = [n.name for n in net.vec_node] # pre-ordered
     ntax = length(taxNames)
     tipind = Int[] # pre-order index for leaf #i in dna distances
     for l in taxNames
@@ -354,13 +354,13 @@ function calibrateFromPairwiseDistances!(
     end
     # contraints: to force a parent to be older than its child
     if ultrametric
-      numConstraints = length(parind) -1 + net.numHybrids
+      numConstraints = length(parind) -1 + net.numhybrids
       # calculate indices in param list of child & (grand-)parent once
       chii = Int[] # non-root internal node, can be repeated: once per constraint
       anii = Int[] # closest ancestor in param list
       ci = 1 # index of constraint
-      for i in 2:length(net.nodes_changed) # 1=root, can skip
-        n = net.nodes_changed[i]
+      for i in 2:length(net.vec_node) # 1=root, can skip
+        n = net.vec_node[i]
         if n.leaf continue; end # node ages already bounded by 0
         if n.hybrid && forceMinorLength0          # get index in param list of
           nii = hybGParentI[findfirst(isequal(i), hybInd)] # minor grand-parent (same age)
@@ -370,9 +370,9 @@ function calibrateFromPairwiseDistances!(
         for e in n.edge
           if getchild(e) == n # n child of e
             p = getparent(e)  # parent of n
-            if forceMinorLength0 && n.hybrid && !e.isMajor
+            if forceMinorLength0 && n.hybrid && !e.ismajor
                 continue; end # p and n at same age already
-            pi = findfirst(isequal(p.number), [no.number for no in net.nodes_changed])
+            pi = findfirst(isequal(p.number), [no.number for no in net.vec_node])
             if forceMinorLength0 && p.hybrid
               pii = hybGParentI[findfirst(isequal(pi), hybInd)]
             else
@@ -380,7 +380,7 @@ function calibrateFromPairwiseDistances!(
             end
             push!(chii, nii)
             push!(anii, pii)
-            verbose && println("node $(net.nodes_changed[parind[nii]].number) constrained by age of parent $(net.nodes_changed[parind[pii]].number)")
+            verbose && println("node $(net.vec_node[parind[nii]].number) constrained by age of parent $(net.vec_node[parind[pii]].number)")
             ci += 1
           end
         end
@@ -423,7 +423,7 @@ function calibrateFromPairwiseDistances!(
                 na[parind[i]] = x[i]
             end
             if forceMinorLength0 # set hybrid age to minor parent age
-                for i in 1:net.numHybrids
+                for i in 1:net.numhybrids
                     na[hybInd[i]] = na[hybParentInd[i]] # pre-order important
                 end
             end
@@ -447,7 +447,7 @@ function calibrateFromPairwiseDistances!(
                         (M[tipind[i],tipind[j]]-D[i,j])
             end
             if ultrametric && forceMinorLength0
-              for i in 1:net.numHybrids # na[hybrid] set to na[minor parent]
+              for i in 1:net.numhybrids # na[hybrid] set to na[minor parent]
                 grad[hybGParentI[i]] += G[tipind[i],tipind[j],hybInd[i]] *
                         (M[tipind[i],tipind[j]]-D[i,j])
               end
@@ -503,7 +503,7 @@ function startingBL!(
     trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
     siteweight::AbstractVector{<:Real}=ones(Float64,length(trait[1]))
 )
-    nspecies = net.numTaxa
+    nspecies = net.numtaxa
     M = zeros(Float64, nspecies, nspecies) # pairwise distances initialized to 0
     # count pairwise differences, then multiply by pattern weight
     ncols = length(trait[1]) # assumption: all species have same # columns

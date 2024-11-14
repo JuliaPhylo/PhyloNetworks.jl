@@ -69,7 +69,7 @@ aexit = PhyloNetworks.biconnectedcomponent_exitnodes(net, a)
 # balanced tree + extra root edge
 net = readnewick("((((t1,t2),(t3,t4))));")
 _, lsaindex = PhyloNetworks.leaststableancestor(net)
-@test net.nodes_changed[lsaindex].number == -4
+@test net.vec_node[lsaindex].number == -4
 # LSA = root & entry to non-trivial blob
 lsa, _ = PhyloNetworks.leaststableancestor(readnewick("(#H2:::0.2,((b)#H2,a));"))
 @test lsa.number == -2
@@ -80,15 +80,15 @@ end
 
     treestr = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);"
     tree = readnewick(treestr)
-    for e in tree.edge e.containRoot=false; end # wrong, on purpose
+    for e in tree.edge e.containroot=false; end # wrong, on purpose
     @test collect(values(treeedgecomponents(tree))) == repeat([1], inner=7)
     rcomp = checkroot!(tree)
     @test rcomp == 1
-    @test all([e.containRoot for e = tree.edge])
+    @test all([e.containroot for e = tree.edge])
 
     netstr = "(#H1:::0.1,#H2:::0.2,(((b)#H1)#H2,a));"
     net = readnewick(netstr)
-    for e in net.edge e.containRoot=false; end # wrong, on purpose
+    for e in net.edge e.containroot=false; end # wrong, on purpose
     node2comp = treeedgecomponents(net) # e.g. [1,1,1,2,2,3] or [2,2,2,1,1,3]
     compsize = [count(isequal(i), values(node2comp)) for i in 1:3]
     @test sort(compsize) == [1,2,3]
@@ -96,21 +96,21 @@ end
     @test compsize[rcompID] == 3
     rcomp = keys(filter(p -> p.second == rcompID, node2comp))
     @test Set(n.number for n in rcomp) == Set([-2 -3 4])
-    @test Set(e.number for e in net.edge if e.containRoot) == Set([7 6 5 2 1])
-    for e in net.edge e.containRoot=true; end # wrong, on purpose
-    net.root = 2 # node number 1, also H1: not in the root component on purpose
+    @test Set(e.number for e in net.edge if e.containroot) == Set([7 6 5 2 1])
+    for e in net.edge e.containroot=true; end # wrong, on purpose
+    net.rooti = 2 # node number 1, also H1: not in the root component on purpose
     checkroot!(net)
-    @test [e.number for e in net.edge if e.containRoot] == [1,2,5,6,7]
-    @test net.root == 5 # i.e. node number -3. only 1 other option: 6, i.e. nn -2
+    @test [e.number for e in net.edge if e.containroot] == [1,2,5,6,7]
+    @test net.rooti == 5 # i.e. node number -3. only 1 other option: 6, i.e. nn -2
 
     # test semidirected cycle case
-    net.edge[1].isChild1 = !net.edge[1].isChild1
-    net.edge[7].isChild1 = !net.edge[7].isChild1
+    net.edge[1].ischild1 = !net.edge[1].ischild1
+    net.edge[7].ischild1 = !net.edge[7].ischild1
     net.edge[7].hybrid = true
     net.edge[7].gamma  = net.edge[4].gamma
     net.edge[4].gamma  = 1.0
     net.edge[4].hybrid = false
-    net.root = 5
+    net.rooti = 5
     net.node[6].hybrid = true
     net.node[6].name = "H3"
     net.node[2].hybrid = false

@@ -158,7 +158,7 @@ and either the newly edge "above" `edge2` if `hybridpartnernew=true`,
 or the old `edge2` otherwise (which would reverse the direction of `edge2` and others).
 
 Should be called from the other method, which performs a bunch of checks.
-Updates `containRoot` attributes for edges below the new hybrid node.
+Updates `containroot` attributes for edges below the new hybrid node.
 
 Output: new hybrid node (middle of the old `edge2`) and new hybrid edge.
 
@@ -199,31 +199,31 @@ function addhybridedge!(
     newnode1_tree, edgeabovee1 = breakedge!(edge1, net) # new tree node
     newnode2_hybrid, edgeabovee2 = breakedge!(edge2, net) # new hybrid node
     newnode2_hybrid.hybrid = true
-    pushHybrid!(net, newnode2_hybrid) # updates net.hybrid and net.numHybrids
+    pushHybrid!(net, newnode2_hybrid) # updates net.hybrid and net.numhybrids
     # new hybrid edge, minor if γ missing (-1)
-    hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, edgelength, true, gamma, gamma>0.5) # number, length, hybrid, gamma, isMajor
+    hybrid_edge = Edge(maximum(e.number for e in net.edge) + 1, edgelength, true, gamma, gamma>0.5) # number, length, hybrid, gamma, ismajor
     # partner edge: update hybrid status, γ and direction
     if hybridpartnernew
         edgeabovee2.hybrid = true
         edgeabovee2.gamma = gbar
         if gamma>0.5
-            edgeabovee2.isMajor = false
+            edgeabovee2.ismajor = false
         end
     else
         c2 = getchild(edge2) # child of edge2 before we switch its direction
         i2 = findfirst(isequal(c2), net.node)
-        net.root = i2 # makes c2 the new root node
+        net.rooti = i2 # makes c2 the new root node
         edge2.hybrid = true
         edge2.gamma = gbar
         if gamma>0.5
-            edge2.isMajor = false
+            edge2.ismajor = false
         end
-        edge2.isChild1 =  !edge2.isChild1 # reverse the direction of edge2
-        edgeabovee2.isChild1 = !edgeabovee2.isChild1
+        edge2.ischild1 =  !edge2.ischild1 # reverse the direction of edge2
+        edgeabovee2.ischild1 = !edgeabovee2.ischild1
     end
     # parse hyb names to find the next available. assignhybridnames! would do them all
     rx = r"^H(\d+)$"
-    hnum = net.numHybrids # to name the new hybrid, potentially
+    hnum = net.numhybrids # to name the new hybrid, potentially
     for n in net.node
         m = match(rx, n.name)
         if m !== nothing
@@ -232,7 +232,7 @@ function addhybridedge!(
         end
     end
     newnode2_hybrid.name = "H$hnum"
-    setNode!(hybrid_edge, [newnode2_hybrid, newnode1_tree]) # [child node, parent node] to match isChild1=true
+    setNode!(hybrid_edge, [newnode2_hybrid, newnode1_tree]) # [child node, parent node] to match ischild1=true
     setEdge!(newnode1_tree, hybrid_edge)
     setEdge!(newnode2_hybrid, hybrid_edge)
     pushEdge!(net, hybrid_edge)
@@ -271,11 +271,11 @@ Does *not* modify the network.
 Output: `true` if a conflict would arise (non-DAG), `false` if no conflict.
 """
 function directionalconflict(parent::Node, edge2::Edge, hybridpartnernew::Bool)
-    if hybridpartnernew # all edges would retain their directions: use isChild1 fields
+    if hybridpartnernew # all edges would retain their directions: use ischild1 fields
         c2 = getchild(edge2)
         return parent === c2 || isdescendant(parent, c2)
     else # after hybrid addition, edge 2 would be reversed: "up" toward its own parent
-        if !edge2.containRoot || edge2.hybrid
+        if !edge2.containroot || edge2.hybrid
             return true # direction of edge2 cannot be reversed
         else # net would be a DAG with reversed directions, could even be rooted on edge2
             p2 = getparent(edge2)

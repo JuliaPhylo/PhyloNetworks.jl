@@ -21,14 +21,14 @@ Data structure for an edge and its various attributes. Most notably:
   remains unchanged when the network is modified,
   with a nearest neighbor interchange for example
 - `node`: vector of [`Node`](@ref)s, normally just 2 of them
-- `isChild1` (boolean): `true` if `node[1]` is the child node of the edge,
+- `ischild1` (boolean): `true` if `node[1]` is the child node of the edge,
   false if `node[1]` is the parent node of the edge
 - `length`: branch length
 - `hybrid` (boolean): whether the edge is a tree edge or a hybrid edge
-  (in which case `isChild1` is important, even if the network is semi-directed)
+  (in which case `ischild1` is important, even if the network is semi-directed)
 - `gamma`: proportion of genetic material inherited by the child node via the edge;
   1.0 for a tree edge
-- `isMajor` (boolean): whether the edge is the major path to the child node;
+- `ismajor` (boolean): whether the edge is the major path to the child node;
   `true` for tree edges, since a tree edge is the only path to its child node;
   normally true if `gamma>0.5`.
 
@@ -36,31 +36,34 @@ and other fields, used very internally
 """
 mutable struct EdgeT{T<:ANode}
     number::Int
-    length::Float64 #default 1.0
+    length::Float64 # default 1.0
     hybrid::Bool
     y::Float64 # exp(-t), cannot set in constructor for congruence
     z::Float64 # 1-y , cannot set in constructor for congruence
     gamma::Float64 # set to 1.0 for tree edges, hybrid?gamma:1.0
     node::Vector{T}
-    isChild1::Bool # used for hybrid edges to set the direction (default true)
-    isMajor::Bool  # major edge treated as tree edge for network traversal
+    ischild1::Bool # used for hybrid edges to set the direction (default true)
+    ismajor::Bool  # major edge treated as tree edge for network traversal
                    # true if gamma>.5, or if it is the original tree edge
-    inCycle::Int # = Hybrid node number if this edge is part of a cycle created by such hybrid node
-    # -1 if not part of cycle. used to add new hybrid edge. updated after edge is part of a network
-    containRoot::Bool # true if this edge can contain a root given the direction of hybrid edges
-                      # used to add new hybrid edge. updated after edge is part of a network
-    istIdentifiable::Bool # true if the parameter t (length) for this edge is identifiable as part of a network
-                          # updated after part of a network
-    fromBadDiamondI::Bool # true if the edge came from deleting a bad diamond I hybridization
+    inte1::Int     # sometimes used for cycle number if level-1
+    containroot::Bool # true if this edge may contain the root given the direction of hybrid edges
+    boole1::Bool # reusable booleans, for an edge
+    boole2::Bool
 end
-# outer constructors: ensure congruence among (length, y, z) and (gamma, hybrid, isMajor), and size(node)=2
+# outer constructors: ensure congruence among (length, y, z) and (gamma, hybrid, ismajor), and size(node)=2
 function EdgeT{T}(number::Int, length::Float64=1.0) where {T<:ANode}
     y = exp(-length)
     EdgeT{T}(number,length,false,y,1.0-y,1.,T[],true,true,-1,true,true,false)
 end
-function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,isMajor::Bool=(!hybrid || gamma>0.5)) where {T<:ANode}
+function EdgeT{T}(
+  number::Int,
+  length::Float64,
+  hybrid::Bool,
+  gamma::Float64,
+  ismajor::Bool=(!hybrid || gamma>0.5)
+) where {T<:ANode}
     y = exp(-length)
-    EdgeT{T}(number,length,hybrid,y,1.0-y, hybrid ? gamma : 1.,T[],true,isMajor,-1,!hybrid,true,false)
+    EdgeT{T}(number,length,hybrid,y,1.0-y, hybrid ? gamma : 1.,T[],true,ismajor,-1,!hybrid,true,false)
 end
 function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T}) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
@@ -69,15 +72,25 @@ function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node:
         hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
         -1,!hybrid,true,false)
 end
-function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T},isChild1::Bool, inCycle::Int, containRoot::Bool, istIdentifiable::Bool) where {T<:ANode}
+function EdgeT{T}(
+  number::Int,
+  length::Float64,
+  hybrid::Bool,
+  gamma::Float64,
+  node::Vector{T},
+  ischild1::Bool,
+  inte1::Int,
+  containroot::Bool,
+  boole1::Bool
+) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
     y = exp(-length)
     Edge{T}(number,length,hybrid,y,1.0-y,
-        hybrid ? gamma : 1., node,isChild1, !hybrid || gamma>0.5,
-        inCycle,containRoot,istIdentifiable,false)
+        hybrid ? gamma : 1., node, ischild1, !hybrid || gamma>0.5,
+        inte1, containroot, boole1, false)
 end
 
-# warning: gammaz, inCycle, isBadTriangle/Diamond updated until the node is part of a network
+# warning: fvalue, intn1, booln6/booln2 updated until the node is part of a network
 """
     Node(number, leaf)
     Node(number, leaf, hybrid)
@@ -98,7 +111,7 @@ Data structure for a node and its various attributes. Most notably:
 
 Other more internal attributes include:
 
-- `isBadDiamondI` and `isBadDiamondII` (booleans): whether the node is a
+- `isBadDiamondI` -> `booln2` and `isBadDiamondII` -> `booln3` (booleans): whether the node is a
   hybrid node where the reticulation forms a cycle of 4 nodes (diamond),
   and where both parents of the hybrid nodes are connected to a leaf.
   In a bad diamond of type I, the hybrid node itself is also connected
@@ -106,7 +119,7 @@ Other more internal attributes include:
   to a leaf.
   In a bad diamond of type II, the hybrid node has an internal node as child,
   and the common neighbor of the 2 hybrid's parents is connected to a leaf.
-- `isBadTriangle`, `isVeryBadTriangle` and `isExtBadTriangle` (booleans):
+- `isBadTriangle` -> `booln6`, `isVeryBadTriangle` -> `booln5` and `isExtBadTriangle` -> `booln4` (booleans):
   true if the reticulation forms a cycle of 3 nodes (triangle) and
   depending on the number of leaves attached these 3 nodes. The triangle means
   that the 2 parents of the hybrid node are directly related:
@@ -114,7 +127,7 @@ Other more internal attributes include:
   "good", as per Solís-Lemus & Ané (2016), that is, if all 3 nodes in the cycle
   are not connected to any leaves (the reticulation is detectable from quartet
   concordance factors, even though all branch lengths are not identifiable).
-  `isVeryBadTriangle` is true if 2 (or all) of the 3 nodes are connected to a
+  `isVeryBadTriangle` -> `booln5` is true if 2 (or all) of the 3 nodes are connected to a
   leaf, in which case the reticulation is undetectable from unrooted gene tree
   topologies (thus it's best to exclude these reticulations from a search).
   `isBadTriangle` is true if exactly 1 of the 3 nodes is connected to a leaf.
@@ -125,30 +138,28 @@ mutable struct Node <: ANode
     number::Int
     leaf::Bool
     hybrid::Bool
-    gammaz::Float64  # notes file for explanation. gammaz if tree node, gamma2z if hybrid node.
-                     # updated after node is part of network with updateGammaz!
+    fvalue::Float64 # -1.0 by default. re-usable. used for gammaz or gamma2z in SNaQ
     edge::Vector{EdgeT{Node}}
-    hasHybEdge::Bool #is there a hybrid edge in edge? only needed when hybrid=false (tree node)
-    isBadDiamondI::Bool # for hybrid node, is it bad diamond case I, update in updateGammaz!
-    isBadDiamondII::Bool # for hybrid node, is it bad diamond case II, update in updateGammaz!
-    isExtBadTriangle::Bool # for hybrid node, is it extremely bad triangle, udpate in updateGammaz!
-    isVeryBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
-    isBadTriangle::Bool # for hybrid node, is it very bad triangle, udpate in updateGammaz!
-    inCycle::Int # = hybrid node if this node is part of a cycle created by such hybrid node, -1 if not part of cycle
-    prev::Union{Nothing,Node} # previous node in cycle, used in updateInCycle. set to "nothing" to begin with
-    k::Int # num nodes in cycle, only stored in hybrid node, updated after node becomes part of network
-           # default -1
-    typeHyb::Int8 # type of hybridization (1,2,3,4, or 5), needed for quartet network only. default -1
-    name::AbstractString
+    booln1::Bool # default: is incident to a hybrid edge?
+    booln2::Bool # reusable booleans, for nodes. false by default
+    booln3::Bool
+    booln4::Bool
+    booln5::Bool
+    booln6::Bool
+    intn1::Int   # default -1. sometimes used for cycle number if level-1
+    prev::Union{Nothing,Node} # for traversal algorithms that track previous node
+    intn2::Int   # default -1
+    int8n3::Int8 # default -1
+    name::AbstractString # default ""
 end
 
 const Edge = EdgeT{Node}
 
 Node() = Node(-1,false,false,-1.,Edge[],false,false,false,false,false,false,-1,nothing,-1,-1,"")
 Node(number::Int, leaf::Bool, hybrid::Bool=false) = Node(number,leaf,hybrid,-1.,Edge[],hybrid,false,false,false,false,false,-1.,nothing,-1,-1,"")
-# set hasHybEdge depending on edge:
+# set booln1 depending on edge:
 Node(number::Int, leaf::Bool, hybrid::Bool, edge::Vector{Edge}) = Node(number,leaf,hybrid,-1.,edge,any(e->e.hybrid,edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
-Node(number::Int, leaf::Bool, hybrid::Bool,gammaz::Float64, edge::Vector{Edge}) = Node(number,leaf,hybrid,gammaz,edge,any(e->e.hybrid, edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
+Node(number::Int, leaf::Bool, hybrid::Bool,fvalue::Float64, edge::Vector{Edge}) = Node(number,leaf,hybrid,fvalue,edge,any(e->e.hybrid, edge),false,false,false,false,false,-1.,nothing,-1,-1,"")
 
 # partition type
 mutable struct Partition
@@ -167,43 +178,43 @@ abstract type Network end
 Subtype of abstract `Network` type.
 Explicit network or tree with the following attributes:
 
-- numTaxa (taxa are tips, i.e. nodes attached to a single edge)
-- numNodes (total number of nodes: tips and internal nodes)
-- numEdges
-- numHybrids (number of hybrid nodes)
+- numtaxa (taxa are tips, i.e. nodes attached to a single edge)
+- numnodes (total number of nodes: tips and internal nodes)
+- numedges
+- numhybrids (number of hybrid nodes)
 - edge (array of Edges)
 - node (array of Nodes)
-- root (index of root in vector 'node'. May be artificial, for printing and traversal purposes only.)
+- rooti (index of root in vector 'node'. May be artificial, for printing and traversal purposes only.)
 - hybrid (array of Nodes: those are are hybrid nodes)
 - leaf (array of Nodes: those that are leaves)
-- loglik (score after fitting network to data, i.e. negative log pseudolik for SNaQ)
-- isRooted (true or false)
+- fscore (score after fitting network to data, i.e. negative log pseudolik for SNaQ)
+- isrooted (true or false)
 """
 mutable struct HybridNetwork <: Network
-    numTaxa::Int  # cannot set in constructor for congruence
-    numNodes::Int
-    numEdges::Int
+    numtaxa::Int  # cannot set in constructor for congruence
+    numnodes::Int
+    numedges::Int
     node::Array{Node,1}
     edge::Array{Edge,1}
-    root::Int # node[root] is the root node, default 1
+    rooti::Int # node[rooti] is the root node, default 1
     names::Array{String,1} # translate table for taxon names --but also includes hybrid names...
     hybrid::Array{Node,1} # array of hybrid nodes in network
-    numHybrids::Int # number of hybrid nodes
-    cladewiseorder_nodeIndex::Vector{Int} # index in 'node' for "cladewise" preorder in main tree
-    visited::Array{Bool,1} # reusable array of booleans
-    edges_changed::Array{Edge,1} # reusable array of edges
-    nodes_changed::Array{Node,1} # reusable array of nodes. used for preorder traversal
+    numhybrids::Int # number of hybrid nodes
+    vec_int1::Vector{Int}  # vector of integers, e.g. to get "cladewise" preorder in main tree
+    vec_bool::Array{Bool,1}
+    vec_edge::Array{Edge,1}
+    vec_node::Array{Node,1} # reusable, but used for preorder traversal
     leaf::Array{Node,1} # array of leaves
-    ht::Vector{Float64} # vector of parameters to optimize
-    numht::Vector{Int} # vector of number of the hybrid nodes and edges in ht e.g. [3,6,8,...], 2 hybrid nodes 3,6, and edge 8 is the 1st identifiable
-    numBad::Int # number of bad diamond I hybrid nodes, set as 0
-    hasVeryBadTriangle::Bool # true if the network has extremely/very bad triangles that should be ignored
-    index::Vector{Int} #index in net.edge, net.node of elements in net.ht to make updating easy
-    loglik::Float64 # value of the min -loglik after optBL
-    blacklist::Vector{Int} # reusable array of integers, used in afterOptBL
+    vec_float::Vector{Float64}
+    vec_int2::Vector{Int}
+    intg1::Int
+    boolg1::Bool
+    vec_int3::Vector{Int}
+    fscore::Float64 # in SNaQ: min -loglik that was found
+    vec_int4::Vector{Int}
     partition::Vector{Partition} # to choose edges from a partition only to avoid intersecting cycles
-    cleaned::Bool # attribute to know if the network has been cleaned after readm default false
-    isRooted::Bool # to know if network is rooted, e.g. after directEdges! (which updates isChild1 of each edge)
+    boolg2::Bool # default false
+    isrooted::Bool # is network rooted? otherwise: semidirected fixit: check how it's used
     # inner constructor
     function HybridNetwork(node::Array{Node,1},edge::Array{Edge,1})
         hybrid=Node[];
@@ -212,13 +223,13 @@ mutable struct HybridNetwork <: Network
             if n.hybrid push!(hybrid,n); end
             if n.leaf   push!(leaf,  n); end
         end
-        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1), #numTaxa,...,numHybrids
-            [],[],[],[],leaf,[],[], #cladewiseorder,...,numht
-            0,false,[],0,[],[],false,false) #numBad...
+        new(size(leaf,1),size(node,1),size(edge,1),node,edge,1,[],hybrid,size(hybrid,1), #numtaxa,...,numhybrids
+            [],[],[],[],leaf,[],[], #cladewiseorder,...,vec_int2
+            0,false,[],0,[],[],false,false) #intg1...
     end
-    HybridNetwork() = new(0,0,0,[],[],0,[],[],0, # numTaxa ... numHybrid
+    HybridNetwork() = new(0,0,0,[],[],0,[],[],0, # numtaxa ... numHybrid
                           [],[],[],[],[],[],[], # cladewiseorder...
-                          0,false,[],0,[],[],false,false); # numBad ...
+                          0,false,[],0,[],[],false,false); # intg1 ...
 end
 
 struct RootMismatch <: Exception

@@ -5,7 +5,7 @@
 Bottom-up phase (from tips to root) of the Fitch algorithm:
 assign sets of character states to internal nodes based on
 character states at tips. Polytomies okay.
-Assumes a *tree* (no reticulation) and correct isChild1 attribute.
+Assumes a *tree* (no reticulation) and correct ischild1 attribute.
 
 output: dictionary with state sets and most parsimonious score
 """
@@ -13,7 +13,7 @@ function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int,Set{T}}, p
     node.leaf && return # change nothing if leaf
     childrenStates = Set{T}[] # state sets for the 2 (or more) children
     for e in node.edge
-        if e.node[e.isChild1 ? 1 : 2] == node continue; end
+        if e.node[e.ischild1 ? 1 : 2] == node continue; end
         # excluded parent edges only: assuming tree here
         child = getOtherNode(e, node)
         parsimonyBottomUpFitch!(child, possibleStates, parsimonyscore)
@@ -50,7 +50,7 @@ output: dictionary with state sets
 """
 function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int,Set{T}}) where {T}
     for e in node.edge
-        child = e.node[e.isChild1 ? 1 : 2]
+        child = e.node[e.ischild1 ? 1 : 2]
         if child == node continue; end # exclude parent edges
         if child.leaf continue; end    # no changing the state of tips
         commonState = intersect(possibleStates[node.number], possibleStates[child.number])
@@ -74,7 +74,7 @@ function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int,Set{T}}
         haskey(nodestates, n.number) || continue
         print(n.number)
         if n.name != "" print(" (",n.name,")"); end
-        if n == tree.node[tree.root] print(" (root)"); end
+        if n == tree.node[tree.rooti] print(" (root)"); end
         println(": ", sort(collect(nodestates[n.number])))
     end
 end
@@ -107,14 +107,14 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     charset = union(possibleStates) # fixit
     # assign this set to all tips with no data
 
-    directEdges!(net) # parsimonyBottomUpFitch! uses isChild1 attributes
+    directEdges!(net) # parsimonyBottomUpFitch! uses ischild1 attributes
     trees = displayedTrees(net, 0.0) # all displayed trees
     mpscore = Int[] # one score for each tree
     statesets = Dict{Int,Set{T}}[] # one state set dict per tree
     for tree in trees
         statedict = deepcopy(possibleStates)
         parsimonyscore = [0] # initialization, mutable
-        parsimonyBottomUpFitch!(tree.node[tree.root], statedict, parsimonyscore)
+        parsimonyBottomUpFitch!(tree.node[tree.rooti], statedict, parsimonyscore)
         push!(mpscore, parsimonyscore[1])
         push!(statesets, statedict)
     end
@@ -123,7 +123,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     statedictUnion = statesets[mpt[1]] # later: union over all MP trees
     # println("parsimony score: ", mps)
     for i in mpt # top down calculation for best trees only
-        parsimonyTopDownFitch!(trees[i].node[trees[i].root], statesets[i])
+        parsimonyTopDownFitch!(trees[i].node[trees[i].rooti], statesets[i])
         parsimonySummaryFitch(trees[i], statesets[i])
         if i == mpt[1] continue; end
         for n in keys(statesets[i])
@@ -167,25 +167,25 @@ Fischer, M., van Iersel, L., Kelk, S., Scornavacca, C. (2015).
 On computing the Maximum Parsimony score of a phylogenetic network.
 SIAM J. Discrete Math., 29(1):559-585.
 
-Assumes a *switching* (ie correct `fromBadDiamondI` field) and correct isChild1 field.
-The field `isExtBadTriangle` is used to know which nodes are at the root of a blob.
+Assumes a *switching* (ie correct `boole2` field) and correct ischild1 field.
+The field `booln4` is used to know which nodes are at the root of a blob.
 """
 function parsimonyBottomUpSoftwired!(node::Node, blobroot::Node, nchar::Integer,
     w::AbstractArray, parsimonyscore::AbstractArray)
 
     #println("entering with node $(node.number)")
     parsimonyscore[node.number,:] = w[node.number,:] # at all nodes to re-initialize between switchings
-    if node.leaf || (node.isExtBadTriangle && node != blobroot)
-        return nothing # isExtBadTriangle=dummy leaf: root of another blob
+    if node.leaf || (node.booln4 && node != blobroot)
+        return nothing # booln4=dummy leaf: root of another blob
     end
     for e in node.edge
-        if (e.hybrid && e.fromBadDiamondI) || getchild(e) == node continue; end # fromBadDiamondI= edge switched off
+        if (e.hybrid && e.boole2) || getchild(e) == node continue; end # boole2= edge switched off
         son = getchild(e)
         parsimonyBottomUpSoftwired!(son, blobroot, nchar, w, parsimonyscore)
     end
     for s in 1:nchar
         for e in node.edge
-            if (e.hybrid && e.fromBadDiamondI) || getchild(e) == node continue; end
+            if (e.hybrid && e.boole2) || getchild(e) == node continue; end
             son = getchild(e)
             bestMin = Inf # best score from to this one child starting from s at the node
             for sf in 1:nchar # best assignement for the son
@@ -287,7 +287,7 @@ function parsimonySoftwired(net::HybridNetwork, species::Array{String},
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
     checkGap = eltype(sequenceData) == BioSequences.BioSequence
     sequenceType = eltype(sequenceData[1])
-    blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
+    blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets ischild1
 
     score = 0.0
     #allscores = Float64[]
@@ -320,13 +320,13 @@ function parsimonySoftwired(net::HybridNetwork, species::Array{String},
         iswitch = 0
         perms = nhyb == 0 ? [()] : Iterators.product([[true, false] for i=1:nhyb]...)
         for switching in perms
-            # next: modify the `fromBadDiamondI` of hybrid edges in the blob:
+            # next: modify the `boole2` of hybrid edges in the blob:
             # switching[h] = pick the major parent of hybrid h if true, pick minor if false
             iswitch += 1
             #@show switching
             for h in 1:nhyb
-                majorEdges[bcnumber][h].fromBadDiamondI =  switching[h]
-                minorEdges[bcnumber][h].fromBadDiamondI = !switching[h]
+                majorEdges[bcnumber][h].boole2 =  switching[h]
+                minorEdges[bcnumber][h].boole2 = !switching[h]
             end
             parsimonyBottomUpSoftwired!(r, r, nchari, w, parsimonyscore) # updates parsimonyscore
             for s in 1:nchari
@@ -341,7 +341,7 @@ function parsimonySoftwired(net::HybridNetwork, species::Array{String},
         bcnumber+=1
       end
 
-      bestMin = minimum(w[net.node[net.root].number, 1:nchari])
+      bestMin = minimum(w[net.node[net.rooti].number, 1:nchari])
       #if bestMin>0 println("site $isite, score $bestMin"); end
       #push!(allscores, bestMin)
       score += bestMin
@@ -552,9 +552,9 @@ solving the softwired criterion only.
    SIAM J. Discrete Math., 29(1):559-585.
 
 Use the recursive helper function [`parsimonyBottomUpGF!`](@ref).
-Use the fields `isChild1`,
-`isExtBadTriangle` to know which nodes are at the root of a blob, and
-`fromBadDiamondI` to know which edges are cut (below the minor parent of each hybrid).
+Use the fields `ischild1`,
+`booln4` to know which nodes are at the root of a blob, and
+`boole2` to know which edges are cut (below the minor parent of each hybrid).
 """
 function parsimonyGF(
     net::HybridNetwork,
@@ -578,7 +578,7 @@ function parsimonyGF(
     criterion::Symbol=:softwired
 )
     resetNodeNumbers!(net) # direct edges and checks pre-order by default
-    rootnumber = net.node[net.root].number
+    rootnumber = net.node[net.rooti].number
     nsites = length(sequenceData[1])
     nspecies = length(species) # no check to see if == length(sequenceData)
     nstates = 0 # this is to allocate the needed memory for w and
@@ -675,12 +675,12 @@ function parsimonyGF(
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
     checkGap = eltype(sequenceData) == BioSequences.BioSequence
     sequenceType = eltype(sequenceData[1])
-    blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets isChild1
+    blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets ischild1
     # fixit: use trivial biconnected components, and compare running time
         # pick 1 parent node (the minor parent arbitrarily) for each hybrid, then
-    # "cut" both children edges of that parent: mark its `fromBadDiamondI` = false
+    # "cut" both children edges of that parent: mark its `boole2` = false
     for e in net.edge
-        e.fromBadDiamondI = false # don't cut by default
+        e.boole2 = false # don't cut by default
     end
     guessedparent = Vector{Node}[]
     for melist in minorEdges # minor edge list for one single blob + loop over blobs
@@ -691,7 +691,7 @@ function parsimonyGF(
               push!(guessedparentBlob, p)
               for e2 in p.edge
                 p == getparent(e2) || continue
-                e2.fromBadDiamondI = true # cut the edge: not followed in recursive call
+                e2.boole2 = true # cut the edge: not followed in recursive call
               end
             end
         end
@@ -704,24 +704,24 @@ function parsimonyGF(
 
     # determine which nodes are the root of trees after we cut off edges
     # below guessed parents. For this, at each node, set its
-    # inCycle = 0 if the node has (at least) 1 non-cut edge, and
-    # inCycle = # of detached parents if the node has detached parents only.
+    # intn1 = 0 if the node has (at least) 1 non-cut edge, and
+    # intn1 = # of detached parents if the node has detached parents only.
     # Do this now to avoid re-doing it at each site.
-    # `inCycle` was used earlier to find blobs.
-    for n in net.node n.inCycle=0; end
-    # first: calculate inCycle = # of detached parents
+    # `intn1` was used earlier to find blobs.
+    for n in net.node n.intn1=0; end
+    # first: calculate intn1 = # of detached parents
     for e in net.edge
-        e.fromBadDiamondI || continue # to next edge if current edge not cut
+        e.boole2 || continue # to next edge if current edge not cut
         n = getchild(e)
-        n.inCycle += 1
+        n.intn1 += 1
     end
-    # second: make inCycle = 0 if node has a non-detached parent
+    # second: make intn1 = 0 if node has a non-detached parent
     for n in net.node
-        n.inCycle > 0 || continue # to next node if inCycle = 0 already
+        n.intn1 > 0 || continue # to next node if intn1 = 0 already
         for e in n.edge
             n == getchild(e) || continue
-            !e.fromBadDiamondI || continue
-            n.inCycle = 0 # if e parent of n and e not cut: make inCycle 0
+            !e.boole2 || continue
+            n.intn1 = 0 # if e parent of n and e not cut: make intn1 0
             break
         end
     end
@@ -854,12 +854,12 @@ Systematic Biology,
 (https://doi.org/10.1093/sysbio/syx094).
 
 Assumes a set of state *guesses*, ie correct initialization of `w` for
-predefined hybrid parents, and correct `fromBadDiamondI` field for the children
-edges of these predefined parents. `fromBadDiamondI` is true for edges that are cut.
+predefined hybrid parents, and correct `boole2` field for the children
+edges of these predefined parents. `boole2` is true for edges that are cut.
 
-The field `isExtBadTriangle` is used to know which nodes are at the root of a blob.
-The field `isChild1` is used (and assumed correct).
-Field `inCycle` is assumed to store the # of detached parents (with guessed states)
+The field `booln4` is used to know which nodes are at the root of a blob.
+The field `ischild1` is used (and assumed correct).
+Field `intn1` is assumed to store the # of detached parents (with guessed states)
 
 - `nchar`: number of characters considered at internal lineages.
   For softwired parsimony, this is # states + 1, because characters
@@ -881,10 +881,10 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
 
     #println("entering with node $(node.number)")
     parsimonyscore[node.number,1:nchar] = w[node.number,1:nchar] # at all nodes to re-initialize between guesses
-    if !node.leaf && (!node.isExtBadTriangle || node == blobroot)
-    # isExtBadTriangle=dummy leaf: root of another blob
+    if !node.leaf && (!node.booln4 || node == blobroot)
+    # booln4=dummy leaf: root of another blob
     for e in node.edge # post-order traversal according to major tree: detached edges were minor.
-        if !e.isMajor || getchild(e) == node continue; end # Even if we didn't visit one parent (yet),
+        if !e.ismajor || getchild(e) == node continue; end # Even if we didn't visit one parent (yet),
         son = getchild(e) # that parent is a minor parent with an assigned guessed state.
         parsimonyBottomUpGF!(son, blobroot, nchar, w, parsimonyscore, costmatrix1, costmatrix2)
     end
@@ -892,13 +892,13 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     cutparent = false
     for e in node.edge
         if getchild(e) == node continue; end
-        if e.fromBadDiamondI # if true: one child edge is cut, so all are cut
+        if e.boole2 # if true: one child edge is cut, so all are cut
             cutparent = true
             break
         end
     end
     if !cutparent # look at best assignment of children, to score each assignment at node
-        for e in node.edge # avoid edges that were cut: those for which fromBadDiamondI is true
+        for e in node.edge # avoid edges that were cut: those for which boole2 is true
             son = getchild(e)
             if son == node continue; end
             bestpars = [Inf for s in 1:nchar] # best score, so far, for state s at node.
@@ -935,12 +935,12 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     node != blobroot ||  return nothing
     # if blob root has detached parents only, these are paid for in the blob
     # in which this blob root is a leaf.
-    node.inCycle > 0 || return nothing # inCycle = # of detached parents
+    node.intn1 > 0 || return nothing # intn1 = # of detached parents
     # if we get here, it means that "node" is not root of current blob, but
     # is root of a tree after detaching all guessed parents from their children.
     # pay now for re-attaching the guessed parents to node
     cost = 0.0 # variable external to 'for' loops below
-    if node.inCycle == 1 # 1 detached parent, no non-detached parents
+    if node.intn1 == 1 # 1 detached parent, no non-detached parents
         for e in node.edge
             par = getparent(e)
             if par == node continue; end
@@ -951,7 +951,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
             #println("node $(node.number), parent $(par.number), guess k=$k")
             break # out of for loop
         end
-    else # node.inCycle should be 2: 2 detached parents
+    else # node.intn1 should be 2: 2 detached parents
         k1 = 0 # guess made on first detached parent
         for e in node.edge
             par = getparent(e)
@@ -1013,7 +1013,7 @@ Note that the search algorithm keeps two HybridNetworks at a time: currT (curren
 Both are kept unrooted (semi-directed), otherwise the moves in proposedTop! function fail.
 We only root the topologies to calculate the parsimony, so we create a rooted copy (currTr, newTr) to compute parsimony
 score in this copied topology. We do not root and calculate parsimony score in the original HybridNetworks objects (currT,newT)
-because the computation of the parsimony score overwrites the inCycle attribute of the Nodes, which messes with
+because the computation of the parsimony score overwrites the intn1 attribute of the Nodes, which messes with
 the search moves.
 
 Extensions:
@@ -1052,7 +1052,7 @@ function maxParsimonyNetRun1!(
     species, traits = readCSVtoArray(df)
     currTr = deepcopy(currT)
     rootatnode!(currTr,outgroup)
-    currT.loglik = parsimonyGF(currTr,species,traits,criterion)
+    currT.fscore = parsimonyGF(currTr,species,traits,criterion)
     absDiff = tolAbs + 1
     newT = deepcopy(currT)
     writelog && write(logfile, "\nBegins heuristic search of most parsimonious network------\n")
@@ -1073,11 +1073,11 @@ function maxParsimonyNetRun1!(
             if flag #no need else in general because newT always undone if failed, but needed for conflicts with root
                 @debug "successful move and correct root placement"
                 accepted = false
-                newT.loglik = parsimonyGF(newTr,species,traits,criterion)
-                accepted = (newT.loglik < currT.loglik && abs(newT.loglik-currT.loglik) > tolAbs) ? true : false
+                newT.fscore = parsimonyGF(newTr,species,traits,criterion)
+                accepted = (newT.fscore < currT.fscore && abs(newT.fscore-currT.fscore) > tolAbs) ? true : false
                 #newT better parsimony score: need to check for error or keeps jumping back and forth
                 if accepted
-                    absDiff = abs(newT.loglik - currT.loglik)
+                    absDiff = abs(newT.fscore - currT.fscore)
                     currT = deepcopy(newT)
                     failures = 0
                     movescount[move2int[move]+12] += 1
@@ -1103,7 +1103,7 @@ function maxParsimonyNetRun1!(
     else
         writelog && write(logfile,"\nSTOPPED by number of failures criteria")
     end
-    writelog && write(logfile,"\nEND: found minimizer topology at step $(count) (failures: $(failures)) with parsimony score=$(round(newT.loglik, digits=5))")
+    writelog && write(logfile,"\nEND: found minimizer topology at step $(count) (failures: $(failures)) with parsimony score=$(round(newT.fscore, digits=5))")
     writelog && printCounts(movescount,zeros(Int,13),logfile) ## zeroes in lieu of movesgamma, not used in parsimony
     #= to use snaq move functions, branch lengths and γ's were set randomly to
     initialize optimization. Remove them before returning the MP network.
@@ -1293,7 +1293,7 @@ function maxParsimonyNet(
         try
             best = maxParsimonyNetRun1(currT0, df, Nfail, tolAbs, hmax, seeds[i],logfile,writelog_1proc,
                                                 probST,outgroup,criterion);
-            logstr *= "\nFINISHED Max $(string(criterion)) parsimony for run $(i), parsimony of best: $(best.loglik)\n"
+            logstr *= "\nFINISHED Max $(string(criterion)) parsimony for run $(i), parsimony of best: $(best.fscore)\n"
             if writelog_1proc
                 logstr = writenewick(best)
                 logstr *= "\n---------------------\n"
@@ -1322,7 +1322,7 @@ function maxParsimonyNet(
     end
     filter!(n -> n !== nothing, bestnet) # remove "nothing", failed runs
     if length(bestnet)>0
-        ind = sortperm([n.loglik for n in bestnet])
+        ind = sortperm([n.fscore for n in bestnet])
         bestnet = bestnet[ind]
         maxNet = bestnet[1]::HybridNetwork # tell type to compiler
     else
@@ -1331,12 +1331,12 @@ function maxParsimonyNet(
 
     rootatnode!(maxNet,outgroup)
     writelog &&
-    write(logfile,"\nMaxNet is $(writenewick(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
-    print(stdout,"\nMaxNet is $(writenewick(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.loglik)\n")
+    write(logfile,"\nMaxNet is $(writenewick(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.fscore)\n")
+    print(stdout,"\nMaxNet is $(writenewick(maxNet)) \nwith $(string(criterion)) parsimony score $(maxNet.fscore)\n")
 
     s = writelog ? open(juliaout,"w") : stdout
     str = writenewick(maxNet) * """
-     $(string(criterion)) parsimony score = $(maxNet.loglik)
+     $(string(criterion)) parsimony score = $(maxNet.fscore)
      Dendroscope: $(writenewick(maxNet,di=true))
      Elapsed time: $(telapsed) seconds, $(runs) attempted runs
     -------
@@ -1345,7 +1345,7 @@ function maxParsimonyNet(
     for n in bestnet
         str *= " "
         str *= writenewick(rootatnode!(n,outgroup))
-        str *= ", with $(string(criterion)) parsimony $(n.loglik)\n"
+        str *= ", with $(string(criterion)) parsimony $(n.fscore)\n"
     end
     str *= "-------\n"
     write(s,str);

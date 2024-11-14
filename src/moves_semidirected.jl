@@ -296,7 +296,7 @@ two or more arguments can be used, but in a specific order: `nni!(net, e)` or
 Assumptions:
 - The starting network does not have 3-cycles, if `no3cycle=true`.
   No check for the presence of 2- and 3-cycles in the input network.
-- The edges' field `isChild1` is correct in the input network. (This field
+- The edges' field `ischild1` is correct in the input network. (This field
   will be correct in the output network.)
 
 Output:
@@ -364,7 +364,7 @@ function nni!(
         !isnothing(moveinfo) || continue # to next possible NNI
         # if constraintviolated(net, constraints)
         #     # fixit for next PR: not needed for species constraints,
-        #     # not sufficient for clades if γ / isMajor modified later, or if
+        #     # not sufficient for clades if γ / ismajor modified later, or if
         #     # constraints met after NNI but stem / crows need to be moved
         #     nni!(moveinfo...) # undo the previous NNI
         #     continue          # try again
@@ -392,8 +392,8 @@ function nnimax(e::Edge)
     # e not hybrid, hyb parent:   RB case, 4 NNIs
     # e not hybrid, tree parent:  BB case, 2 NNIs if directed, 8 if undirected
     hybparent = getparent(e).hybrid
-    n = (e.hybrid ? (hybparent ? 0x02 : (e.containRoot ? 0x06 : 0x03)) : # RR & BR
-                    (hybparent ? 0x04 : (e.containRoot ? 0x08 : 0x02)))  # RB & BB
+    n = (e.hybrid ? (hybparent ? 0x02 : (e.containroot ? 0x06 : 0x03)) : # RR & BR
+                    (hybparent ? 0x04 : (e.containroot ? 0x08 : 0x02)))  # RB & BB
     return n
 end
 
@@ -425,8 +425,8 @@ that the input network does not have any 2- or 3-cycles.
 If `no3cycle` is false, 3-cycles can be generated, but NNIs generating
 2-cycles are prevented.
 
-The edge field `isChild1` is assumed to be correct in the overall network
-(that is, in sync with the network's field `.root`).
+The edge field `ischild1` is assumed to be correct in the overall network
+(that is, in sync with the network's field `.rooti`).
 """
 function nni!(
     uv::Edge,
@@ -485,7 +485,7 @@ function nni!(
     end
     ## TASK 2: semi-directed network swaps:
     ## swap u <-> v, α <-> β if undirected and according to move number
-    if !u.hybrid && uv.containRoot # case BB or BR, with uv that may contain the root
+    if !u.hybrid && uv.containroot # case BB or BR, with uv that may contain the root
         nmoves = 0x03 # number of moves in the rooted (directed) case
         if !v.hybrid # BB, uv and all adjacent edges are undirected: 8 moves
             if nummove > 0x04  # switch u & v with prob 1/2
@@ -580,7 +580,7 @@ function nni!(
                     elseif α === γ || β === δ return nothing
                     end
                     # we could check nohybridladder && β.hybrid but no need because
-                    # we only get here if uv.containRoot so β cannot be hybrid
+                    # we only get here if uv.containroot so β cannot be hybrid
                     res = nni!(vγ, v, uv, u, βu)
                 # case when u is root already excluded (not DAG)
                 end
@@ -670,34 +670,34 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
         (v, vδ, αu, u)
     ## TASK 2: update edges' directions
     if flip
-        uv.isChild1 = !uv.isChild1
+        uv.ischild1 = !uv.ischild1
     end
     ## TASK 3: update hybrid status of nodes (#? is it ever nodes?)
-             # & edges, and edges containRoot field
+             # & edges, and edges containroot field
     if u.hybrid && !v.hybrid
         if flip # RB, BR 1 or BR 2': flip hybrid status of uv and (αu or vδ)
             if uv.hybrid # BR 1 or BR 2'
                 vδ.hybrid = true
                 vδ.gamma = uv.gamma
-                vδ.isMajor = uv.isMajor
+                vδ.ismajor = uv.ismajor
                 # length switches: for keeping the network unzipped. could be option later
                 αu.length = uv.length
                 uv.length = 0.0
                 uv.hybrid = false
                 uv.gamma = 1.0
-                uv.isMajor = true
+                uv.ismajor = true
                 norootbelow!(uv)
             else # RB
                 uv.hybrid = true
                 uv.gamma = αu.gamma
-                uv.isMajor = αu.isMajor
+                uv.ismajor = αu.ismajor
                 # length switches: for keeping the network unzipped. could be option later
                 uv.length = vδ.length
                 vδ.length = 0.0
                 αu.hybrid = false
                 αu.gamma = 1.0
-                αu.isMajor = true
-                if αu.containRoot
+                αu.ismajor = true
+                if αu.containroot
                     allowrootbelow!(v, αu)
                 end
             end
@@ -707,17 +707,17 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
                 # no lengths to switch in these cases
                 vδ.hybrid = true
                 vδ.gamma = αu.gamma
-                vδ.isMajor = αu.isMajor
+                vδ.ismajor = αu.ismajor
                 αu.hybrid = false
                 αu.gamma = 1.0
-                αu.isMajor = true
-                # containRoot: nothing to update
+                αu.ismajor = true
+                # containroot: nothing to update
             else # BR 1' or 2: α<-u<-v->δ : hybrid status just fine
                 # length switches: for keeping the network unzipped. could be option later
                 αu.length = vδ.length
                 vδ.length = 0.0
                 norootbelow!(vδ)
-                if uv.containRoot
+                if uv.containroot
                     allowrootbelow!(αu)
                 end
             end
@@ -726,7 +726,7 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
         # we could have -αu-> -uv-> -vδ-> or <-αu- <-uv- <-vδ-
         hyb = ( getchild(αu) == v ? αu : vδ ) # uv's hybrid parent edge: either αu or vδ
         (uv.gamma,   hyb.gamma)   = (hyb.gamma,   uv.gamma)
-        (uv.isMajor, hyb.isMajor) = (hyb.isMajor, uv.isMajor)
+        (uv.ismajor, hyb.ismajor) = (hyb.ismajor, uv.ismajor)
     end
     # throw error if u not hybrid & v hybrid? (does not need to be implemented)
     return vδ, u, uv, v, αu, flip, inner, v_in_vδ, αu_in_u, vδ_in_v, u_in_αu
@@ -911,7 +911,7 @@ function moveroot!(
     constraints::Vector{TopologyConstraint}=TopologyConstraint[]
 )
     newrootrandomorder = Random.shuffle(rng, 1:length(net.node))
-    oldroot = net.root
+    oldroot = net.rooti
     for newrooti in newrootrandomorder
         newrooti != oldroot || continue
         newrootnode = net.node[newrooti]
@@ -927,13 +927,13 @@ function moveroot!(
         newrootfound || continue # to next potential new root
         # Check for no directional conflict
         try
-            net.root = newrooti
+            net.rooti = newrooti
             directEdges!(net)
             # warning: assumes that the previous root has degree 3
             # otherwise, need to delete previous root by fusing its 2 adjacent edges
         catch e # RootMismatch error if root placement is below a hybrid
             isa(e, RootMismatch) || rethrow(e)
-            net.root = oldroot
+            net.rooti = oldroot
             directEdges!(net) # revert edges' directions to match original rooting
             continue # to next potential new root
         end
@@ -961,7 +961,7 @@ Otherwise, return nothing.
 
 The flip can be undone with
 `fliphybrid!(net, newhybridnode, minor, constraints)`, or
-`fliphybrid!(net, newhybridnode, !flippededge.isMajor, constraints)`
+`fliphybrid!(net, newhybridnode, !flippededge.ismajor, constraints)`
 more generally, such as if the flipped edge had its γ modified after the
 original flip.
 
@@ -1026,7 +1026,7 @@ Output:
 
 The network is unchanged if the flip is not admissible.
 If the flip is admissible, the root position may be modified, and
-the direction of tree edges (via `isChild1`) is modified accordingly. If the
+the direction of tree edges (via `ischild1`) is modified accordingly. If the
 root needs to be modified, then the new root is set to the old hybrid node.
 
 The index of the new hybrid node in `net.hybrid` is equal to that of the
@@ -1113,14 +1113,14 @@ function fliphybrid!(
     edgetokeep.hybrid = false
     newhybridnode.hybrid = true
     newhybridedge.hybrid = true
-    newhybridedge.isMajor = minor
-    edgetokeep.isMajor = true
-    # update node order to keep isChild1 attribute of hybrid edges true
-    edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
+    newhybridedge.ismajor = minor
+    edgetokeep.ismajor = true
+    # update node order to keep ischild1 attribute of hybrid edges true
+    edgetoflip.ischild1 = !edgetoflip.ischild1 # just switch
     if getchild(newhybridedge) !== newhybridnode # includes the case when the newhybridnode was the root
         # then flip newhybridedge too: make it point towards newhybridnode
-        newhybridedge.isChild1 = !newhybridedge.isChild1
-        net.root = findfirst(n -> n === hybridnode, net.node)
+        newhybridedge.ischild1 = !newhybridedge.ischild1
+        net.rooti = findfirst(n -> n === hybridnode, net.node)
         runDirectEdges = true # many edges are likely to need to have directions flipped here
     end
     # give new hybridnode a name
@@ -1134,7 +1134,7 @@ function fliphybrid!(
     net.hybrid[hybridindex] = newhybridnode
     if runDirectEdges # direct edges only if root is moved
         directEdges!(net)
-    else # if not, only update containRoot attributes
+    else # if not, only update containroot attributes
         # norootbelow in child edges of newhybridedge
         for ce in newhybridnode.edge
             ce !== newhybridedge || continue # skip e
@@ -1142,7 +1142,7 @@ function fliphybrid!(
             norootbelow!(ce)
         end
         # allow root for edges below old hybrid node
-        if edgetokeep.containRoot #else, already forbidden below due to hybrid above
+        if edgetokeep.containroot #else, already forbidden below due to hybrid above
             allowrootbelow!(hybridnode, edgetokeep) # old hybrid node
         end
     end

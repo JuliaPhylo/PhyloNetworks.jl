@@ -8,33 +8,33 @@ net = readnewick("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.12345678
 s = IOBuffer()
 @test_logs printEdges(s, net)
 @test String(take!(s)) == """
-edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable
-1    2      1      102.346 false  true    1       false       -1      false
-2    3      2              true   true            false       -1      true 
-3    10     3              true   true    0.8765  true        -1      true 
-4    6      4      0.001   false  true    1       true        -1      false
-5    6      5              false  true    1       true        -1      false
-6    6      3              true   false   0.1235  true        -1      true 
-7    9      6              false  true    1       true        -1      true 
-8    8      2              true   false           true        -1      true 
-9    8      7              false  true    1       true        -1      false
-10   9      8              false  true    1       true        -1      true 
-11   10     9              false  true    1       true        -1      true 
+edge parent child  length  hybrid ismajor gamma   containroot i_cycle
+1    2      1      102.346 false  true    1       false       -1     
+2    3      2              true   true            false       -1     
+3    10     3              true   true    0.8765  true        -1     
+4    6      4      0.001   false  true    1       true        -1     
+5    6      5              false  true    1       true        -1     
+6    6      3              true   false   0.1235  true        -1     
+7    9      6              false  true    1       true        -1     
+8    8      2              true   false           true        -1     
+9    8      7              false  true    1       true        -1     
+10   9      8              false  true    1       true        -1     
+11   10     9              false  true    1       true        -1     
 """
 close(s); s = IOBuffer()
 @test_logs printNodes(s, net)
 @test String(take!(s)) == """
-node leaf  hybrid hasHybEdge name       inCycle edges'numbers
-1    true  false  false      B          -1      1   
-2    false true   true       H1         -1      1    2    8   
-3    false true   true       H2         -1      2    3    6   
-4    true  false  false      D          -1      4   
-5    true  false  false      C          -1      5   
-6    false false  true       S1         -1      4    5    6    7   
-7    true  false  false      A_coolname -1      9   
-8    false false  true       S2         -1      8    9    10  
-9    false false  false      S3         -1      7    10   11  
-10   false false  true       S4         -1      3    11  
+node leaf  hybrid name       i_cycle edges'numbers
+1    true  false  B          -1      1   
+2    false true   H1         -1      1    2    8   
+3    false true   H2         -1      2    3    6   
+4    true  false  D          -1      4   
+5    true  false  C          -1      5   
+6    false false  S1         -1      4    5    6    7   
+7    true  false  A_coolname -1      9   
+8    false false  S2         -1      8    9    10  
+9    false false  S3         -1      7    10   11  
+10   false false  S4         -1      3    11  
 """
 close(s);
 originalstdout = stdout
@@ -43,9 +43,9 @@ printEdges(net) # method without io argument
 printNodes(net)
 redirect_stdout(originalstdout)
 
-@test_throws ErrorException getparent(net.node[net.root])
-@test_throws ErrorException getparentedge(net.node[net.root])
-@test_throws ErrorException getparentedgeminor(net.node[net.root])
+@test_throws ErrorException getparent(net.node[net.rooti])
+@test_throws ErrorException getparentedge(net.node[net.rooti])
+@test_throws ErrorException getparentedgeminor(net.node[net.rooti])
 @test_throws ErrorException getparentminor(net.node[1])
 @test getparent(net.node[1]).number == 2
 @test getparentminor(net.node[3]).number == 6
@@ -65,10 +65,10 @@ redirect_stdout(originalstdout)
 @test_throws ErrorException deleteleaf!(net, net.node[9])
 n = deepcopy(net)
 @test_logs deleteleaf!(n, n.node[7])
-@test n.numNodes == 8; @test n.numEdges == 9;
+@test n.numnodes == 8; @test n.numedges == 9;
 @test_logs deleteleaf!(net, net.node[7], simplify=false)
 deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
-@test net.numNodes == 5; @test net.numEdges == 6;
+@test net.numnodes == 5; @test net.numedges == 6;
 
 ## test nodeheights functions
 net = readnewick("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")
@@ -128,16 +128,16 @@ end
 
 if doalltests
 tre = readnewick("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
-tre.edge[1].isChild1=false; tre.edge[17].isChild1=false
+tre.edge[1].ischild1=false; tre.edge[17].ischild1=false
 directEdges!(tre)
-tre.edge[1].isChild1  || error("directEdges! didn't correct the direction of 1st edge")
-tre.edge[17].isChild1 || error("directEdges! didn't correct the direction of 17th edge")
-for i=1:18 tre.edge[i].containRoot=false; end;
-tre.root = 9;
+tre.edge[1].ischild1  || error("directEdges! didn't correct the direction of 1st edge")
+tre.edge[17].ischild1 || error("directEdges! didn't correct the direction of 17th edge")
+for i=1:18 tre.edge[i].containroot=false; end;
+tre.rooti = 9;
 directEdges!(tre);
-!tre.edge[9].isChild1 || error("directEdges! didn't correct the direction of 9th edge")
+!tre.edge[9].ischild1 || error("directEdges! didn't correct the direction of 9th edge")
 for i=1:18
- tre.edge[i].containRoot || error("directEdges! didn't correct containRoot of $(i)th edge.")
+ tre.edge[i].containroot || error("directEdges! didn't correct containroot of $(i)th edge.")
 end
 tre = readnewick("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 rootatnode!(tre, -9); ## clau: previously -8
@@ -146,14 +146,14 @@ end
 global net
 net = readnewick("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -7 (clau: previously -6).
-net.root = 5
+net.rooti = 5
 @test_logs directEdges!(net);
-@test !net.edge[12].isChild1 # or: directEdges! didn't correct the direction of 12th edge
-@test !net.edge[23].isChild1 # or: directEdges! didn't correct the direction of 23th edge"
-@test [!net.edge[i].containRoot for i in [8;collect(13:17)]] == [true for i in 1:6]
-# or: "directEdges! didn't correct containRoot below a hyb node, $(i)th edge."
-@test [net.edge[i].containRoot for i in [9,5,18,2]] == [true for i in 1:4]
-# or: "directEdges! didn't correct containRoot of hyb edges."
+@test !net.edge[12].ischild1 # or: directEdges! didn't correct the direction of 12th edge
+@test !net.edge[23].ischild1 # or: directEdges! didn't correct the direction of 23th edge"
+@test [!net.edge[i].containroot for i in [8;collect(13:17)]] == [true for i in 1:6]
+# or: "directEdges! didn't correct containroot below a hyb node, $(i)th edge."
+@test [net.edge[i].containroot for i in [9,5,18,2]] == [true for i in 1:4]
+# or: "directEdges! didn't correct containroot of hyb edges."
 @test_logs rootatnode!(net, -10); # or: rootatnode! complained, node -10
 @test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M");
 # println("the rootmismatch about node 5 is good and expected.")
@@ -173,18 +173,18 @@ net.root = 5
 
 if doalltests
 net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
-# sum([!e.containRoot for e in net.edge]) # only 4.
+# sum([!e.containroot for e in net.edge]) # only 4.
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids")
-sum([!e.containRoot for e in net.edge]) == 16 ||
+sum([!e.containroot for e in net.edge]) == 16 ||
  error("directEdges! wrong on net with 2 stacked hybrids");
 plot(net, showedgenumber=true, showedgelength=false, shownodenumber=true);
 net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
-net.root=19; # node number -13 (clau: previously -12)
+net.rooti=19; # node number -13 (clau: previously -12)
 directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids");
 end
 
 net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
-net.root=15; # node number -5 (clau: previously -4)
+net.rooti=15; # node number -5 (clau: previously -4)
 @test_throws PhyloNetworks.RootMismatch directEdges!(net);
 # occursin(r"non-leaf node 9 had 0 children",e.msg))
 @test_logs rootatnode!(net, -13); # or: rootatnode complained...
@@ -208,15 +208,15 @@ preorder!(tre)
 ## clau: previously [-1,10,-2,-9,9,8,-3,-8,7,6,-4,5,-5,4,-6,3,-7,2,1];
 nodeN = [-2,10,-3,-10,9,8,-4,-9,7,6,-5,5,-6,4,-7,3,-8,2,1];
 for i=1:length(tre.node)
-  tre.nodes_changed[i].number==nodeN[i] ||
-    error("node pre-ordered $i is node number $(tre.nodes_changed[i].number) instead of $(nodeN[i])")
+  tre.vec_node[i].number==nodeN[i] ||
+    error("node pre-ordered $i is node number $(tre.vec_node[i].number) instead of $(nodeN[i])")
 end
 end
 
 @test_logs preorder!(net)
 ## clau previously: [-1,14,-14,13,12,-2,-9,11,-10,10,-3,-4,-5,-6,-7,5,6,4,3,2,-12,9,-13,8,7,1];
 nodeN = [-2,14,-15,13,12,-3,-10,11,-11,10,-4,-5,-6,-7,-8,5,6,4,3,2,-13,9,-14,8,7,1];
-@test [n.number for n in net.nodes_changed] == nodeN
+@test [n.number for n in net.vec_node] == nodeN
 
 cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
 net3  = readnewick(cui3str);
@@ -225,7 +225,7 @@ deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
 # now: net3 has a 2-cycle
 directEdges!(net3)
 preorder!(net3)
-@test [n.number for n in net3.nodes_changed] == [-3,25,-6,-8,-20,-21,-22,-23,-25,-26,-27,-28,24,23,22,21,20,-24,15,-10,-16,-17,-19,14,13,-18,12,11,-11,-14,10,-15,9,8,-12,7,6,5,19,18,17,16,-7,4,3,26]
+@test [n.number for n in net3.vec_node] == [-3,25,-6,-8,-20,-21,-22,-23,-25,-26,-27,-28,24,23,22,21,20,-24,15,-10,-16,-17,-19,14,13,-18,12,11,-11,-14,10,-15,9,8,-12,7,6,5,19,18,17,16,-7,4,3,26]
 
 end # of testset for preorder!
 
@@ -236,14 +236,14 @@ if doalltests
 cladewiseorder!(tre)
 nodeN = collect(19:-1:1);
 for i=1:length(tre.node)
-  tre.cladewiseorder_nodeIndex[i]==nodeN[i] ||
-    error("node clade-wise ordered $i is $(tre.cladewiseorder_nodeIndex[i])th node instead of $(nodeN[i])th")
+  tre.vec_int1[i]==nodeN[i] ||
+    error("node clade-wise ordered $i is $(tre.vec_int1[i])th node instead of $(nodeN[i])th")
 end
 end
 
 @test_logs cladewiseorder!(net)
 nodeN = collect(26:-1:1);
-@test net.cladewiseorder_nodeIndex == nodeN
+@test net.vec_int1 == nodeN
 end # of testset for cladewiseorder!
 
 @testset "testing rotate!" begin
@@ -283,7 +283,7 @@ net = readnewick("((t1)#H22:::0.8,#H22);")
 PhyloNetworks.deleteaboveLSA!(net)
 @test writenewick(net) == "(t1)H22;"
 @test isempty(net.hybrid)
-@test [n.name for n in net.nodes_changed] == ["H22","t1"]
+@test [n.name for n in net.vec_node] == ["H22","t1"]
 
 # deleteleaf! and removedegree2nodes! when the root starts a 2-cycle
 net = readnewick("((a,(((b)#H1,#H1))#H2),(#H2));")

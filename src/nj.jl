@@ -75,10 +75,10 @@ function nj!(
             if force_nonnegative_edges djk = 0.0; end
         end
         # create new edges and node, update tree
-        edgenum = net.numEdges
+        edgenum = net.numedges
         eik = Edge(edgenum + 1, dik)
         ejk = Edge(edgenum + 2, djk)
-        node_k = Node(net.numNodes+1, false, false, [eik, ejk])
+        node_k = Node(net.numnodes+1, false, false, [eik, ejk])
         node_i = active_nodes[i]
         node_j = active_nodes[j]
         setNode!(eik, Node[node_i, node_k])
@@ -117,16 +117,16 @@ function nj!(
     end
     node1 = active_nodes[1]
     node2 = active_nodes[2]
-    newedge = Edge(net.numEdges+1, D[1,2])
-    setNode!(newedge, [node1, node2]) # isChild1 = true by default: nodes are [child, parent]
-    if node1.number == net.numNodes
-        newedge.isChild1 = false # direct the edge: last created node -> other node
+    newedge = Edge(net.numedges+1, D[1,2])
+    setNode!(newedge, [node1, node2]) # ischild1 = true by default: nodes are [child, parent]
+    if node1.number == net.numnodes
+        newedge.ischild1 = false # direct the edge: last created node -> other node
     end
     setEdge!(node1, newedge)
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
 
-    net.root = net.numNodes # root = last created node, which is internal
+    net.rooti = net.numnodes # root = last created node, which is internal
     if neglenp > 0
         infostr = (force_nonnegative_edges ?
                    "$neglenp branch(es) of negative length, reset to 0" :

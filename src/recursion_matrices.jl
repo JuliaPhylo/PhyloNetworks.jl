@@ -5,7 +5,7 @@ Matrix associated to a [`HybridNetwork`](@ref) in which rows and/or columns
 correspond to nodes in the network. In this matrix, nodes are indexed by
 their topological order.
 For example, if rows list nodes in network `net`, then `V[i,:]` corresponds to
-node `net.nodes_changed[i]`.
+node `net.vec_node[i]`.
 
 The following functions and extractors can be applied to it:
 [`tipLabels`](@ref),
@@ -49,7 +49,7 @@ end
 tipLabels(obj::MatrixTopologicalOrder) = obj.tipNames
 
 function MatrixTopologicalOrder(V::Matrix, net::HybridNetwork, indexation)
-    length(net.nodes_changed) == length(net.node) ||
+    length(net.vec_node) == length(net.node) ||
         error("run preorder! on the network first")
     nodenumbers_internal = Int[]
     nodenumbers_leaves = Int[]
@@ -58,7 +58,7 @@ function MatrixTopologicalOrder(V::Matrix, net::HybridNetwork, indexation)
     end
     return MatrixTopologicalOrder(
         V,
-        [n.number for n in net.nodes_changed],
+        [n.number for n in net.vec_node],
         nodenumbers_internal,
         nodenumbers_leaves,
         [n.name for n in net.leaf],
@@ -224,7 +224,7 @@ function sharedPathMatrix(net::HybridNetwork; checkpreorder::Bool=true)
            A phylogenetic regression cannot be done.""")
     checkpreorder && preorder!(net)
     V = traversal_preorder(
-            net.nodes_changed,
+            net.vec_node,
             initsharedPathMatrix,
             traversalupdate_default!,
             updateTreeSharedPathMatrix!,
@@ -290,7 +290,7 @@ If `checkpreorder` is true (default), `preorder!` is run on the network beforeha
 function descendenceMatrix(net::HybridNetwork; checkpreorder::Bool=true)
     checkpreorder && preorder!(net)
     V = traversal_postorder(
-        net.nodes_changed,
+        net.vec_node,
         initDescendenceMatrix,
         traversalupdate_default!, # does nothing
         updateNodeDescendenceMatrix!,

@@ -96,9 +96,9 @@ hyb = net.hybrid[2]
 ## Find child edge
 hyb_edges = [e.hybrid for e in hyb.edge]
 child_edge = hyb.edge[.!hyb_edges][1]
-child = child_edge.isChild1 ? child_edge.node[1] : child_edge[17].node[2]
+child = child_edge.ischild1 ? child_edge.node[1] : child_edge[17].node[2]
 ## Find number of child edge
-nodeNumbersTopOrder = [n.number for n in net.nodes_changed]
+nodeNumbersTopOrder = [n.number for n in net.vec_node]
 p = indexin([child.number], nodeNumbersTopOrder)
 ## Find parents edges and node numbers
 par_edge_1 = hyb.edge[hyb_edges][1]
@@ -123,7 +123,7 @@ V_t_2 = sharedPathMatrix(net)
 ## Descendant indicatrice matrix
 des = PhyloNetworks.descendants(par_edge_1, true) # true to get internal nodes also
 mask = indexin(des, V_t_1.nodeNumbersTopOrder)
-D = zeros(net.numNodes, net.numNodes)
+D = zeros(net.numnodes, net.numnodes)
 D[mask, mask] .= 1.0
 
 ## Formula

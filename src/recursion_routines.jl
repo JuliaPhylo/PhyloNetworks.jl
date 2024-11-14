@@ -15,7 +15,7 @@ output: array object `output_array`.
 
 arguments:
 - `nodes`: array of nodes in the network, pre-ordered, typically the internal
-  `net.nodes_changed` after applying `preorder!(net)`
+  `net.vec_node` after applying `preorder!(net)`
 - `output_array`: output object, of type `AbstractArray`, named `V` below
 - `init_function`: to initialize the output array, taking `(nodes, parameters...)`
   as arguments
@@ -123,7 +123,7 @@ output: matrix `output_array`.
 
 arguments:
 - `nodes`: array of nodes in the network, pre-ordered, typically the internal
-  `net.nodes_changed` after applying `preorder!(net)`.
+  `net.vec_node` after applying `preorder!(net)`.
   This array is traversed in reverse order.
 - `output_array`: output object, of type `Matrix`, named `V` below
 - `init_function`: to initialize the output array, taking `(nodes, parameters...)`

@@ -10,21 +10,21 @@ str_tree = "(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);";
 tree = readnewick(str_tree)
 Random.seed!(5432);
 @test !isnothing(PhyloNetworks.addhybridedge!(tree, true, true))
-@test tree.numHybrids == 1
+@test tree.numhybrids == 1
 @test !isnothing(PhyloNetworks.addhybridedge!(tree, true, true)) # should be able to add a hybrid
-@test tree.numHybrids == 2
+@test tree.numhybrids == 2
 @test !any([n.hybrid for n in PhyloNetworks.getparents(tree.hybrid[2])]) # tests if network is treechild
 
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 netl1 = readnewick(str_level1)
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, true, true))
-@test netl1.numHybrids == 3
+@test netl1.numhybrids == 3
 @test !any([n.hybrid for n in PhyloNetworks.getparents(netl1.hybrid[3])]) # tests if network has no hybrid ladder
 
 netl1 = readnewick(str_level1)
 newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
-@test netl1.numHybrids == 3
+@test netl1.numhybrids == 3
 PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getparentedgeminor(newhybridnode))
 @test hardwiredClusterDistance(netl1, readnewick(str_level1), true) == 0
 end # of addhybridedge! top function
@@ -48,7 +48,7 @@ netl1 = readnewick(str_level1);
 @test writenewick(netl1) == "(((S8,S9),(((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2)#H3),((#H2,S10),#H3));"
 netl1 = readnewick(str_level1); # good hybrid edge choice leads to a DAG when reverting the direction of edge2
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, netl1.edge[6], netl1.edge[20], false))
-@test netl1.root < 19 # the root must have been changed due to changing some edges' directions
+@test netl1.rooti < 19 # the root must have been changed due to changing some edges' directions
 @test writenewick(netl1) == "(#H2,S10,((((S8,S9),((((S5)#H1,((S1,S4),#H3)),(#H1,(S6,S7))))#H2)))#H3);"
 # new hybrid into an existing hybrid edge
 netl1 = readnewick(str_level1);

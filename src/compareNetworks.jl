@@ -35,22 +35,22 @@ function tree2Matrix(
     S::Union{Vector{String},Vector{Int}};
     rooted::Bool=true
 )
-    length(T.hybrid)==0 || error("tree2Matrix only works on trees. Network has $(T.numHybrids) hybrid nodes.")
+    length(T.hybrid)==0 || error("tree2Matrix only works on trees. Network has $(T.numhybrids) hybrid nodes.")
     # sort!(S) # why sort 'taxa', again and again for each tree? Benefits?
-    ne = length(T.edge)-T.numTaxa # number of internal branch lengths
-    if (T.node[T.root].leaf)      # the root is a leaf: the 1 edge stemming from the root is an external edge
+    ne = length(T.edge)-T.numtaxa # number of internal branch lengths
+    if (T.node[T.rooti].leaf)      # the root is a leaf: the 1 edge stemming from the root is an external edge
         ne += 1                   # and will need to get a row in the matrix, to be deleted later.
     end
     M = zeros(Int,ne,length(S)+1)
     # M[:,1] = sort!([e.number for e in T.edge])
     ie = [1] # index of next edge to be documented: row index in M
-    for e in T.node[T.root].edge
-        child = getOtherNode(e,T.node[T.root])
+    for e in T.node[T.rooti].edge
+        child = getOtherNode(e,T.node[T.rooti])
         if !isleaf(child)
-            traverseTree2Matrix!(T.node[T.root],e,ie,M,S)
+            traverseTree2Matrix!(T.node[T.rooti],e,ie,M,S)
         end
     end
-    if (!rooted && length(T.node[T.root].edge)<3)
+    if (!rooted && length(T.node[T.rooti].edge)<3)
         # remove first row of M: 1st edge at the root, duplicated edge
         # if the tree is to be considered as unrooted, or just leaf.
         M = M[2:size(M,1),:] # makes a copy, too bad.
@@ -81,15 +81,15 @@ Both parent hybrid edges to a given hybrid node only contribute a single row (th
 See also [`hardwiredClusterDistance`](@ref) and [`hardwiredCluster`](@ref).
 """
 function hardwiredClusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})
-    ne = length(net.edge)-net.numTaxa # number of internal branch lengths
+    ne = length(net.edge)-net.numtaxa # number of internal branch lengths
     ne -= length(net.hybrid)          # to remove duplicate rows for the 2 parent edges of each hybrid
-    if (net.node[net.root].leaf)      # root is leaf: the 1 edge stemming from the root is an external edge
+    if (net.node[net.rooti].leaf)     # root is leaf: the 1 edge stemming from the root is an external edge
         ne += 1                       #               but needs to be included still (rooted clusters).
     end
     M = zeros(Int,ne,length(S)+2)
     ie = [1] # index of next edge to be documented: row index in M
-    for e in net.node[net.root].edge
-        hardwiredClusters!(net.node[net.root],e,ie,M,S)
+    for e in net.node[net.rooti].edge
+        hardwiredClusters!(net.node[net.rooti],e,ie,M,S)
     end
     return M
 end
@@ -101,13 +101,13 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::AbstractVector{Int}, M::
     !child.leaf || return 0 # do nothing if child is a leaf.
 
     if (edge.hybrid) # edge is a hybrid. Need to find its partner.
-        (edge.isChild1 ? edge.node[1] == child : edge.node[2] == child) || error(
-        "inconsistency during network traversal: node $(child.number) supposed to be child of hybrid edge $(edge.number), inconsistent with isChild1.")
+        (edge.ischild1 ? edge.node[1] == child : edge.node[2] == child) || error(
+        "inconsistency during network traversal: node $(child.number) supposed to be child of hybrid edge $(edge.number), inconsistent with ischild1.")
         partner = nothing
         partnerVisited = true
         indpartner = 0
         for e in child.edge
-            if (e.hybrid && e != edge && (e.isChild1 ? e.node[1] == child : e.node[2] == child))
+            if (e.hybrid && e != edge && (e.ischild1 ? e.node[1] == child : e.node[2] == child))
                 partner = e
                 indpartner = findfirst(isequal(partner.number), M[:,1])
                 if isnothing(indpartner)
@@ -150,7 +150,7 @@ end
 Calculate the hardwired cluster of `edge`, coded as a vector of booleans:
 true for taxa that are descendent of the edge, false for other taxa (including missing taxa).
 
-The edge should belong in a rooted network for which `isChild1` is up-to-date.
+The edge should belong in a rooted network for which `ischild1` is up-to-date.
 Run `directEdges!` beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
@@ -181,7 +181,10 @@ julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
 
 See also [`hardwiredClusterDistance`](@ref) and [`hardwiredClusters`](@ref)
 """
-function hardwiredCluster(edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}})
+function hardwiredCluster(
+    edge::Edge,
+    taxa::Union{AbstractVector{String},AbstractVector{Int}}
+)
     v = zeros(Bool,length(taxa))
     hardwiredCluster!(v,edge,taxa)
     return v
@@ -190,8 +193,12 @@ end
 hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}}) =
     hardwiredCluster!(v,edge,taxa,Int[])
 
-function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}},
-                           visited::Vector{Int})
+function hardwiredCluster!(
+    v::Vector{Bool},
+    edge::Edge,
+    taxa::Union{AbstractVector{String},AbstractVector{Int}},
+    visited::Vector{Int}
+)
     n = getchild(edge)
     if n.leaf
         j = findall(isequal(n.name), taxa)
@@ -200,7 +207,7 @@ function hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector
         return nothing
     end
     if n.number in visited
-        return nothing  # n was already visited: exit. avoid infinite loop is isChild1 was bad.
+        return nothing  # n was already visited: exit. avoid infinite loop is ischild1 was bad.
     end
     push!(visited, n.number)
     for ce in n.edge
@@ -219,7 +226,7 @@ Return the node numbers of the descendants of a given edge:
 all descendant nodes if `internal` is true (internal nodes and tips),
 or descendant tips only otherwise (defaults).
 
-`edge` should belong in a rooted network for which `isChild1` is up-to-date.
+`edge` should belong in a rooted network for which `ischild1` is up-to-date.
 Run `directEdges!` beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
@@ -271,9 +278,9 @@ end
 """
     isdescendant(des:Node, anc::Node)
 
-Return true if `des` is a strict descendant of `anc`, using `isChild1` fields
+Return true if `des` is a strict descendant of `anc`, using `ischild1` fields
 to determine the direction of edges. See [`isdescendant_undirected`](@ref)
-for a version that does not use `isChild1`.
+for a version that does not use `ischild1`.
 """
 function isdescendant(des::Node, anc::Node)
     visited = Int[]
@@ -309,14 +316,14 @@ end
 
 Return `true` if `des` is a strict descendant of `ancestor` when starting
 from edge `parentedge` and going towards `ancestor` onward, regardless
-of the field `isChild1` of tree edges; `false` otherwise.
+of the field `ischild1` of tree edges; `false` otherwise.
 
 This is useful to know how descendant relationships would change as a result
 of reverting the direction of a tree edge, without actually
-modifying the direction (`isChild1`) of any edge.
+modifying the direction (`ischild1`) of any edge.
 
 `parentedge` should be connected to `ancestor` (not checked).
-The direction of hybrid edges is respected (via `isChild1`), that is,
+The direction of hybrid edges is respected (via `ischild1`), that is,
 the traversal does not go from the child to the parent of a hybrid edge.
 """
 function isdescendant_undirected(des::Node, anc::Node, parentedge::Edge)
@@ -357,8 +364,8 @@ for the right child of the node (unless the node is of degree 2 or is a polytomy
 WARNING: assumes that
 1. node numbers and edge numbers can be used as indices, that is,
    be all distinct, positive, covering exactly 1:#nodes and 1:#edges.
-2. edges are corrected directed (`isChild1` is up-to-date) and
-   nodes have been pre-ordered already (field `nodes_changed` up-to-date).
+2. edges are corrected directed (`ischild1` is up-to-date) and
+   nodes have been pre-ordered already (field `vec_node` up-to-date).
 
 # examples
 ```jldoctest
@@ -367,19 +374,19 @@ julia> tree = readnewick("(O,A,((B1,B2),(E,(C,D))));");
 julia> PhyloNetworks.resetNodeNumbers!(tree; checkPreorder=true, type=:postorder)
 
 julia> printNodes(tree)
-node leaf  hybrid hasHybEdge name inCycle edges'numbers
-1    true  false  false      O    -1      1   
-2    true  false  false      A    -1      2   
-3    true  false  false      B1   -1      3   
-4    true  false  false      B2   -1      4   
-8    false false  false           -1      3    4    5   
-5    true  false  false      E    -1      6   
-6    true  false  false      C    -1      7   
-7    true  false  false      D    -1      8   
-9    false false  false           -1      7    8    9   
-10   false false  false           -1      6    9    10  
-11   false false  false           -1      5    10   11  
-12   false false  false           -1      1    2    11  
+node leaf  hybrid  name i_cycle edges'numbers
+1    true  false   O    -1      1   
+2    true  false   A    -1      2   
+3    true  false   B1   -1      3   
+4    true  false   B2   -1      4   
+8    false false        -1      3    4    5   
+5    true  false   E    -1      6   
+6    true  false   C    -1      7   
+7    true  false   D    -1      8   
+9    false false        -1      7    8    9   
+10   false false        -1      6    9    10  
+11   false false        -1      5    10   11  
+12   false false        -1      1    2    11  
 
 julia> below, above = PhyloNetworks.ladderpartition(tree);
 
@@ -426,7 +433,7 @@ function ladderpartition(net::HybridNetwork)
     below = Vector{Vector{Vector{Int}}}(undef, nnodes)
     above = Vector{Vector{Vector{Int}}}(undef, nnodes)
     for nni in nnodes:-1:1 # post-order (not pre-order) traversal
-        nn = net.nodes_changed[nni]
+        nn = net.vec_node[nni]
         above[nn.number] = Vector{Vector{Int}}(undef,0) # initialize
         if nn.leaf
             below[nn.number] = [[nn.number]]
@@ -448,7 +455,7 @@ function ladderpartition(net::HybridNetwork)
     # so far: above[n] contains the clades *sister* to node number n, only.
     #         add those above = any above n's parent, using pre-order this time.
     for nni in 2:nnodes # avoid 1: it's the root, no parent, nothing to update
-        nn = net.nodes_changed[nni]
+        nn = net.vec_node[nni]
         pn = getparent(nn).number # major parent number
         for clade in above[pn]  push!(above[nn.number], clade); end
     end
@@ -479,7 +486,7 @@ Warnings:
 - by default, `nofuse` is false, partner hybrid edges are fused with their child edge
   and have their γ changed to 1.0.
   If `nofuse` is true: the γ's of partner hybrid edges are unchanged.
-- assumes correct `isMajor` fields, and correct `isChild1` fields to update `containRoot`.
+- assumes correct `ismajor` fields, and correct `ischild1` fields to update `containroot`.
 """
 function deleteHybridThreshold!(
     net::HybridNetwork,
@@ -490,12 +497,12 @@ function deleteHybridThreshold!(
     keeporiginalroot::Bool=false
 )
     gamma <= 0.5 || error("deleteHybridThreshold! called with gamma = $(gamma)>0.5")
-    for i = net.numHybrids:-1:1
+    for i = net.numhybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         i > lastindex(net.hybrid) && continue # removing 1 hybrid could remove several, if non-tree child net
         e = getparentedgeminor(net.hybrid[i])
         # remove minor edge e if γ < threshold OR threshold=0.5
-        # warning: no check if γ and isMajor are in conflict
+        # warning: no check if γ and ismajor are in conflict
         if e.gamma < gamma || gamma == 0.5 # note: γ=-1 if missing, so < gamma threshold
             # deleteHybrid!(net.hybrid[i],net,true,false) # requires non-missing edge lengths
             # deleteHybridizationUpdate! requires level-1 network with corresponding attributes
@@ -562,8 +569,8 @@ Returns an array of trees, as HybridNetwork objects.
 Warnings:
 
 - if `nofuse` is true: the retained partner hybrid edges have
-  their γ values unchanged, but their `isMajor` is changed to true
-- assume correct `isMajor` attributes.
+  their γ values unchanged, but their `ismajor` is changed to true
+- assume correct `ismajor` attributes.
 """
 function displayedTrees(
     net0::HybridNetwork,
@@ -577,7 +584,7 @@ function displayedTrees(
     net = deepcopy(net0)
     deleteHybridThreshold!(net,gamma,nofuse,unroot, multgammas, keeporiginalroot)
     displayedTrees!(trees,net,nofuse,unroot, multgammas, keeporiginalroot)
-    return trees # should have length 2^net.numHybrids
+    return trees # should have length 2^net.numhybrids
 end
 
 """
@@ -633,8 +640,8 @@ is retained: the major hybrid edge is fused with it.
 Warnings:
 
 - if `nofuse` is true: the hybrid edges that are retained (without fusing)
-  have their γ values unchanged, but their `isMajor` is changed to true
-- assume correct `isMajor` attributes.
+  have their γ values unchanged, but their `ismajor` is changed to true
+- assume correct `ismajor` attributes.
 """
 majorTree(
     net::HybridNetwork;
@@ -655,7 +662,7 @@ function displayedTrees!(
     keeporiginalroot::Bool=false
 )
     if isTree(net)
-        # warning: no update of edges' containRoot (true) or edges' and nodes' inCycle (-1)
+        # warning: no update of edges containroot (true) or boole1 and booln1 (-1) for cycle number
         push!(trees, net)
     else
         netmin = displayedNetworks!(net, net.hybrid[1], nofuse, unroot, multgammas, keeporiginalroot)
@@ -673,7 +680,7 @@ where the minor hybrid edge is kept instead of the major hybrid edge.
 If `nofuse` is true, edges are not fused (degree-2 nodes are kept).
 If `unroot` is true, the root will be deleted if it becomes of degree 2.
 
-Warning: assume correct `isMajor` fields.
+Warning: assume correct `ismajor` fields.
 """
 function minorTreeAt(
     net::HybridNetwork,
@@ -696,7 +703,7 @@ Delete all the minor hybrid edges, except at input node. The network is left
 with a single hybridization, and otherwise displays the same major tree as before.
 If `nofuse` is true, edges are not fused (degree-2 nodes are kept).
 
-Warning: assume correct `isMajor` fields.
+Warning: assume correct `ismajor` fields.
 """
 function displayedNetworkAt!(
     net::HybridNetwork,
@@ -706,7 +713,7 @@ function displayedNetworkAt!(
     multgammas::Bool=false
 )
     node.hybrid || error("will not extract network from tree node $(node.number)")
-    for i = net.numHybrids:-1:1
+    for i = net.numhybrids:-1:1
     # starting from last because net.hybrid changes as hybrids are removed. Empty range if 0 hybrids.
         net.hybrid[i] != node || continue
         emin = getparentedgeminor(net.hybrid[i])
@@ -819,11 +826,11 @@ networks at internal nodes.
 See also: [`hardwiredClusters`](@ref), [`hardwiredCluster`](@ref)
 """
 function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
-    bothtrees = (net1.numHybrids == 0 && net2.numHybrids == 0)
+    bothtrees = (net1.numhybrids == 0 && net2.numhybrids == 0)
     rooted || bothtrees ||
         return hardwiredClusterDistance_unrooted(net1, net2) # tries all roots, but removes degree-2 nodes
-    taxa = sort!(String[net1.leaf[i].name for i in 1:net1.numTaxa])
-    length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numTaxa])) == 0 ||
+    taxa = sort!(String[net1.leaf[i].name for i in 1:net1.numtaxa])
+    length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numtaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
     nTax = length(taxa)
     if bothtrees # even if rooted, different treatment at the root if root=leaf

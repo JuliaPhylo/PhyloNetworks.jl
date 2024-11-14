@@ -313,7 +313,7 @@ end # of hybrid ladder net edge 12: BB undirected (edge below root)
     @test  PhyloNetworks.isconnected(net_level1.node[12], net_level1.node[17])  # nodes -7, -6
     @test !PhyloNetworks.isconnected(net_level1.node[12], net_level1.node[19])  # nodes -7, -3
     # mess up the direction of some tree edges, then check descendence relationships with isdescendant_undirected
-    for i in [4,5,6,7,9,10,12,17,3,20] net_level1.edge[i].isChild1 = !net_level1.edge[i].isChild1; end
+    for i in [4,5,6,7,9,10,12,17,3,20] net_level1.edge[i].ischild1 = !net_level1.edge[i].ischild1; end
     @test  PhyloNetworks.isdescendant_undirected(net_level1.node[7], net_level1.node[17], net_level1.edge[18])
     @test !PhyloNetworks.isdescendant_undirected(net_level1.node[7], net_level1.node[3], net_level1.edge[3])
     @test  PhyloNetworks.isdescendant_undirected(net_level1.node[15], net_level1.node[17], net_level1.edge[18])
@@ -345,8 +345,8 @@ PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1A");
 @test !net_level1_s.node[findfirst([n.number == 3 for n in net_level1_s.node])].leaf
 PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1B");
 PhyloNetworks.addleaf!(net_level1_s, net_level1_s.node[4], "S1C");
-@test net_level1_s.edge[21].containRoot == false # check containRoot on edge 4 and exterior edges
-@test net_level1_s.edge[22].containRoot == false
+@test net_level1_s.edge[21].containroot == false # check containroot on edge 4 and exterior edges
+@test net_level1_s.edge[22].containroot == false
 @test getchild(net_level1_s.edge[21]).name == "S1A"
 @test getchild(net_level1_s.edge[22]).name == "S1B"
 # test addleaf! on edge
@@ -424,10 +424,10 @@ Random.seed!(765);
 writenewick(netl1_i) == "(((S1A,S1B,S1C)S1,S4),#H1,(((S5)#H1,(S6,S7))));" # now unrooted
 @test PhyloNetworks.moveroot!(netl1_i, con) # only 1 option
 writenewick(netl1_i) == "((S1A,S1B,S1C)S1,S4,(#H1,(((S5)#H1,(S6,S7)))));"
-netl1_i.root = 14 # back to original rooted network. This node is still of degree 2
+netl1_i.rooti = 14 # back to original rooted network. This node is still of degree 2
 @test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # false: root *at* clade crown
-@test netl1_i.root == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
-netl1_i.root = 7; directEdges!(netl1_i) # move root strictly above clade crown
+@test netl1_i.rooti == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
+netl1_i.rooti = 7; directEdges!(netl1_i) # move root strictly above clade crown
 con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # now fine: root *above* clade crown
 undoinfo = nni!(netl1_i.edge[8],0x01,false,false);
@@ -435,9 +435,9 @@ undoinfo = nni!(netl1_i.edge[8],0x01,false,false);
 nni!(undoinfo...);
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con)
 undoinfo = nni!(netl1_i.edge[8],0x03,false,false) # creates a 2-cycle
-@test netl1_i.numEdges == 13
+@test netl1_i.numedges == 13
 PhyloNetworks.deletehybridedge!(netl1_i, netl1_i.edge[10])
-@test netl1_i.numEdges == 10 # 2-cycle removed
+@test netl1_i.numedges == 10 # 2-cycle removed
 netl1_i = readnewick("(((S1A,S1B,S1C),S4),#H1,((S5)#H1,(S6,S7)));")
 undoinfo = nni!(netl1_i.edge[12],0x03,false,false) # 4-cycle now
 @test nni!(netl1_i.edge[12],0x02,true,true) === nothing # would create a 3-cycle
@@ -513,18 +513,18 @@ net_W = readnewick(wstring) # hybrid 1: H2, node number 3, hybrid 2: H1, number 
 # newhybridnode < current root
 net_W = readnewick(wstring)
 @test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[2], false)) # root was reset
-@test net_W.root == 7
+@test net_W.rooti == 7
 @test writenewick(net_W) == "((D:0.1,A:0.1274):0.0,((C:0.0262,(B:0.0)#H2:0.03::0.9756):0.4812)#H1:0.0::0.6,(#H2:0.0001::0.0244,#H1:0.0274::0.4):0.151);"
 # newhybridnode = current root
 # new root will have 2 children hybrid edges, because of former hybrid ladder
 net_hl = readnewick(hybridladderstring)  # hybrid 2 = H2, node number 1
 @test !isnothing(PhyloNetworks.fliphybrid!(net_hl, net_hl.hybrid[2], true, false))
 @test net_hl.hybrid[2].number == -2 # this is the former root
-@test net_hl.root == 4 # new root index is as expected
+@test net_hl.rooti == 4 # new root index is as expected
 @test writenewick(net_hl) == "((B)#H1,#H2:::0.2,(C,((#H1,(A1,A2)),(O)#H2:::0.8)));"
 #= other examples in which newhybridnode = current root
 n6h1 = readnewick("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
-n6h1.root = 10
+n6h1.rooti = 10
 directEdges!(n6h1)
 @test n6h1.hybrid[1].number == 5
 @test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1])) # flips minor by default
@@ -534,7 +534,7 @@ directEdges!(n6h1)
 net_W = readnewick(wstring)
 @test !isnothing(PhyloNetworks.fliphybrid!(net_W, net_W.hybrid[1], false)) # move major edge
 # this moves root to node number -4
-@test net_W.root == 3 # index
+@test net_W.rooti == 3 # index
 @test writenewick(net_W) == "(B:0.0,(C:0.0262)#H2:0.03::0.9756,(#H1:0.151::0.4,(((D:0.1,A:0.1274):0.0)#H1:0.0::0.6,#H2:0.4812::0.0244):0.0274):0.0001);"
 =#
 
@@ -551,7 +551,7 @@ netc = readnewick(tangledstring) # hybrid 1: H2, number 4
 # case when the new hybrid edge = child edge of the new hybrid node
 net_ex = readnewick("(((c:0.01,(a:0.005,#H1):0.005):0.01,(b:0.005)#H1:0.005):0.01,d:0.01);")
 @test !isnothing(PhyloNetworks.fliphybrid!(net_ex, net_ex.hybrid[1], false)) # flip major edge
-@test net_ex.root == 6 # index
+@test net_ex.rooti == 6 # index
 @test net_ex.hybrid[1].number == -3
 # @test writenewick(net_ex) == "(b:0.005,(a:0.005,(c:0.01,#H1:0.01):0.005),((d:0.01):0.01)#H1:0.005);"
 PhyloNetworks.fliphybrid!(net_ex, net_ex.hybrid[1], false) # undo: except that different root

@@ -190,8 +190,8 @@ Called after a `#` has been found in a tree topology.
     # DEBUGC && @debug "got hybrid $(name)"
     # DEBUGC && @debug "hybrids list has length $(length(hybrids))"
     ind = findfirst(isequal(name), hybrids) # index of 'name' in the list 'hybrid'. nothing if not found
-    e = Edge(net.numEdges+1) # isMajor = true by default
-    if n.leaf e.isMajor = false; end
+    e = Edge(net.numedges+1) # ismajor = true by default
+    if n.leaf e.ismajor = false; end
     e.hybrid = true
     e.gamma = -1.0
     if ind !== nothing # the hybrid name was seen before
@@ -207,11 +207,11 @@ Called after a `#` has been found in a tree topology.
             # @debug "n is leaf"
             # @debug "creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)"
             pushEdge!(net,e);
-            setNode!(e,[other,parent]); # isChild1 = true by default constructor
+            setNode!(e,[other,parent]); # ischild1 = true by default constructor
             setEdge!(other,e);
             setEdge!(parent,e);
             n = other # original 'n' dropped, 'other' retained: 'n' output to modify 'n' outside
-            # @debug "e $(e.number )istIdentifiable? $(e.istIdentifiable)"
+            # @debug "e $(e.number )boole1? $(e.boole1)"
         else # !n.leaf : delete 'other' from the network
             # @debug "n is not leaf, other is leaf"
             size(other.edge,1) == 1 || # other should be a leaf
@@ -225,7 +225,7 @@ Called after a `#` has been found in a tree topology.
             deleteNode!(net,other);
             setNode!(otheredge,n);
             setEdge!(n,otheredge);
-            ## otheredge.istIdentifiable = true ## setNode should catch this, but when fixed, causes a lot of problems
+            ## otheredge.boole1 = true ## setNode should catch this, but when fixed, causes a lot of problems
             # @debug "setting otheredge to n $(n.number)"
             # @debug "creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)"
             setNode!(e,[n,parent]);
@@ -235,8 +235,8 @@ Called after a `#` has been found in a tree topology.
             pushEdge!(net,e);
             n.number = other.number; # modifies original negative node number, to positive node #
             n.name = other.name;
-            # @debug "edge $(e.number) istIdentifiable? $(e.istIdentifiable)"
-            # @debug "otheredge $(otheredge.number) istIdentifiable? $(otheredge.istIdentifiable)"
+            # @debug "edge $(e.number) boole1? $(e.boole1)"
+            # @debug "otheredge $(otheredge.number) boole1? $(otheredge.boole1)"
         end
     else # ind==nothing: hybrid name not seen before
         # @debug "$(name) not found in hybrids list"
@@ -253,9 +253,9 @@ Called after a `#` has been found in a tree topology.
         setNode!(e,[n,parent]);
         setEdge!(n,e);
         setEdge!(parent,e);
-        # @debug "edge $(e.number) istIdentifiable? $(e.istIdentifiable)"
+        # @debug "edge $(e.number) boole1? $(e.boole1)"
     end
-    e.containRoot = !e.hybrid # not good: but necessay for SNaQ functions
+    e.containroot = !e.hybrid # not good: but necessay for SNaQ functions
     return (e,n)
 end
 
@@ -267,7 +267,7 @@ Insert the input tree node and associated edge (created here) into `net`.
 """
 @inline function parseTreeNode!(n::Node, parent::Node, net::HybridNetwork)
     pushNode!(net,n);
-    e = Edge(net.numEdges+1);
+    e = Edge(net.numedges+1);
     pushEdge!(net,e);
     setNode!(e,[n,parent]);
     setEdge!(n,e);
@@ -346,12 +346,12 @@ end
 """
     synchronizePartnersData!(e::Edge, n::Node)
 
-Synchronize γ and isMajor for edges `e` and its partner,
+Synchronize γ and ismajor for edges `e` and its partner,
 both hybrid edges with the same child `n`:
 
 - if one γ is missing and the other is not: set the missing γ to 1 - the other
 - γ's should sum up to 1.0
-- update `isMajor` to match the γ information: the major edge is the one with γ > 0.5.
+- update `ismajor` to match the γ information: the major edge is the one with γ > 0.5.
 
 **Warnings**: does not check that `e` is a hybrid edge,
 nor that `n` is the child of `e`.
@@ -376,7 +376,7 @@ nor that `n` is the child of `e`.
         return nothing
     end
     # γ non-missing for e and/or partner, then
-    # update γ and isMajor of both edges, to be consistent with each other
+    # update γ and ismajor of both edges, to be consistent with each other
     if e.gamma == -1.
         if partner.gamma < 0.0
             @warn "partners: $(e.number) with no γ, $(partner.number) with γ<0. will turn to 1 and 0"
@@ -408,13 +408,13 @@ nor that `n` is the child of `e`.
             partner.gamma = 1. - e.gamma
         end
     end
-    # next: update isMajor, originally based on which node was a leaf and which was not
-    # if both γ are 0.5: keep isMajor as is. Otherwise: γ's take precedence.
+    # next: update ismajor, originally based on which node was a leaf and which was not
+    # if both γ are 0.5: keep ismajor as is. Otherwise: γ's take precedence.
     if !isapprox(e.gamma, 0.5)
         emajor = e.gamma > 0.5
-        if e.isMajor != emajor # leaf status was inconsistent with γ info
-            e.isMajor = emajor
-            partner.isMajor = !emajor
+        if e.ismajor != emajor # leaf status was inconsistent with γ info
+            e.ismajor = emajor
+            partner.ismajor = !emajor
         end
     end
 end
@@ -472,7 +472,7 @@ function readSubtree!(s::IO, parent::Node, numLeft::Array{Int,1}, net::HybridNet
     end
     if e.hybrid
         # if hybrid edge: 'e' might have no info, but its partner may have had info
-        synchronizePartnersData!(e, n) # update γ and isMajor of e and/or its partner
+        synchronizePartnersData!(e, n) # update γ and ismajor of e and/or its partner
     end
     return true
 end
@@ -564,11 +564,11 @@ function readnewick(s::IO,verbose::Bool)
             edge = n.edge[1]
             child = getOtherNode(edge,n);
             removeEdge!(child,edge);
-            net.root = getIndex(child,net);
+            net.rooti = getIndex(child,net);
             deleteEdge!(net,edge);
         else
             pushNode!(net,n);
-            net.root = getIndex(n,net);
+            net.rooti = getIndex(n,net);
         end
     else
         a = read(s, String)
@@ -576,8 +576,8 @@ function readnewick(s::IO,verbose::Bool)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
-    directEdges!(net; checkMajor=true) # to update edges containRoot: true until hybrid, false below hybrid
-    net.isRooted = true
+    directEdges!(net; checkMajor=true) # to update edges containroot: true until hybrid, false below hybrid
+    net.isrooted = true
     return net
 end
 
@@ -598,10 +598,10 @@ function checkNumHybEdges!(net::HybridNetwork)
     for n in net.hybrid
         hyb = sum([e.hybrid for e in n.edge]); # number of hybrid edges attached to node
         if hyb == 1
-            if net.numHybrids == 1
+            if net.numhybrids == 1
                 error("only one hybrid node $(n.number) named $(n.name) found with one hybrid edge attached")
             else
-                error("hybrid node $(n.number) named $(n.name) has only one hybrid edge attached. there are $(net.numHybrids-1) other hybrids out there but this one remained unmatched")
+                error("hybrid node $(n.number) named $(n.name) has only one hybrid edge attached. there are $(net.numhybrids-1) other hybrids out there but this one remained unmatched")
             end
         elseif hyb == 0
             if length(n.edge) == 0
@@ -618,7 +618,7 @@ function checkNumHybEdges!(net::HybridNetwork)
                 if n == getchild(e)
                     if e.hybrid
                         nhybparents += 1
-                    else @error "node $(n.number) has parent tree edge $(e.number): wrong isChild1 for this edge?"
+                    else @error "node $(n.number) has parent tree edge $(e.number): wrong ischild1 for this edge?"
                     end
                 end
             end
@@ -647,7 +647,7 @@ function solvePolytomyRecursive!(net::HybridNetwork, n::Node)
         removeEdge!(n,edge4);
         removeNode!(n,edge3);
         removeNode!(n,edge4);
-        ednew = Edge(net.numEdges+1,0.0);
+        ednew = Edge(net.numedges+1,0.0);
         max_node = maximum([e.number for e in net.node]);
         n1 = Node(max_node+1,false,false,[edge3,edge4,ednew]);
         setEdge!(n,ednew);
@@ -675,7 +675,7 @@ end
 # aux function to add a child to a leaf hybrid
 function addChild!(net::HybridNetwork, n::Node)
     n.hybrid || error("cannot add child to tree node $(n.number).")
-    ed1 = Edge(net.numEdges+1,0.0);
+    ed1 = Edge(net.numedges+1,0.0);
     n1 = Node(size(net.names,1)+1,true,false,[ed1]);
     setEdge!(n,ed1);
     setNode!(ed1,[n,n1]);
@@ -686,8 +686,8 @@ end
 function expandChild!(net::HybridNetwork, n::Node)
     if n.hybrid
         suma = count([!e.hybrid for e in n.edge]);
-        #println("create edge $(net.numEdges+1)")
-        ed1 = Edge(net.numEdges+1,0.0);
+        #println("create edge $(net.numedges+1)")
+        ed1 = Edge(net.numedges+1,0.0);
         n1 = Node(size(net.names,1)+1,false,false,[ed1]);
         #println("create node $(n1.number)")
         hyb = Edge[];
@@ -729,7 +729,7 @@ function storeHybrids!(net::HybridNetwork)
     end
     if(flag)
         net.hybrid = hybrid;
-        net.numHybrids = size(hybrid,1);
+        net.numhybrids = size(hybrid,1);
     end
     return nothing
 end
@@ -751,7 +751,7 @@ Use `internallabel=false` to suppress the labels of internal nodes.
 function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, namelabel::Bool,
                        roundBL::Bool, digits::Integer, internallabel::Bool)
     rootnode = getroot(net)
-    if net.numNodes > 1
+    if net.numnodes > 1
         print(s,"(")
         degree = length(rootnode.edge)
         for e in rootnode.edge
@@ -761,7 +761,7 @@ function writeSubTree!(s::IO, net::HybridNetwork, di::Bool, namelabel::Bool,
         end
         print(s,")")
     end
-    if internallabel || net.numNodes == 1
+    if internallabel || net.numnodes == 1
         print(s, (namelabel ? rootnode.name : rootnode.number))
     end
     print(s,";")
@@ -776,7 +776,7 @@ end
 Write the extended newick format of the sub-network rooted at
 `node` and assuming that `edge` is a parent of `node`.
 
-If the parent `edge` is `nothing`, the edge attribute `isChild1` is used
+If the parent `edge` is `nothing`, the edge attribute `ischild1` is used
 and assumed to be correct to write the subtree rooted at `node`.
 This is useful to write a subtree starting at a non-root node.
 Example:
@@ -799,7 +799,7 @@ writeSubTree!(s,n,parent,di,namelabel) =
 function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
     di::Bool, namelabel::Bool, roundBL::Bool, digits::Integer, internallabel::Bool)
     # subtree below node n:
-    if !n.leaf && (parent == nothing || parent.isMajor) # do not descent below a minor hybrid edge
+    if !n.leaf && (parent == nothing || parent.ismajor) # do not descent below a minor hybrid edge
         print(s,"(")
         firstchild = true
         for e in n.edge
@@ -819,7 +819,7 @@ function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
     if parent != nothing && parent.hybrid
         print(s, "#")
         print(s, (namelabel ? n.name : string("H", n.number)))
-        n.name != "" || parent.isMajor || @warn "hybrid node $(n.number) has no name"
+        n.name != "" || parent.ismajor || @warn "hybrid node $(n.number) has no name"
     elseif internallabel || n.leaf
         print(s, (namelabel ? n.name : n.number))
     end
@@ -829,13 +829,13 @@ function writeSubTree!(s::IO, n::Node, parent::Union{Edge,Nothing},
         print(s,string(":",(roundBL ? round(parent.length, digits=digits) : parent.length)))
         printBL = true
     end
-    if parent != nothing && parent.hybrid && !di # && (!printID || !n.isBadDiamondI))
+    if !isnothing(parent) && parent.hybrid && !di # && (!printID || !n.booln2))
         if(parent.gamma != -1.0)
             if(!printBL) print(s,":"); end
             print(s,string("::",(roundBL ? round(parent.gamma, digits=digits) : parent.gamma)))
         end
     end
-    if parent == nothing
+    if isnothing(parent)
         print(s, ";")
     end
 end
@@ -1204,7 +1204,7 @@ function writenewick(
     internallabel::Bool=true
 )
     # check/find admissible root: otherwise could be trapped in infinite loop
-    rootsaved = net.root
+    rootsaved = net.rooti
     changeroot = false
     msg = ""
     try
@@ -1220,10 +1220,10 @@ function writenewick(
           # parents of hybrid edges should be sufficient, but gives weird look
           #if e.hybrid
             i = getIndex(getparent(e), net)
-            net.root = i
+            net.rooti = i
             try
                 directEdges!(net)
-                print("Setting root at node $(net.node[i].number) (net.root = $i)\n\n")
+                print("Setting root at node $(net.node[i].number) (net.rooti = $i)\n\n")
                 print(msg)
                 changeroot = false
                 break # stop loop over edges
@@ -1233,12 +1233,12 @@ function writenewick(
           #end
         end
         if changeroot # none of hybrid edges worked
-            net.root = rootsaved
+            net.rooti = rootsaved
             throw(RootMismatch("Could not find admissible root. Cannot write topology."))
             changeroot=false # safety exit of while (but useless)
         end
     end
-    if net.node[net.root].leaf
+    if net.node[net.rooti].leaf
         @warn """Root is placed at a leaf node, so the parenthetical format will look strange.
                  Use rootatnode! or rootonedge! to change the root position
               """
@@ -1302,7 +1302,7 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
   length(Set(leafnames)) == length(leafnames) || error("taxon names must be unique: $(sort(leafnames))")
   net = deepcopy(net) # binding to new object
   for e in net.edge
-    if e.hybrid && e.isMajor && e.gamma == -1.0
+    if e.hybrid && e.ismajor && e.gamma == -1.0
       @error("edge number $(e.number) is missing gamma: will use 0.5")
       setGamma!(e, 0.5)
     end
