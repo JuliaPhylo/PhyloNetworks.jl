@@ -502,7 +502,9 @@ version = "2.8.1"
 
 [[deps.PhyloNetworks]]
 deps = ["BioSequences", "BioSymbols", "CSV", "Combinatorics", "DataFrames", "DataStructures", "Dates", "Distributed", "Distributions", "FASTX", "Functors", "LinearAlgebra", "NLopt", "Printf", "Random", "Statistics", "StatsBase"]
-path = "/Users/useradmin/.julia/dev/PhyloNetworks"
+git-tree-sha1 = "5db56298b45d22a428b257df930f38d2580468ea"
+repo-rev = "dev"
+repo-url = "https://github.com/JuliaPhylo/PhyloNetworks.jl"
 uuid = "33ad39ac-ed31-50eb-9b15-43d0656eaa72"
 version = "0.17.0"
 
