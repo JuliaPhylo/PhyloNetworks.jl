@@ -1,4 +1,15 @@
-# PhyloNetworks: utilities for phylogenetic networks <img src="docs/src/logo_text.png" align=right>
+# PhyloNetworks: utilities for phylogenetic networks
+<div align="right">
+
+  ![logo dark](docs/src/logo_text_darkmode.png#gh-dark-mode-only)
+
+</div>
+
+<div align="right">
+
+  ![logo light](docs/src/logo_text.png)
+
+</div>
 
 [![doc stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/stable)
 [![doc dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/dev)
