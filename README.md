@@ -2,12 +2,7 @@
 <div align="right">
 
   ![logo dark](docs/src/logo_text_darkmode.png#gh-dark-mode-only)
-
-</div>
-
-<div align="right">
-
-  ![logo light](docs/src/logo_text.png)
+  ![logo light](docs/src/logo_text.png#gh-light-mode-only)
 
 </div>
 
