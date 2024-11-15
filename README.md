@@ -1,11 +1,3 @@
-# PhyloNetworks: utilities for phylogenetic networks
-<div align="right">
-
-  ![logo dark](docs/src/logo_text_darkmode.png#gh-dark-mode-only)
-  ![logo light](docs/src/logo_text.png#gh-light-mode-only)
-
-</div>
-
 [![doc stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/stable)
 [![doc dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/dev)
 [![Build status](https://github.com/juliaphylo/PhyloNetworks.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaphylo/PhyloNetworks.jl/actions/workflows/ci.yml)
@@ -13,6 +5,13 @@
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 [![PkgEval](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/P/PhyloNetworks.svg)](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/report.html)
+
+<div align="right">
+
+  ![logo dark](docs/src/logo_text_darkmode.png#gh-dark-mode-only)
+  ![logo light](docs/src/logo_text.png#gh-light-mode-only)
+
+</div>
 
 ## Overview
 
