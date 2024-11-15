@@ -31,7 +31,7 @@ arguments:
 The last 3 functions should return a boolean. If true: traversal continues.
 If false: traversal is stopped, that is, the next node is not processed.
 
-See also [`traversal_postorder`](@ref), and
+See also [`traversal_postorder`](@ref PhyloNetworks.traversal_postorder), and
 [`traversalupdate_default!`](@ref PhyloNetworks.traversalupdate_default!)
 for a default function that does nothing to `V` and returns true,
 with an adequate signature to be used here.
@@ -101,8 +101,8 @@ end
     traversalupdate_default!(::AbstractArray, ::Int, args...)
 
 Returns `true`. With its signature, this function can be used as a default
-update function at any node (root/tree/hybrid) in [`traversal_preorder`](@ref)
-or [`traversal_postorder`](@ref),
+update function at any node (root/tree/hybrid) in [`traversal_preorder`](@ref PhyloNetworks.traversal_preorder)
+or [`traversal_postorder`](@ref PhyloNetworks.traversal_postorder),
 if we need a function that does nothing and keeps the traversal going.
 """
 function traversalupdate_default!(::AbstractArray, ::Int, params...)
@@ -137,7 +137,7 @@ arguments:
 The last 3 functions should return a boolean. If true: traversal continues.
 If false: traversal is stopped, that is, the next node is not processed.
 
-See also [`traversal_preorder`](@ref), and
+See also [`traversal_preorder`](@ref PhyloNetworks.traversal_preorder), and
 [`traversalupdate_default!`](@ref PhyloNetworks.traversalupdate_default!)
 for a default function that does nothing to `V` and returns true,
     with an adequate signature to be used here.

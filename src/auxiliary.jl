@@ -1241,7 +1241,7 @@ the network is (or could be) time-consistent at the node being considered.
 Assumption: `candidate_nodeheight` is not empty, that is, the node has at least
 one parent edge with a non-missing length.
 
-See also [`_getnodeheights`](@ref)
+See also [`_getnodeheights`](@ref PhyloNetworks._getnodeheights)
 """
 function timeinconsistency_error(
     candidate_nodeheight::AbstractVector{T},
