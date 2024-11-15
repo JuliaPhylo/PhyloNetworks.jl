@@ -31,34 +31,6 @@ The following functions all compute distances from the root to each node.
 - [`getnodeheights_average`](@ref)
 - [`getnodeheights_majortree`](@ref)
 
-When the network is time-consistent, they all give the same output:
-
-``` @repl network_getters
-#Read a time-consistent network
-consistent_net = readTopology(
-  "((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:0.5::0.6):1.25);" );
-
-#These all return the same values because the network is time-consistent
-heights = getnodeheights(consistent_net)
-heights_average = getnodeheights_average(consistent_net);
-heights_major = getnodeheights_majortree(consistent_net);
-#All heights are the same
-heights == heights_average == heights_major 
-
-```
-However, when the network is time-**in**consistent, each function handles the inconsistency differently:
-
-``` @repl network_getters
-
-#Read a time-inconsistent network
-inconsistent_net = readTopology("((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:2.5::0.6):1.25);");
-
-#getnodeheights(inconsistent_net) #throws an error
-#The average heights across all paths to the time-inconsistent node
-getnodeheights_average(inconsistent_net) 
-getnodeheights_majortree(inconsistent_net) #Use the major tree heights at inconsistencies. 
-```
-
 ## Functions to get information on nodes or edges
 
 ### Nodes

@@ -1067,6 +1067,54 @@ A warning is issued, unless `warn=false`, if the network is not time-consistent.
 
 See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref) and
 [`getnodeheights_average`](@ref).
+
+```jldoctest
+#node heights of time-consistent networks are the same 
+julia> consistent_net = readnewick("((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:0.5::0.6):1.25);");
+
+julia> heights = getnodeheights(consistent_net)
+7-element Vector{Float64}:
+ 0.0
+ 1.25
+ 2.75
+ 0.25
+ 1.75
+ 2.75
+ 2.75
+
+julia> heights_average = getnodeheights_average(consistent_net);
+
+julia> heights_major = getnodeheights_majortree(consistent_net);
+
+julia> heights == heights_average == heights_major  
+true
+```
+
+```jldoctest
+#inconsistent networks give different results
+julia> inconsistent_net = readTopology("((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:2.5::0.6):1.25);");
+
+julia> getnodeheights_average(inconsistent_net;warn=false)
+7-element Vector{Float64}:
+ 0.0
+ 1.25
+ 2.75
+ 0.25
+ 2.95
+ 3.95
+ 2.75
+
+julia> getnodeheights_majortree(inconsistent_net;warn=false) 
+7-element Vector{Float64}:
+ 0.0
+ 1.25
+ 2.75
+ 0.25
+ 3.75
+ 4.75
+ 2.75
+
+```
 """
 function getnodeheights_majortree(net::HybridNetwork, checkpreorder::Bool=true; warn::Bool=true)
     (isTC, nh) = _getnodeheights(net, false, timeinconsistency_majortree, checkpreorder)
