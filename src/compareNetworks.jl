@@ -374,19 +374,19 @@ julia> tree = readnewick("(O,A,((B1,B2),(E,(C,D))));");
 julia> PhyloNetworks.resetNodeNumbers!(tree; checkPreorder=true, type=:postorder)
 
 julia> printNodes(tree)
-node leaf  hybrid  name i_cycle edges'numbers
-1    true  false   O    -1      1   
-2    true  false   A    -1      2   
-3    true  false   B1   -1      3   
-4    true  false   B2   -1      4   
-8    false false        -1      3    4    5   
-5    true  false   E    -1      6   
-6    true  false   C    -1      7   
-7    true  false   D    -1      8   
-9    false false        -1      7    8    9   
-10   false false        -1      6    9    10  
-11   false false        -1      5    10   11  
-12   false false        -1      1    2    11  
+node leaf  hybrid name i_cycle edges'numbers
+1    true  false  O    -1      1   
+2    true  false  A    -1      2   
+3    true  false  B1   -1      3   
+4    true  false  B2   -1      4   
+8    false false       -1      3    4    5   
+5    true  false  E    -1      6   
+6    true  false  C    -1      7   
+7    true  false  D    -1      8   
+9    false false       -1      7    8    9   
+10   false false       -1      6    9    10  
+11   false false       -1      5    10   11  
+12   false false       -1      1    2    11  
 
 julia> below, above = PhyloNetworks.ladderpartition(tree);
 

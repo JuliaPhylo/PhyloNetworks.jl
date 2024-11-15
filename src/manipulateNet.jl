@@ -1045,28 +1045,28 @@ julia> net = readnewick("(A,(B,(C,D)));");
 julia> PhyloNetworks.resetNodeNumbers!(net)
 
 julia> printNodes(net) # first column "node": root is 5
-node leaf  hybrid  name i_cycle edges'numbers
-1    true  false   A    -1      1   
-2    true  false   B    -1      2   
-3    true  false   C    -1      3   
-4    true  false   D    -1      4   
-7    false false        -1      3    4    5   
-6    false false        -1      2    5    6   
-5    false false        -1      1    6   
+node leaf  hybrid name i_cycle edges'numbers
+1    true  false  A    -1      1   
+2    true  false  B    -1      2   
+3    true  false  C    -1      3   
+4    true  false  D    -1      4   
+7    false false       -1      3    4    5   
+6    false false       -1      2    5    6   
+5    false false       -1      1    6   
 
 julia> net = readnewick("(A,(B,(C,D)));");
 
 julia> PhyloNetworks.resetNodeNumbers!(net; type=:postorder)
 
 julia> printNodes(net) # first column "node": root is 7
-node leaf  hybrid  name i_cycle edges'numbers
-1    true  false   A    -1      1   
-2    true  false   B    -1      2   
-3    true  false   C    -1      3   
-4    true  false   D    -1      4   
-5    false false        -1      3    4    5   
-6    false false        -1      2    5    6   
-7    false false        -1      1    6   
+node leaf  hybrid name i_cycle edges'numbers
+1    true  false  A    -1      1   
+2    true  false  B    -1      2   
+3    true  false  C    -1      3   
+4    true  false  D    -1      4   
+5    false false       -1      3    4    5   
+6    false false       -1      2    5    6   
+7    false false       -1      1    6   
 ```
 """
 function resetNodeNumbers!(
