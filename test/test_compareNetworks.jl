@@ -267,7 +267,7 @@ end # of testset, majortree & displayednetworkat!
 if doalltests
 net5 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 tree = displayedtrees(net5, 0.0);
-taxa = PhyloNetworks.tipLabels(net5);
+taxa = tiplabels(net5)
 M1 = PhyloNetworks.tree2Matrix(tree[1], taxa, rooted=false);
 M2 = PhyloNetworks.tree2Matrix(tree[2], taxa, rooted=false);
 M1 ==
@@ -359,7 +359,7 @@ h1est = readnewick("(5:0.0,6:0.0,(((2:0.0)#H1:0.0::0.95,1:0.0):0.0,((4:0.0,3:0.0
 
 net5 = readnewick("(A,((B,#H1:::0.2),(((C,(E)#H2:::0.7),(#H2:::0.3,F)),(D)#H1:::0.8)));");
 tree = displayedtrees(net5, 0.0);
-taxa = PhyloNetworks.tipLabels(net5);
+taxa = tiplabels(net5)
 @test hardwiredclusters(tree[1], taxa) ==
 [16 0 1 1 1 1 1 10;
  15 0 0 1 1 1 1 10;
@@ -382,7 +382,7 @@ taxa = PhyloNetworks.tipLabels(net5);
 
 if doalltests
 trunet = readnewick("(((1,2),((3,4))#H1),(#H1,5),6);"); # unrooted
-taxa = PhyloNetworks.tipLabels(trunet);
+taxa = tiplabels(trunet)
 hardwiredclusters(trunet, taxa) ==
 [8 1 1 1 1 0 0 10
  3 1 1 0 0 0 0 10
@@ -418,7 +418,7 @@ net52 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::
 displayednetworkat!(net52, net52.hybrid[2])
 writenewick(net52) == "(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,E:0.52):0.6,F:1.5):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7);" ||
   error("wrong net52 after displayednetworkat!");
-taxa = PhyloNetworks.tipLabels(net52); # order: A B C E F D
+taxa = tiplabels(net52) # order: A B C E F D
 hardwiredclusters(net51, taxa) ==
 [16 0 1 1 1 1 1 10;
  15 0 0 1 1 1 1 10;
@@ -442,7 +442,7 @@ end # of testset: displayedtrees, hardwiredclusters, hardwiredclusterdistance, d
 @testset "testing hardwiredcluster! on single nodes" begin
 
 net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directedges! ;
-taxa = net5 |> tipLabels # ABC EF D
+taxa = net5 |> tiplabels # ABC EF D
 m = hcat([true,false,false,false,false,false],
 [false,true,false,false,false,false],
 [false,false,false,false,false,true],

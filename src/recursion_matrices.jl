@@ -8,7 +8,7 @@ For example, if rows list nodes in network `net`, then `V[i,:]` corresponds to
 node `net.vec_node[i]`.
 
 The following functions and extractors can be applied to it:
-[`tipLabels`](@ref),
+[`tiplabels`](@ref),
 `obj[:Tips]`, `obj[:InternalNodes]`, `obj[:TipsNodes]`.
 See documentation for [`getindex(::MatrixTopologicalOrder, ::Symbol)`](@ref)).
 
@@ -46,7 +46,7 @@ function Base.show(io::IO, obj::MatrixTopologicalOrder)
     println(io, "$(typeof(obj)):\n$(obj.V)")
 end
 
-tipLabels(obj::MatrixTopologicalOrder) = obj.tipNames
+tiplabels(obj::MatrixTopologicalOrder) = obj.tipNames
 
 function MatrixTopologicalOrder(V::Matrix, net::HybridNetwork, indexation)
     length(net.vec_node) == length(net.node) ||

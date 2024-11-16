@@ -160,7 +160,7 @@ visited: vector of node numbers, of all visited nodes.
 ```jldoctest
 julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directedges! ;
 
-julia> taxa = net5 |> tipLabels # ABC EF D
+julia> taxa = net5 |> tiplabels # ABC EF D
 6-element Vector{String}:
  "A"
  "B"
@@ -751,7 +751,7 @@ and [Huson, Rupp, Scornavacca (2010)](https://doi.org/10.1017/CBO9780511974076).
 ```jldoctest
 julia> net1 = readnewick("(t6,(t5,((t4,(t3,((t2,t1))#H1)),#H1)));");
 
-julia> taxa = sort(tipLabels(net1)); # t1 through t6, sorted alphabetically
+julia> taxa = sort(tiplabels(net1)); # t1 through t6, sorted alphabetically
 
 julia> # using PhyloPlots; plot(net1, showedgenumber=true);
 

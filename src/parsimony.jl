@@ -261,7 +261,7 @@ function parsimonysoftwired(net::HybridNetwork, dat::DataFrame)
         error("""expecting taxon names in column 'taxon', or 'species' or column 1,
               and trait values in column 'trait' or column 2.""")
     end
-    innet = findall(in(tipLabels(net)), dat[i]) # species in the network
+    innet = findall(in(tiplabels(net)), dat[i]) # species in the network
     species = dat[innet, i]
     tips = dat[j][innet]
     indna = findall(ismissing, tips) # species with missing data

@@ -37,7 +37,7 @@ module PhyloNetworks
         HybridNetwork,
         readnewick,
         writenewick,
-        writeSubTree!,
+        writesubtree!,
         hybridlambdaformat,
         deleteleaf!,
         deleteaboveLSA!,
@@ -72,7 +72,7 @@ module PhyloNetworks
         getparentedge,
         getparentedgeminor,
         getpartneredge,
-        tipLabels,
+        tiplabels,
         ## Network Manipulation
         rootatnode!,
         rootonedge!,

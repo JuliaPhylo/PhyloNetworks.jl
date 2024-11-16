@@ -42,11 +42,11 @@ forest, blobs = blobdecomposition(net);
 @test length(blobs)==3
 @test writenewick(forest) == "(dummy -3,dummy -11);"
 s = IOBuffer()
-writeSubTree!(s, blobs[1], nothing, false, true)
+writesubtree!(s, blobs[1], nothing, false, true)
 @test String(take!(s)) == "(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));"
-writeSubTree!(s, blobs[2], nothing, false, true)
+writesubtree!(s, blobs[2], nothing, false, true)
 @test String(take!(s)) == "(((F)#H3,G),(H,#H3));"
-writeSubTree!(s, blobs[3], nothing, false, true)
+writesubtree!(s, blobs[3], nothing, false, true)
 @test String(take!(s)) == "(dummy -3,dummy -11);"
 
 # h=2, 2 non-trivial blobs above the LSA, LSA = the single tip

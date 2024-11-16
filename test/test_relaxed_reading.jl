@@ -35,12 +35,21 @@ global net
     @test_throws Exception readnewick("(E,((B)#H1") # doesn't end with ;
     @test_throws Exception readnewick(IOBuffer("E;")) # Expected beginning of tree with (
 end
-@testset "ismajor and gamma consistency" begin
+@testset "ismajor & gamma consistency, and miscellaneous" begin
     net = readnewick("((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));");
     @test writenewick(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
     net = readnewick("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
     @test writenewick(net) == "(E,((B)#H1:::0.5,((D,C),(#H1:::0.5,A))));"
-
+    @test !PhyloNetworks.shrinkedge!(net,net.edge[6]) # parent to (D,C)
+    @test_throws "at a hybrid" PhyloNetworks.resolvetreepolytomy!(net, net.node[3])
+    PhyloNetworks.resolvetreepolytomy!(net, net.node[8])
+    @test net.node[11].number == 7 # new node
+    @test length(net.edge) == 11
+    @test net.edge[11].number == 6 # new edge, recycled old unused number
+    @test net.edge[11].length == 0 # from old node -5 towards new node 7
+    @test (getparent(net.edge[11]).number,getchild(net.edge[11]).number)==(-5,7)
+    @test (getparent(net.edge[4]).number, getchild(net.edge[4]).number) == (7,4)
+    @test (getparent(net.edge[5]).number, getchild(net.edge[5]).number) == (7,5)
 end
 @testset "internal nodes, writemulti" begin
     @test writenewick(readnewick("(a,b):0.5;")) == "(a,b);"

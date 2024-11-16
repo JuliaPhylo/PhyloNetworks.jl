@@ -17,7 +17,7 @@ each hybrid node has exactly 2 parents (never more).
 
 ### overall network information
 
-- [`tipLabels`](@ref) for taxon labels
+- [`tiplabels`](@ref) for taxon labels
 - [`getroot`](@ref) gives the root node
 - [`pairwisetaxondistancematrix`](@ref) for *average* distances
 - [`vcv`](@ref) for the variance-covariance matrix between taxa under a

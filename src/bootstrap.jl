@@ -113,7 +113,7 @@ output:
 """
 function treeedges_support(net::Vector{HybridNetwork}, net0::HybridNetwork)
     # estimated network, major tree and matrix
-    S = tipLabels(net0)
+    S = tiplabels(net0)
     tree0 = majortree(net0, unroot=true)
     M0 = tree2Matrix(tree0,S, rooted=false)
 
@@ -241,7 +241,7 @@ function hybridclades_support(
         end
         rethrow(err)
     end
-    taxa = tipLabels(refnet)
+    taxa = tiplabels(refnet)
     ntax = length(taxa)
 
     # extract hardwired clusters of each tree edge in major tree of reference net,
@@ -373,7 +373,7 @@ function hybridclades_support(
 
     for i = 1:numNets
         net = nets[i]
-        length(tipLabels(net))==ntax || error("networks have non-matching taxon sets")
+        length(tiplabels(net))==ntax || error("networks have non-matching taxon sets")
         try directedges!(net) # make sure the root is admissible
         catch err
           if isa(err, RootMismatch)

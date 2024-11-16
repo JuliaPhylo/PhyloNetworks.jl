@@ -38,7 +38,7 @@ Return the matrix `M` of pairwise distances between nodes in the network:
   in which case the nodes are listed in `M` in the
   order in which they appear in `net.vec_node`
 - between taxa only otherwise, in which case the nodes are listed
-  in `M` in the order in which they appear in `tipLabels(net)`
+  in `M` in the order in which they appear in `tiplabels(net)`
   (i.e. same order as in `net.leaf`)
 
 The second form modifies `M` in place, assuming all nodes.
@@ -96,7 +96,7 @@ in the matrix by rows, by columns, or both? Subsetting is taken accordingly.
 function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     nodenames = [n.name for n in net.vec_node]
     tipind = Int[]
-    for l in tipLabels(net)
+    for l in tiplabels(net)
         push!(tipind, findfirst(isequal(l), nodenames))
     end
     if indexation == :both

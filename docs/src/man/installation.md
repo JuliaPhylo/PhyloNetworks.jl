@@ -87,7 +87,7 @@ Here is a very small test for the installation of PhyloNetworks.
 
 ```@repl install
 net = readnewick("(A,(B,(C,D)));");
-tipLabels(net)
+tiplabels(net)
 ```
 
 You can see a list of all the functions with
@@ -134,7 +134,7 @@ has whatever taxon names we expected:
 
 ```@repl install
 length(genetrees)
-tipLabels(genetrees[3])
+tiplabels(genetrees[3])
 ```
 
 We can also see some basic information on the third gene tree, say:

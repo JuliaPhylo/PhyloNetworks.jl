@@ -2,18 +2,15 @@
 # Claudia August 2015
 
 """
-    tipLabels(x)
+    tiplabels(x)
 
-
-Return a vector of taxon names at the leaves, for objects of various types:
+Vector of taxon names at the leaves, defined for objects of various types:
 `HybridNetwork`,
-Vector of `HybridNetwork`s (in which case the union is taken then sorted),
-Vector of `Quartet`s, `DataCF`,
-`TraitSimulation`, `MatrixTopologicalOrder`.
+`MatrixTopologicalOrder`.
 
 For a network, the taxon names are coerced to strings.
 """
-function tipLabels(net::HybridNetwork)
+function tiplabels(net::HybridNetwork)
     return String[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
 end
 
@@ -44,10 +41,10 @@ function Base.show(io::IO, obj::HybridNetwork)
     try
         # par = writenewick(obj,round=true) # but writenewick changes the network, not good
         s = IOBuffer()
-        writeSubTree!(s, obj, false,true, true,3,true)
+        writesubtree!(s, obj, false,true, true,3,true)
         par = String(take!(s))
     catch err
-        println("ERROR with writeSubTree!:")
+        println("ERROR with writesubtree!:")
         showerror(stdout, err)
         println("Trying writeTopologyLevel1")
         par = writeTopologyLevel1(obj)
