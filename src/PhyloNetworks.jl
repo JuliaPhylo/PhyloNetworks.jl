@@ -85,7 +85,7 @@ module PhyloNetworks
         setGamma!,
         deletehybridthreshold!,
         displayedtrees,
-        majorTree,
+        majortree,
         minortreeat,
         displayednetworkat!,
         hardwiredclusters,
