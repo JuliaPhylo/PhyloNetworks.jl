@@ -66,7 +66,6 @@ net=readnewick("(4,((1,(2)#H7:::0.864):2.069,(6,5):3.423):0.265,(3,#H7:::0.13611
 net.edge[5].ischild1 = false;
 @test_logs PN.deletehybridedge!(net, net.edge[4]);
 @test writenewick(net) == "(4,((6,5):3.423,1):0.265,(3,2):10.0);"
-# or: deletehybridedge! didn't work on 4th edge when ischild1 was outdated
 
 if doalltests
 net = readnewick("((Adif:1.0,(Aech:0.122,#H6:10.0::0.047):10.0):1.614,Aten:1.0,((Asub:1.0,Agem:1.0):0.0)#H6:5.062::0.953);");
@@ -103,14 +102,14 @@ if doalltests
 net3  = readnewick(cui3str);
 net2  = readnewick(cui2str);
 # major tree, root with outgroup then delete 2 leaves:
-tree2 = majorTree(net2);        tree3 = majorTree(net3);
+tree2 = majortree(net2);        tree3 = majortree(net3);
 rootatnode!(tree2,"Xmayae");    rootatnode!(tree3,"Xmayae");
 deleteleaf!(tree2,"Xhellerii"); deleteleaf!(tree3,"Xhellerii");
 deleteleaf!(tree2,"Xsignum");   deleteleaf!(tree3,"Xsignum");
 hardwiredclusterdistance(tree2, tree3, false) == 0 ||
   error("HWDist not 0, major tree, root then prune");
 # major tree, delete 2 leaves then root with outgroup:
-tree2 = majorTree(net2);        tree3 = majorTree(net3);
+tree2 = majortree(net2);        tree3 = majortree(net3);
 deleteleaf!(tree2,"Xhellerii"); deleteleaf!(tree3,"Xhellerii");
 deleteleaf!(tree2,"Xsignum");   deleteleaf!(tree3,"Xsignum");
 hardwiredclusterdistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
@@ -154,118 +153,110 @@ end # of testset for deleteleaf! and hardwiredclusterdistance
 #   testing functions to display trees / subnetworks       #
 #----------------------------------------------------------#
 
-@testset "testing deleteHybridThreshold!" begin
+@testset "testing deletehybridthreshold!" begin
 
 if doalltests
 net21 = readnewick("(A,((B,#H1:::0.5),(C,(D)#H1)));");
-deleteHybridThreshold!(net21,0.2);
+deletehybridthreshold!(net21,0.2);
 writenewick(net21) == "(A,((B,#H1:::0.5),(C,(D)#H1:::0.5)));" ||
- error("deleteHybridThreshold! didn't work on net21, gamma=0.2")
-deleteHybridThreshold!(net21,0.5);
+ error("deletehybridthreshold! didn't work on net21, gamma=0.2")
+deletehybridthreshold!(net21,0.5);
 writenewick(net21) == "(A,((C,D),B));" ||
- error("deleteHybridThreshold! didn't work on net21, gamma=0.5")
+ error("deletehybridthreshold! didn't work on net21, gamma=0.5")
 
 net22 = readnewick("(A,((B,#H1:::0.2),(C,(D)#H1:::0.8)));");
-deleteHybridThreshold!(net22,0.3);
+deletehybridthreshold!(net22,0.3);
 writenewick(net22) == "(A,((C,D),B));" ||
- error("deleteHybridThreshold! didn't work on net22, gamma=0.3")
+ error("deletehybridthreshold! didn't work on net22, gamma=0.3")
 
 net31 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 net32 = deepcopy(net31); for e in net32.edge e.length=-1.0; end
 # plot(net31)
-deleteHybridThreshold!(net31,0.3);
+deletehybridthreshold!(net31,0.3);
 writenewick(net31) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("deleteHybridThreshold! didn't work on net31, gamma=0.3")
-deleteHybridThreshold!(net32,0.3)
+ error("deletehybridthreshold! didn't work on net31, gamma=0.3")
+deletehybridthreshold!(net32,0.3)
 writenewick(net32) == "(A,((C,D),B));" ||
- error("deleteHybridThreshold! didn't work on net32, gamma=0.3")
+ error("deletehybridthreshold! didn't work on net32, gamma=0.3")
 
 net42 = readnewick("(A:1.0,((B:1.1,#H1:0.2):1.2,(C:0.9,(D:0.8)#H1:0.3):1.3):0.7):0.1;");
-deleteHybridThreshold!(net42,0.5);
+deletehybridthreshold!(net42,0.5);
 writenewick(net42) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("deleteHybridThreshold! didn't work on net42, gamma=0.5")
+ error("deletehybridthreshold! didn't work on net42, gamma=0.5")
 end
 
 net5 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
 # plot(net5)
-@test_logs deleteHybridThreshold!(net5,0.5);  # both H1 and H2 eliminated
+@test_logs deletehybridthreshold!(net5,0.5);  # both H1 and H2 eliminated
 @test writenewick(net5) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
-# or: deleteHybridThreshold! didn't work on net5, gamma=0.5
 net5 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-@test_logs deleteHybridThreshold!(net5,0.3);  # H2 remains
+@test_logs deletehybridthreshold!(net5,0.3);  # H2 remains
 @test writenewick(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
-# or: deleteHybridThreshold! didn't work on net5, gamma=0.3
 
-end # of testset, deleteHybridThreshold!
+end # of testset, deletehybridthreshold!
 
-@testset "testing displayedNetworks! and displayedTrees" begin
+@testset "testing displayednetworks! and displayedtrees" begin
 
 net3 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-net31 = PhyloNetworks.displayedNetworks!(net3, net3.node[6]); #H1 = 6th node
+net31 = PhyloNetworks.displayednetworks!(net3, net3.node[6]); #H1 = 6th node
 @test writenewick(net31) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);"
-# or: displayedNetworks! didn't work on net3, minor at 6th node
 @test writenewick(net3)  == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);"
-# or: displayedNetworks! didn't work on net3, major at 6th node
 
 if doalltests
 net3 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(C:0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-a = displayedTrees(net3, 0.2);
-length(a) == 2 ||
- error("displayedTrees didn't work on net3, gamma=0.2: output not of length 2")
-writenewick(a[1]) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);" ||
- error("displayedTrees didn't work on net3, gamma=0.2: 1st tree wrong")
-writenewick(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);" ||
- error("displayedTrees didn't work on net3, gamma=0.2: 2nd tree wrong")
+a = displayedtrees(net3, 0.2);
+@test length(a) == 2
+@test writenewick(a[1]) == "(A:1.0,((C:0.9,D:1.1):1.3,B:2.3):0.7);"
+@test writenewick(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,C:2.2):0.7);"
 end
 
 net5 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-a = displayedTrees(net5, 0.5);
-@test length(a) == 1 # or: displayedTrees didn't work on net5, gamma=0.5
+a = displayedtrees(net5, 0.5);
+@test length(a) == 1
 @test writenewick(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
-# or: displayedTrees didn't work on net5, gamma=0.5
-a = displayedTrees(net5, 0.1);
-@test length(a) == 4 # or: displayedTrees didn't work on net5, gamma=0.1
+a = displayedtrees(net5, 0.1);
+@test length(a) == 4
 @test writenewick(a[1]) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
 @test writenewick(a[2]) == "(A:1.0,((B:1.1,D:1.0):1.2,((C:0.52,E:0.52):0.6,F:1.5):2.2):0.7);"
 @test writenewick(a[3]) == "(A:1.0,((((F:0.7,E:0.51):0.8,C:1.12):0.9,D:1.1):1.3,B:2.3):0.7);"
 @test writenewick(a[4]) == "(A:1.0,((B:1.1,D:1.0):1.2,((F:0.7,E:0.51):0.8,C:1.12):2.2):0.7);"
 
 net = readnewick("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.0,D:5.0);")
-trees = (@test_logs displayedTrees(net,0.0; nofuse=true));
+trees = (@test_logs displayedtrees(net,0.0; nofuse=true));
 @test writenewick(trees[1])=="(((A:4.0,(B:1.0)H1:1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test writenewick(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
 @test PhyloNetworks.inheritanceWeight.(trees) ≈ [log(0.9), log(0.1)]
 
-end # of testset, displayedNetworks! & displayedTrees
+end # of testset, displayednetworks! & displayedtrees
 
-@testset "testing majorTree and displayedNetworkAt!" begin
+@testset "testing majortree and displayednetworkat!" begin
 
 net5 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-@test writenewick(majorTree(net5)) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
-@test_logs displayedNetworkAt!(net5, net5.hybrid[1]);
+@test writenewick(majortree(net5)) == "(A:1.0,((((C:0.52,E:0.52):0.6,F:1.5):0.9,D:1.1):1.3,B:2.3):0.7);"
+@test_logs displayednetworkat!(net5, net5.hybrid[1]);
 @test writenewick(net5) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);"
 net = readnewick("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
-@test writenewick(majorTree(net)) == "(((D,C)S1,A)S3,B)S4;"
-@test writenewick(majorTree(net; nofuse=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
+@test writenewick(majortree(net)) == "(((D,C)S1,A)S3,B)S4;"
+@test writenewick(majortree(net; nofuse=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
 setGamma!(net.edge[8], 0.8)
-@test writenewick(majorTree(net)) == "((D,C)S1,(A,B)S2)S3;"
-@test writenewick(majorTree(net; nofuse=true)) == "((D,C)S1,((B)H1,A)S2)S3;"
-@test writenewick(majorTree(net; nofuse=true, keeporiginalroot=true)) == "(((D,C)S1,((B)H1,A)S2)S3)S4;"
-@test writenewick(majorTree(net; keeporiginalroot=true)) == "(((D,C)S1,(A,B)S2)S3)S4;"
+@test writenewick(majortree(net)) == "((D,C)S1,(A,B)S2)S3;"
+@test writenewick(majortree(net; nofuse=true)) == "((D,C)S1,((B)H1,A)S2)S3;"
+@test writenewick(majortree(net; nofuse=true, keeporiginalroot=true)) == "(((D,C)S1,((B)H1,A)S2)S3)S4;"
+@test writenewick(majortree(net; keeporiginalroot=true)) == "(((D,C)S1,(A,B)S2)S3)S4;"
 
 # net6 below: hybrid ladder H2 -> H1; and H2 child of root
 # using multgammas=true, to test multiplygammas and how it is used
 net6 = readnewick("(#H2:::0.2,((C,((B)#H1:::0.6)#H2:::0.8),(#H1,(A1,A2))),O);")
-tre6 = displayedTrees(net6, 0.5; nofuse=false, multgammas=true)[1]
+tre6 = displayedtrees(net6, 0.5; nofuse=false, multgammas=true)[1]
 @test tre6.edge[2].gamma ≈ 0.48
-displayedNetworkAt!(net6, net6.node[4], false, false, true) # nofuse, unroot=false, multgammas=true
+displayednetworkat!(net6, net6.node[4], false, false, true) # nofuse, unroot=false, multgammas=true
 @test net6.edge[3].gamma ≈ 0.6
 net6 = readnewick("(#H2:::0.2,((C,((B)#H1:::0.6)#H2:::0.8),(#H1,(A1,A2))),O);")
-displayedNetworkAt!(net6, net6.node[3], false, false, true) # nofuse, unroot=false, multgammas=true
+displayednetworkat!(net6, net6.node[3], false, false, true) # nofuse, unroot=false, multgammas=true
 @test net6.edge[5].gamma ≈ 0.4
 @test net6.edge[3].gamma ≈ 0.48
 
-end # of testset, majorTree & displayedNetworkAt!
+end # of testset, majortree & displayednetworkat!
 
 #----------------------------------------------------------#
 #   testing functions to compare trees                     #
@@ -275,7 +266,7 @@ end # of testset, majorTree & displayedNetworkAt!
 
 if doalltests
 net5 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-tree = displayedTrees(net5, 0.0);
+tree = displayedtrees(net5, 0.0);
 taxa = PhyloNetworks.tipLabels(net5);
 M1 = PhyloNetworks.tree2Matrix(tree[1], taxa, rooted=false);
 M2 = PhyloNetworks.tree2Matrix(tree[2], taxa, rooted=false);
@@ -342,14 +333,14 @@ end # of testset, tree2Matrix
 #   used for detection of given hybridization event        #
 #----------------------------------------------------------#
 
-@testset "test displayedTrees, hardwiredclusters, hardwiredclusterdistance, displayedNetworkAt!" begin
+@testset "test displayedtrees, hardwiredclusters, hardwiredclusterdistance, displayednetworkat!" begin
 
 estnet = readnewick("(6,((5,#H7:0.0::0.402):8.735,((1,2):6.107,((3,4):1.069)#H7:9.509::0.598):6.029):0.752);")
 # originally from "../msSNaQ/simulations/estimatedNetworks/baseline/nloci10/1_julia.out"
 trunet = readnewick("((((1,2),((3,4))#H1),(#H1,5)),6);");
-@test hardwiredclusterdistance(majorTree(trunet), majorTree(estnet),false) == 0 # false: unrooted
-truminor = minorTreeAt(trunet, 1); # (1:1.0,2:1.0,((5:1.0,(3:1.0,4:1.0):2.0):1.0,6:1.0):2.0);
-estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:1.0):10.0):8.735);
+@test hardwiredclusterdistance(majortree(trunet), majortree(estnet),false) == 0 # false: unrooted
+truminor = minortreeat(trunet, 1); # (1:1.0,2:1.0,((5:1.0,(3:1.0,4:1.0):2.0):1.0,6:1.0):2.0);
+estminor = minortreeat(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:1.0):10.0):8.735);
 @test writenewick(truminor) == "(((5,(3,4)),(1,2)),6);"
 @test writenewick(estminor) == "(6,((5,(3,4):1.069):8.735,(1,2):12.136):0.752);"
 @test hardwiredclusterdistance(truminor, estminor, false) == 0 # false: unrooted
@@ -367,7 +358,7 @@ h1est = readnewick("(5:0.0,6:0.0,(((2:0.0)#H1:0.0::0.95,1:0.0):0.0,((4:0.0,3:0.0
 @test hardwiredclusterdistance(truenet, h1est, false) == 4
 
 net5 = readnewick("(A,((B,#H1:::0.2),(((C,(E)#H2:::0.7),(#H2:::0.3,F)),(D)#H1:::0.8)));");
-tree = displayedTrees(net5, 0.0);
+tree = displayedtrees(net5, 0.0);
 taxa = PhyloNetworks.tipLabels(net5);
 @test hardwiredclusters(tree[1], taxa) ==
 [16 0 1 1 1 1 1 10;
@@ -418,15 +409,15 @@ hardwiredclusterdistance(trunet,estnet,true) == 0 ||
 
 net51 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
 directEdges!(net51); # doing this avoids a warning on the next line:
-displayedNetworkAt!(net51, net51.hybrid[1]) # H2
+displayednetworkat!(net51, net51.hybrid[1]) # H2
 # "WARNING: node -3 being the root is contradicted by ischild1 of its edges."
 rootatnode!(net51, "A");
 writenewick(net51) == "(A:1.0,((((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,D:1.1):1.3,B:2.3):0.7);" ||
-  error("wrong net51 after displayedNetworkAt!");
+  error("wrong net51 after displayednetworkat!");
 net52 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;");
-displayedNetworkAt!(net52, net52.hybrid[2])
+displayednetworkat!(net52, net52.hybrid[2])
 writenewick(net52) == "(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,E:0.52):0.6,F:1.5):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7);" ||
-  error("wrong net52 after displayedNetworkAt!");
+  error("wrong net52 after displayednetworkat!");
 taxa = PhyloNetworks.tipLabels(net52); # order: A B C E F D
 hardwiredclusters(net51, taxa) ==
 [16 0 1 1 1 1 1 10;
@@ -446,7 +437,7 @@ hardwiredclusterdistance(net51,net52,true) == 4 ||
  error("wrong HWDist between net51 and net52");
 end
 
-end # of testset: displayedTrees, hardwiredclusters, hardwiredclusterdistance, displayedNetworkAt!
+end # of testset: displayedtrees, hardwiredclusters, hardwiredclusterdistance, displayednetworkat!
 
 @testset "testing hardwiredcluster! on single nodes" begin
 

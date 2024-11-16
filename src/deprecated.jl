@@ -13,3 +13,8 @@
 @deprecate biconnectedComponents biconnectedcomponents
 @deprecate blobDecomposition! blobdecomposition!
 @deprecate blobDecomposition  blobdecomposition
+@deprecate deleteHybridThreshold! deletehybridthreshold!
+@deprecate displayedNetworkAt! displayednetworkat!
+@deprecate displayedTrees displayedtrees
+@deprecate minorTreeAt    minortreeat
+@deprecate majorTree      majortree

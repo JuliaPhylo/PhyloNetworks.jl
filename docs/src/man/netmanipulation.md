@@ -26,7 +26,7 @@ each hybrid node has exactly 2 parents (never more).
   the various paths from the root to that node have the same length
   (as expected if length was proportional to time)
 - [`getNodeAges`](@ref) assume the network is time-consistent and ultrametric
-- [`displayedTrees`](@ref) or [`majorTree`](@ref) to get the displayed trees
+- [`displayedtrees`](@ref) or [`majortree`](@ref) to get the displayed trees
   or major tree, respectively
 - [`hardwiredclusters`](@ref) to get all clusters of taxa on a network
 - [`biconnectedcomponents`](@ref) and [`PhyloNetworks.blobinfo`](@ref)
@@ -95,7 +95,7 @@ To remove components from a network:
 - [`deleteleaf!`](@ref)
 - [`deleteaboveLSA!`](@ref): the "least stable ancestor" may be different
   from the root
-- [`deleteHybridThreshold!`](@ref) to simplify a network by deleting edges with small γ's
+- [`deletehybridthreshold!`](@ref) to simplify a network by deleting edges with small γ's
 - [`PhyloNetworks.shrinkedge!`](@ref) to contract an edge
 - [`removedegree2nodes!`](@ref) to suppress degree-2 nodes
 - [`shrink3cycles!`](@ref) and [`shrink2cycles!`](@ref) to contract "cycles"

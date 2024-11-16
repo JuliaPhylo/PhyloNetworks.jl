@@ -107,7 +107,7 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
         push!(taxonnums, net.leaf[index].number) # note: not ordered as in taxonnames
     end
     # get interior ancestor edges in major tree (no hybrids)
-    matrix = hardwiredclusters(majorTree(net), vcat(taxonnames, outsideclade))
+    matrix = hardwiredclusters(majortree(net), vcat(taxonnames, outsideclade))
     # look for row with ones in relevant columns, zeros everywhere else (or zeros there and ones everywhere else)
     edgenum = 0 # 0 until we find the stem edge
     comparator = zeros(Int8, size(matrix)[2]-2)
@@ -157,7 +157,7 @@ function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyCons
     if isempty(constraints)
         return false
     end # avoids extracting major tree when no constraint
-    tree = majorTree(net)
+    tree = majortree(net)
     for con in constraints # checks directionality of stem edge hasn't changed
         if con.type in [0x01, 0x02]
             getchild(con.edge) === con.node || return true
@@ -224,7 +224,7 @@ function updateconstraints!(constraints::Vector{TopologyConstraint}, net::Hybrid
     if isempty(constraints)
         return nothing
     end # avoids extracting major tree when no constraint
-    tree = majorTree(net)
+    tree = majortree(net)
     for con in constraints
       if con.type in [0x01, 0x02]
         getchild(con.edge) === con.node ||

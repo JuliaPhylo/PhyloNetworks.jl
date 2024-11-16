@@ -114,13 +114,13 @@ output:
 function treeedges_support(net::Vector{HybridNetwork}, net0::HybridNetwork)
     # estimated network, major tree and matrix
     S = tipLabels(net0)
-    tree0 = majorTree(net0, unroot=true)
+    tree0 = majortree(net0, unroot=true)
     M0 = tree2Matrix(tree0,S, rooted=false)
 
     M = Matrix[]
     tree = HybridNetwork[]
     for n in net
-        t = majorTree(n, unroot=true)
+        t = majortree(n, unroot=true)
         push!(tree,t)
         mm = tree2Matrix(t,S, rooted=false)
         push!(M,mm)
@@ -264,7 +264,7 @@ function hybridclades_support(
         fuseedgesat!(refnet.rooti, refnet)
     end # issues otherwise: correct tree edge for root bipartitions, find sister clades, ...
 
-    reftre = majorTree(refnet, unroot=true)
+    reftre = majortree(refnet, unroot=true)
     skipone = (!rooted && length(reftre.node[reftre.rooti].edge)<3) # not count same bipartition twice
     for pe in reftre.edge
         hwc = hardwiredcluster(pe,taxa) # not very efficient, but human readable
@@ -282,7 +282,7 @@ function hybridclades_support(
     hybparent = zeros(Int,length(clade)) # 0 if has no hybrid parent node. Index in hybnode otherwise.
     for trueh = 1:numHybs
         net0 = deepcopy(refnet)
-        displayedNetworkAt!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
+        displayednetworkat!(net0, net0.hybrid[trueh]) # removes all minor hybrid edges but one
         hn = net0.hybrid[1]
         hemaj, hemin, ce = hybridEdges(hn) # assumes no polytomy at hybrid nodes and correct node.hybrid
         (hemin.hybrid && !hemin.ismajor) || error("edge should be hybrid and minor")
@@ -386,7 +386,7 @@ function hybridclades_support(
             hwcChi = zeros(Bool,ntax)   #       child  clade
             hwcSib = zeros(Bool,ntax)   # major sister clade
             net1 = deepcopy(net)
-            displayedNetworkAt!(net1, net1.hybrid[esth])
+            displayednetworkat!(net1, net1.hybrid[esth])
             hn = net1.hybrid[1]
             if !rooted && length(net1.node[net1.rooti].edge)==2 && any(e -> e.hybrid, net1.node[net1.rooti].edge)
                 fuseedgesat!(net1.rooti, net1)

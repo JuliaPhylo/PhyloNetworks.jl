@@ -188,7 +188,7 @@ we can extract the major tree from the network with 1 hybridization,
 that is, delete the hybrid edge supported by less than 50% of genes.
 Then we can compare this tree with the ASTRAL/SNaQ tree `net0`.
 ```@repl dist_reroot
-tree1 = majorTree(net1); # major tree from net1
+tree1 = majortree(net1); # major tree from net1
 hardwiredclusterdistance(net0, tree1, true)
 ```
 They are identical (at distance 0), so here the species network
@@ -265,7 +265,7 @@ We can choose to pick the "important" hybrid edges only,
 with heritability γ at or above a threshold.
 Below we use a γ threshold of 0, so we get all displayed trees:
 ```@repl dist_reroot
-t = displayedTrees(net1, 0.0) # list of trees displayed in network
+t = displayedtrees(net1, 0.0) # list of trees displayed in network
 writenewick(t[1], round=true)
 writenewick(t[2], round=true)
 ```
@@ -273,7 +273,7 @@ If we decide to keep edges with γ>0.2 only, then we are
 left with a single tree in the list (the major tree).
 This is because our example has 1 hybrid node with minor γ=0.196.
 ```@repl dist_reroot
-t = displayedTrees(net1, 0.2)
+t = displayedtrees(net1, 0.2)
 ```
 
 We can also delete all "non-important" reticulations,
@@ -282,13 +282,13 @@ The function below changes our network `net1`,
 as indicated by its name ending with a `!`.
 
 ```@repl dist_reroot
-deleteHybridThreshold!(net1, 0.1)
+deletehybridthreshold!(net1, 0.1)
 ```
 Nothing happened to our network: because its γ is above 0.1.
 But if we set the threshold to 0.3, then our reticulation disappears:
 ```@repl dist_reroot
-deleteHybridThreshold!(net1, 0.3)
+deletehybridthreshold!(net1, 0.3)
 ```
-See also function `displayedNetworkAt!` to get the network with
+See also function `displayednetworkat!` to get the network with
 a single reticulation of interest, and eliminate all other
 reticulations.

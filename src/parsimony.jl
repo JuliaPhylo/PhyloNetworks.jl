@@ -108,7 +108,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     # assign this set to all tips with no data
 
     directEdges!(net) # parsimonyBottomUpFitch! uses ischild1 attributes
-    trees = displayedTrees(net, 0.0) # all displayed trees
+    trees = displayedtrees(net, 0.0) # all displayed trees
     mpscore = Int[] # one score for each tree
     statesets = Dict{Int,Set{T}}[] # one state set dict per tree
     for tree in trees
