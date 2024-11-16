@@ -72,7 +72,7 @@ Assume `vec_node` was updated, to list nodes in pre-order.
 ```jldoctest
 julia> net = readnewick("(((A:3.1,(B:0.2)#H1:0.3::0.9),(C,#H1:0.3::0.1):1.1),D:0.7);");
 
-julia> directEdges!(net); preorder!(net);
+julia> directedges!(net); preorder!(net);
 
 julia> PhyloNetworks.majoredgelength(net)
 8-element Vector{Union{Missing, Float64}}:

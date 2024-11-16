@@ -237,10 +237,10 @@ function addhybridedge!(
     setEdge!(newnode2_hybrid, hybrid_edge)
     pushEdge!(net, hybrid_edge)
     if hybridpartnernew
-        # @debug "triple-check it's a DAG" directEdges!(net)
+        # @debug "triple-check it's a DAG" directedges!(net)
         norootbelow!(edge2)
     else
-        directEdges!(net)
+        directedges!(net)
         norootbelow!(edgeabovee2)
     end
     return newnode2_hybrid, hybrid_edge

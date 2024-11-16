@@ -576,7 +576,7 @@ function readnewick(s::IO,verbose::Bool)
     end
     storeHybrids!(net)
     checkNumHybEdges!(net)
-    directEdges!(net; checkMajor=true) # to update edges containroot: true until hybrid, false below hybrid
+    directedges!(net; checkMajor=true) # to update edges containroot: true until hybrid, false below hybrid
     net.isrooted = true
     return net
 end
@@ -783,7 +783,7 @@ Example:
 
 ```julia
 net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
-directEdges!(net)
+directedges!(net)
 s = IOBuffer()
 writeSubTree!(s, net.node[7], nothing, false, true)
 String(take!(s))
@@ -1208,7 +1208,7 @@ function writenewick(
     changeroot = false
     msg = ""
     try
-        directEdges!(net)
+        directedges!(net)
     catch err
         if isa(err, RootMismatch)
             println(err.msg * "\nCannot write topology with current root.")
@@ -1222,7 +1222,7 @@ function writenewick(
             i = getIndex(getparent(e), net)
             net.rooti = i
             try
-                directEdges!(net)
+                directedges!(net)
                 print("Setting root at node $(net.node[i].number) (net.rooti = $i)\n\n")
                 print(msg)
                 changeroot = false

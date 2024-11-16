@@ -123,21 +123,21 @@ deleteleaf!(net, "t7")
 @test isempty(net.node)
 end
 
-@testset "testing directEdges! and re-rootings" begin
+@testset "testing directedges! and re-rootings" begin
 # on a tree, then on a network with h=2"
 
 if doalltests
 tre = readnewick("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 tre.edge[1].ischild1=false; tre.edge[17].ischild1=false
-directEdges!(tre)
-tre.edge[1].ischild1  || error("directEdges! didn't correct the direction of 1st edge")
-tre.edge[17].ischild1 || error("directEdges! didn't correct the direction of 17th edge")
+directedges!(tre)
+@test tre.edge[1].ischild1
+@test tre.edge[17].ischild1
 for i=1:18 tre.edge[i].containroot=false; end;
 tre.rooti = 9;
-directEdges!(tre);
-!tre.edge[9].ischild1 || error("directEdges! didn't correct the direction of 9th edge")
+directedges!(tre);
+@test !tre.edge[9].ischild1
 for i=1:18
- tre.edge[i].containroot || error("directEdges! didn't correct containroot of $(i)th edge.")
+ tre.edge[i].containroot || error("directedges! didn't correct containroot of $(i)th edge.")
 end
 tre = readnewick("(((((((1,2),3),4),5),(6,7)),(8,9)),10);");
 rootatnode!(tre, -9); ## clau: previously -8
@@ -147,13 +147,13 @@ global net
 net = readnewick("(((Ag,(#H1:7.159::0.056,((Ak,(E:0.08,#H2:0.0::0.004):0.023):0.078,(M:0.0)#H2:::0.996):2.49):2.214):0.026,(((((Az:0.002,Ag2:0.023):2.11,As:2.027):1.697)#H1:0.0::0.944,Ap):0.187,Ar):0.723):5.943,(P,20):1.863,165);");
 # 5th node = node number -7 (clau: previously -6).
 net.rooti = 5
-@test_logs directEdges!(net);
-@test !net.edge[12].ischild1 # or: directEdges! didn't correct the direction of 12th edge
-@test !net.edge[23].ischild1 # or: directEdges! didn't correct the direction of 23th edge"
+@test_logs directedges!(net)
+@test !net.edge[12].ischild1
+@test !net.edge[23].ischild1
 @test [!net.edge[i].containroot for i in [8;collect(13:17)]] == [true for i in 1:6]
-# or: "directEdges! didn't correct containroot below a hyb node, $(i)th edge."
+# or: "directedges! didn't correct containroot below a hyb node, $(i)th edge."
 @test [net.edge[i].containroot for i in [9,5,18,2]] == [true for i in 1:4]
-# or: "directEdges! didn't correct containroot of hyb edges."
+# or: "directedges! didn't correct containroot of hyb edges."
 @test_logs rootatnode!(net, -10); # or: rootatnode! complained, node -10
 @test_throws PhyloNetworks.RootMismatch rootatnode!(net, "M");
 # println("the rootmismatch about node 5 is good and expected.")
@@ -172,20 +172,20 @@ net.rooti = 5
 # example with one hybridization below another
 
 if doalltests
+# net with 2 stacked hybrids
 net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 # sum([!e.containroot for e in net.edge]) # only 4.
-directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids")
-sum([!e.containroot for e in net.edge]) == 16 ||
- error("directEdges! wrong on net with 2 stacked hybrids");
+directedges!(net); # or error("directedges! says that the root position is incompatible with hybrids")
+@test sum([!e.containroot for e in net.edge]) == 16
 plot(net, showedgenumber=true, showedgelength=false, shownodenumber=true);
 net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.rooti=19; # node number -13 (clau: previously -12)
-directEdges!(net); # or error("directEdges! says that the root position is incompatible with hybrids");
+directedges!(net)
 end
 
 net = readnewick("((((((((1,2),3),4),(5)#H1),(#H1,(6,7))))#H2,(8,9)),(#H2,10));");
 net.rooti=15; # node number -5 (clau: previously -4)
-@test_throws PhyloNetworks.RootMismatch directEdges!(net);
+@test_throws PhyloNetworks.RootMismatch directedges!(net);
 # occursin(r"non-leaf node 9 had 0 children",e.msg))
 @test_logs rootatnode!(net, -13); # or: rootatnode complained...
 @test_throws PhyloNetworks.RootMismatch rootatnode!(net, -5);
@@ -195,7 +195,7 @@ net.rooti=15; # node number -5 (clau: previously -4)
 # earlier: """node 12 is a leaf. Will create a new node if needed, to set taxon "10" as outgroup."""
 @test_logs rootatnode!(net,"10");
 
-end # of testset for directEdges! and re-rootings
+end # of testset for directedges! and re-rootings
 
 @testset "testing preorder!" begin
 # on a tree, then on a network with h=2
@@ -223,7 +223,7 @@ net3  = readnewick(cui3str);
 deleteleaf!(net3,"Xhellerii"); deleteleaf!(net3,"Xsignum");
 deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
 # now: net3 has a 2-cycle
-directEdges!(net3)
+directedges!(net3)
 preorder!(net3)
 @test [n.number for n in net3.vec_node] == [-3,25,-6,-8,-20,-21,-22,-23,-25,-26,-27,-28,24,23,22,21,20,-24,15,-10,-16,-17,-19,14,13,-18,12,11,-11,-14,10,-15,9,8,-12,7,6,5,19,18,17,16,-7,4,3,26]
 

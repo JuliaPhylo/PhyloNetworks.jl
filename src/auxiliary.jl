@@ -1663,7 +1663,7 @@ created, or the new polytomy is below a tree node)
 function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
     edge2shrink.hybrid && error("cannot shrink hybrid edge number $(edge2shrink.number)")
     cn = getchild(edge2shrink)
-    cn.hybrid && error("cannot shrink tree edge number $(edge2shrink.number): its child node is a hybrid. run directEdges! ?")
+    cn.hybrid && error("cannot shrink tree edge number $(edge2shrink.number): its child node is a hybrid. run directedges! ?")
     pn = getparent(edge2shrink)
     isexternal(edge2shrink) &&  # (isleaf(cn) || isleaf(pn)) &&
       error("won't shrink edge number $(edge2shrink.number): it is incident to a leaf")

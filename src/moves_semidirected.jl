@@ -928,13 +928,13 @@ function moveroot!(
         # Check for no directional conflict
         try
             net.rooti = newrooti
-            directEdges!(net)
+            directedges!(net)
             # warning: assumes that the previous root has degree 3
             # otherwise, need to delete previous root by fusing its 2 adjacent edges
         catch e # RootMismatch error if root placement is below a hybrid
             isa(e, RootMismatch) || rethrow(e)
             net.rooti = oldroot
-            directEdges!(net) # revert edges' directions to match original rooting
+            directedges!(net) # revert edges' directions to match original rooting
             continue # to next potential new root
         end
         # if we get here: newrooti passed all the checks
@@ -1129,11 +1129,11 @@ function fliphybrid!(
     # update gammas
     newhybridedge.gamma = edgetokeep.gamma
     edgetokeep.gamma = 1.0
-    # update hybrids in network (before directEdges!)
+    # update hybrids in network (before directedges!)
     hybridindex = findfirst(n -> n === hybridnode, net.hybrid)
     net.hybrid[hybridindex] = newhybridnode
     if runDirectEdges # direct edges only if root is moved
-        directEdges!(net)
+        directedges!(net)
     else # if not, only update containroot attributes
         # norootbelow in child edges of newhybridedge
         for ce in newhybridnode.edge

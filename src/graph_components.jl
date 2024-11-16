@@ -123,7 +123,7 @@ unrooted graph). They are either the root of the network or cut node
 """
 function biconnectedcomponent_entrynodes(net, bcc, preorder::Bool=true)
     if preorder
-        directEdges!(net)
+        directedges!(net)
         preorder!(net)
     end
     entrynode = Node[] # one entry node for each blob: cut node or root
@@ -159,7 +159,7 @@ then its `.inte1` is set to -1.
 """
 function biconnectedcomponent_exitnodes(net, bcc, preorder::Bool=true)
     if preorder
-        directEdges!(net)
+        directedges!(net)
         preorder!(net)
     end
     exitnode = Vector{Node}[]  # one array of exit cut nodes for each blob
@@ -220,7 +220,7 @@ function blobinfo(
     checkPreorder::Bool=true
 )
     if checkPreorder
-      directEdges!(net) # update ischild1, needed for preorder
+      directedges!(net) # update ischild1, needed for preorder
       preorder!(net) # creates / updates net.vec_node
     end
     bcc = biconnectedcomponents(net, ignoreTrivial)
@@ -330,7 +330,7 @@ See also: [`deleteaboveLSA!`](@ref)
 function leaststableancestor(net, preorder::Bool=true)
     net.node[net.rooti].leaf && error("The root can't be a leaf to find the LSA.")
     if preorder
-        directEdges!(net)
+        directedges!(net)
         preorder!(net)
     end
     bcc = biconnectedcomponents(net, false)
@@ -535,7 +535,7 @@ function checkroot!(net::HybridNetwork, membership::Dict{Node,Int})
         end
     else
         net.rooti = findfirst(n -> (!n.leaf && membership[n] == tec_root), nodes)
-        directEdges!(net) # also updates containroot of all edges
+        directedges!(net) # also updates containroot of all edges
     end
     return tec_root # return rootcomp
 end

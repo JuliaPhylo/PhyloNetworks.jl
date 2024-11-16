@@ -427,7 +427,7 @@ writenewick(netl1_i) == "((S1A,S1B,S1C)S1,S4,(#H1,(((S5)#H1,(S6,S7)))));"
 netl1_i.rooti = 14 # back to original rooted network. This node is still of degree 2
 @test !PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # false: root *at* clade crown
 @test netl1_i.rooti == 13 # now unrooted (via removedegree2nodes!), root was moved, con[2] stem edge was deleted too...
-netl1_i.rooti = 7; directEdges!(netl1_i) # move root strictly above clade crown
+netl1_i.rooti = 7; directedges!(netl1_i) # move root strictly above clade crown
 con[2] = PhyloNetworks.TopologyConstraint(0x02, ["S5","S6","S7"], netl1_i)
 @test PhyloNetworks.checkspeciesnetwork!(netl1_i, con) # now fine: root *above* clade crown
 undoinfo = nni!(netl1_i.edge[8],0x01,false,false);
@@ -525,7 +525,7 @@ net_hl = readnewick(hybridladderstring)  # hybrid 2 = H2, node number 1
 #= other examples in which newhybridnode = current root
 n6h1 = readnewick("((((1:0.2,2:0.2):2.4,((3:0.4,4:0.4):1.1)#H1:1.1):2.0,(#H1:0.0::0.3,5:1.5):3.1):1.0,6:5.6);")
 n6h1.rooti = 10
-directEdges!(n6h1)
+directedges!(n6h1)
 @test n6h1.hybrid[1].number == 5
 @test !isnothing(PhyloNetworks.fliphybrid!(n6h1, n6h1.hybrid[1])) # flips minor by default
 @test n6h1.hybrid[1].number == -8

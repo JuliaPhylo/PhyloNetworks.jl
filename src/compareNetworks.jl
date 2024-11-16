@@ -151,14 +151,14 @@ Calculate the hardwired cluster of `edge`, coded as a vector of booleans:
 true for taxa that are descendent of the edge, false for other taxa (including missing taxa).
 
 The edge should belong in a rooted network for which `ischild1` is up-to-date.
-Run `directEdges!` beforehand. This is very important, otherwise one might enter an infinite loop,
+Run `directedges!` beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
 visited: vector of node numbers, of all visited nodes.
 
 # Examples:
 ```jldoctest
-julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directEdges! ;
+julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directedges! ;
 
 julia> taxa = net5 |> tipLabels # ABC EF D
 6-element Vector{String}:
@@ -227,12 +227,12 @@ all descendant nodes if `internal` is true (internal nodes and tips),
 or descendant tips only otherwise (defaults).
 
 `edge` should belong in a rooted network for which `ischild1` is up-to-date.
-Run `directEdges!` beforehand. This is very important, otherwise one might enter an infinite loop,
+Run `directedges!` beforehand. This is very important, otherwise one might enter an infinite loop,
 and the function does not test for this.
 
 ## Examples
 ```jldoctest
-julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directEdges! ;
+julia> net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directedges! ;
 
 julia> PhyloNetworks.descendants(net5.edge[12], true) # descendants of 12th edge: all of them
 7-element Vector{Int64}:

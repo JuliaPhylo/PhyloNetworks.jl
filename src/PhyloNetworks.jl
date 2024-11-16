@@ -76,7 +76,7 @@ module PhyloNetworks
         ## Network Manipulation
         rootatnode!,
         rootonedge!,
-        directEdges!,
+        directedges!,
         preorder!,
         cladewiseorder!,
         rotate!,

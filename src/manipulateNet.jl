@@ -64,11 +64,11 @@ function rootatnode!(net::HybridNetwork, nodeNumber::Integer; index::Bool=false)
         rootsaved = net.rooti
         net.rooti = ind
         try
-          directEdges!(net)
+          directedges!(net)
         catch e
           if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
             net.rooti = rootsaved
-            directEdges!(net)
+            directedges!(net)
           end
           throw(RootMismatch("""the desired root is below a reticulation,
                                 reverting to old root position."""))
@@ -115,12 +115,12 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index::Bool=false)
     breakedge!(net.edge[ind],net) # returns new node, new edge (last ones pushed)
     net.rooti = length(net.node)   # index of new node: was the last one pushed
     try
-      directEdges!(net)
+      directedges!(net)
     catch e
       if isa(e, RootMismatch) # new root incompatible with hybrid directions: revert back
         fuseedgesat!(net.rooti,net) # reverts breakedge!
         net.rooti = rootsaved
-        directEdges!(net)
+        directedges!(net)
       end
       throw(RootMismatch("""the desired root is below a reticulation,
                                 reverting to old root position."""))
@@ -406,7 +406,7 @@ end
 #################################################
 
 """
-    directEdges!(net::HybridNetwork; checkMajor::Bool=true)
+    directedges!(net::HybridNetwork; checkMajor::Bool=true)
 
 Updates the edges' attribute `ischild1`, according to the root placement.
 Also updates edges' attribute `containroot`, for other possible root placements
@@ -422,7 +422,7 @@ Warnings:
 Returns the network. Throws a 'RootMismatch' Exception if the root was found to
 conflict with the direction of any hybrid edge.
 """
-function directEdges!(net::HybridNetwork; checkMajor::Bool=true)
+function directedges!(net::HybridNetwork; checkMajor::Bool=true)
     if checkMajor # check each node has 2+ hybrid parent edges (if any), and exactly one major.
         for n in net.node
             nparents = 0 # 0 or 2 normally, but could be >2 if polytomy.
@@ -438,7 +438,7 @@ function directEdges!(net::HybridNetwork; checkMajor::Bool=true)
               error("hybrid node $(n.number) has 0 or 2+ major hybrid parents")
             (nparents!=2 || n.hybrid) ||
               @warn "node $(n.number) has 2 parents but its hybrid attribute is false.
-It is not used in directEdges!, but might cause an error elsewhere."
+It is not used in directedges!, but might cause an error elsewhere."
             # to fix this: change n.hybrid, net.hybrid, net.numhybrids etc.
             # none of those attributes are used here.
         end
@@ -494,10 +494,10 @@ end
 
 Update attribute `net.vec_node` in which the nodes are pre-ordered
 (also called topological sorting), such that each node is visited after its parent(s).
-The edges' direction needs to be correct before calling `preorder!`, using `directEdges!`
+The edges' direction needs to be correct before calling `preorder!`, using `directedges!`
 """
 function preorder!(net::HybridNetwork)
-    net.isrooted || error("net needs to be rooted for preorder!, run root functions or directEdges!")
+    net.isrooted || error("net needs to be rooted for preorder!, run root functions or directedges!")
     net.vec_node = Node[] # path of nodes in preorder.
     queue = Node[] # problem with PriorityQueue(): dequeue() takes a
                    # random member if all have the same priority 1.
@@ -540,10 +540,10 @@ Update the internal attribute `net.vec_int1`. Used for plotting the network.
 In the major tree, all nodes in a given clade are consecutive. On a tree, this function
 also provides a pre-ordering of the nodes.
 The edges' direction needs to be correct before calling
-[`cladewiseorder!`](@ref), using [`directEdges!`](@ref)
+[`cladewiseorder!`](@ref), using [`directedges!`](@ref)
 """
 function cladewiseorder!(net::HybridNetwork)
-    net.isrooted || error("net needs to be rooted for cladewiseorder!\n run root functions or directEdges!")
+    net.isrooted || error("net needs to be rooted for cladewiseorder!\n run root functions or directedges!")
     net.vec_int1 = Int[]
     queue = [net.rooti] # index (in net) of nodes in the queue
     # print("queued the root's children's indices: "); @show queue
@@ -575,7 +575,7 @@ on the network, as shown in the examples below.
 (see package [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl))
 
 Warning: assumes that edges are correctly directed (ischild1 updated). This is done
-by `plot(net)`. Otherwise run `directEdges!(net)`.
+by `plot(net)`. Otherwise run `directedges!(net)`.
 
 # Example
 
@@ -1075,7 +1075,7 @@ function resetNodeNumbers!(
     type::Symbol=:ape
 )
     if checkPreorder
-      directEdges!(net)
+      directedges!(net)
       preorder!(net) # to create/update net.vec_node
     end
     # first: re-number the leaves

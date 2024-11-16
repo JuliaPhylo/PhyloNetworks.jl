@@ -408,7 +408,7 @@ hardwiredclusterdistance(trunet,estnet,true) == 0 ||
  error("trunet and estnet should be found to be at HWDist 0");
 
 net51 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
-directEdges!(net51); # doing this avoids a warning on the next line:
+directedges!(net51); # doing this avoids a warning on the next line:
 displayednetworkat!(net51, net51.hybrid[1]) # H2
 # "WARNING: node -3 being the root is contradicted by ischild1 of its edges."
 rootatnode!(net51, "A");
@@ -441,7 +441,7 @@ end # of testset: displayedtrees, hardwiredclusters, hardwiredclusterdistance, d
 
 @testset "testing hardwiredcluster! on single nodes" begin
 
-net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directEdges! ;
+net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directedges! ;
 taxa = net5 |> tipLabels # ABC EF D
 m = hcat([true,false,false,false,false,false],
 [false,true,false,false,false,false],

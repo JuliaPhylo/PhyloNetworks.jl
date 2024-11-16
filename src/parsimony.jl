@@ -107,7 +107,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     charset = union(possibleStates) # fixit
     # assign this set to all tips with no data
 
-    directEdges!(net) # parsimonyBottomUpFitch! uses ischild1 attributes
+    directedges!(net) # parsimonyBottomUpFitch! uses ischild1 attributes
     trees = displayedtrees(net, 0.0) # all displayed trees
     mpscore = Int[] # one score for each tree
     statesets = Dict{Int,Set{T}}[] # one state set dict per tree
@@ -287,7 +287,7 @@ function parsimonysoftwired(net::HybridNetwork, species::Array{String},
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
     checkGap = eltype(sequenceData) == BioSequences.BioSequence
     sequenceType = eltype(sequenceData[1])
-    blobroots, majorEdges, minorEdges = blobinfo(net) # calls directEdges!: sets ischild1
+    blobroots, majorEdges, minorEdges = blobinfo(net) # calls directedges!: sets ischild1
 
     score = 0.0
     #allscores = Float64[]
@@ -675,7 +675,7 @@ function parsimonyGF(
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
     checkGap = eltype(sequenceData) == BioSequences.BioSequence
     sequenceType = eltype(sequenceData[1])
-    blobroots, majorEdges, minorEdges = blobinfo(net) # calls directEdges!: sets ischild1
+    blobroots, majorEdges, minorEdges = blobinfo(net) # calls directedges!: sets ischild1
     # fixit: use trivial biconnected components, and compare running time
         # pick 1 parent node (the minor parent arbitrarily) for each hybrid, then
     # "cut" both children edges of that parent: mark its `boole2` = false

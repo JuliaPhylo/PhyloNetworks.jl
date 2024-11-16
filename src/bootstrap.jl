@@ -234,7 +234,7 @@ function hybridclades_support(
     numNets>0 || error("there aren't any networks in the sample")
     numHybs = refnet.numhybrids
     numHybs>0 || error("there aren't any hybrid in reference network")
-    try directEdges!(refnet)
+    try directedges!(refnet)
     catch err
         if isa(err, RootMismatch)
             err.msg *= "\nPlease change the root in reference network (see rootatnode! or rootonedge!)"
@@ -374,7 +374,7 @@ function hybridclades_support(
     for i = 1:numNets
         net = nets[i]
         length(tipLabels(net))==ntax || error("networks have non-matching taxon sets")
-        try directEdges!(net) # make sure the root is admissible
+        try directedges!(net) # make sure the root is admissible
         catch err
           if isa(err, RootMismatch)
             err.msg *= "\nPlease change the root in test network (see rootatnode! or rootatedge!)"
