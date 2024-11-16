@@ -22,7 +22,7 @@ It serves as a core package that other packages can depend on, such as
 to visualize phylogenies,
 [SNaQ](https://github.com/JuliaPhylo/PhyloPlots.jl)
 to infer phylogenies from genetic data,
-[PhyloPlots](https://github.com/JuliaPhylo/PhyloPlots.jl)
+[PhyloTraits](https://github.com/JuliaPhylo/PhyloTraits.jl)
 to analyze the evolution of traits along phylogenies.
 
 Phylogenetic networks represent the evolutionary relationships between a set
@@ -64,3 +64,11 @@ For the PhyloNetworks package in particular, please cite:
   [Molecular Biology and Evolution](https://academic.oup.com/mbe/article/doi/10.1093/molbev/msx235/4103410/PhyloNetworks-a-package-for-phylogenetic-networks?guestAccessKey=230afceb-df28-4160-832d-aa7c73f86369)
   34(12):3292–3298.
   [doi:10.1093/molbev/msx235](https://doi.org/10.1093/molbev/msx235)
+
+> [!NOTE]
+> Version 0.17 of PhyloNetworks is a major change from version v0.16.4. Many
+> functionalities were moved to other packages (e.g. SNaQ.jl and PhyloTraits.jl),
+> the names of many methods were changed, and various internal functions
+> were improved with breaking changes (e.g. traversal routines).
+> PhyloNetworks v0.17 should serve as a better "core", used by other packages
+> with more specialized functionalities.
