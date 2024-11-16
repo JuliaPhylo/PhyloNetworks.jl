@@ -1125,7 +1125,7 @@ function maxParsimonyNetRun1!(
     #= to use snaq move functions, branch lengths and γ's were set randomly to
     initialize optimization. Remove them before returning the MP network.
     =#
-    remove_edgeLengthsGammas!(newT)
+    remove_edgelengthsgammas!(newT)
     return newT
 end
 

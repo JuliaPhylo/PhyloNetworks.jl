@@ -602,6 +602,7 @@ end
 
 Delete a hybrid node `n` from `net.hybrid`, and update `net.numHybrid`.
 The actual node `n` is not deleted. It is kept in the full list `net.node`.
+Very internal function, used by [`deletehybridedge!`](@ref) and others.
 """
 function removeHybrid!(net::Network, n::Node)
     n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
@@ -914,11 +915,11 @@ calling [`setgamma!`](@ref).
 end
 
 """
-    remove_edgeLengthsGammas!(net::HybridNetwork)
+    remove_edgelengthsgammas!(net::HybridNetwork)
 
 Reset all edge lengths and all hybrid edge γs to be missing (coded as -1.0).
 """
-function remove_edgeLengthsGammas!(net::HybridNetwork)
+function remove_edgelengthsgammas!(net::HybridNetwork)
     for e in net.edge
         e.length = -1.0
         if e.hybrid

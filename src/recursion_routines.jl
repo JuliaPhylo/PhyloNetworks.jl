@@ -3,12 +3,12 @@
                       hybrid_node_function, parameters...)
     traversal_preorder!(nodes, output_array, root_function, tree_node_function,
                        hybrid_node_function, parameters...)
-    updatePreOrder!(node_index, nodes, output_array, root_function, tree_node_function,
+    preorder_nodeupdate!(node_index, nodes, output_array, root_function, tree_node_function,
                    hybrid_node_function, parameters...)
 
 Generic tool to apply a pre-order (or topological ordering) algorithm.
 Used by `sharedpathmatrix` and by `pairwisetaxondistancematrix`, for example.
-`updatePreOrder!` is a helper that calls the root / tree node / hybrid node
+`preorder_nodeupdate!` is a helper that calls the root / tree node / hybrid node
 function as appropriate.
 
 output: array object `output_array`.
@@ -58,13 +58,13 @@ function traversal_preorder!(
     params...
 )
     for i in 1:length(nodes) # nodes should be listed in topological order
-        updatePreOrder!(i, nodes, M, updateRoot, updateTree, updateHybrid, params...) || break
+        preorder_nodeupdate!(i, nodes, M, updateRoot, updateTree, updateHybrid, params...) || break
     end
     return M
 end
 
-@doc (@doc traversal_preorder) updatePreOrder!
-function updatePreOrder!(
+@doc (@doc traversal_preorder) preorder_nodeupdate!
+function preorder_nodeupdate!(
     i::Int,
     nodes::Vector{Node},
     V::AbstractArray,
@@ -110,10 +110,10 @@ function traversalupdate_default!(::AbstractArray, ::Int, params...)
 end
 
 """
-    traversal_postorder(nodes, init_function, tip_function, node_function,
-                        parameters...)
-    updatePostOrder!(node_index, nodes, output_array, tip_function, node_function,
-                     parameters...)
+    traversal_postorder(nodes, init_function,
+        tip_function, internalnode_function, parameters...)
+    postorder_nodeupdate!(node_index, nodes, output_array,
+        tip_function, internalnode_function, parameters...)
 
 Generic tool to apply a post-order (or reverse topological ordering) algorithm,
 acting on a matrix where rows & columns correspond to nodes.
@@ -130,8 +130,8 @@ arguments:
   as arguments
 - `tip_function`: to do whatever needs to be done to `V` at a leaf node,
   using `(V, tip_index, parameters...)` as arguments
-- `node_function`: to do whatever needs to be done to `V` at an internal node,
-  using arguments
+- `internalnode_function`: to do whatever needs to be done to `V` at an internal
+  node, using arguments
   `(V, node_index, childnodes_index_vector, childedges_vector, parameters...)`
 
 The last 3 functions should return a boolean. If true: traversal continues.
@@ -140,29 +140,29 @@ If false: traversal is stopped, that is, the next node is not processed.
 See also [`traversal_preorder`](@ref PhyloNetworks.traversal_preorder), and
 [`traversalupdate_default!`](@ref PhyloNetworks.traversalupdate_default!)
 for a default function that does nothing to `V` and returns true,
-    with an adequate signature to be used here.
+with an adequate signature to be used here.
 """
 function traversal_postorder(
     nodes::Vector{Node},
     init::Function,
-    updateTip::Function,
-    updateNode::Function,
+    updatetip::Function,
+    updateinternalnode::Function,
     params...
 )
     n = length(nodes)
     M = init(nodes, params...)
     for i in n:-1:1 #sorted list of nodes
-        updatePostOrder!(i, nodes, M, updateTip, updateNode, params...) || break
+        postorder_nodeupdate!(i, nodes, M, updatetip, updateinternalnode, params...) || break
     end
     return M
 end
-@doc (@doc traversal_postorder) updatePostOrder!
-function updatePostOrder!(
+@doc (@doc traversal_postorder) postorder_nodeupdate!
+function postorder_nodeupdate!(
     i::Int,
     nodes::Vector{Node},
     V::Matrix,
-    updateTip::Function,
-    updateNode::Function,
+    updatetip::Function,
+    updateinternalnode::Function,
     params...
 )
     chnode = Node[] # will be the vector of child nodes (empty, size 1 or 2)
@@ -177,9 +177,9 @@ function updatePostOrder!(
         push!(chindx, getIndex(cn, nodes))
     end
     if isempty(chnode) # nodes[i] is a tip
-        keepgoing = updateTip(V, i, params...)
+        keepgoing = updatetip(V, i, params...)
     else
-        keepgoing = updateNode(V, i, chindx, chedge, params...)
+        keepgoing = updateinternalnode(V, i, chindx, chedge, params...)
     end
     return keepgoing
 end
