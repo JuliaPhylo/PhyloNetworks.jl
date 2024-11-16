@@ -225,7 +225,7 @@ net = readnewick("(((A:4.0,(B:1.0)#H1:1.1::0.9):0.5,(C:0.6,#H1:1.0::0.1):1.0):3.
 trees = (@test_logs displayedtrees(net,0.0; nofuse=true));
 @test writenewick(trees[1])=="(((A:4.0,(B:1.0)H1:1.1):0.5,(C:0.6):1.0):3.0,D:5.0);"
 @test writenewick(trees[2])=="(((A:4.0):0.5,(C:0.6,(B:1.0)H1:1.0):1.0):3.0,D:5.0);"
-@test PhyloNetworks.inheritanceWeight.(trees) ≈ [log(0.9), log(0.1)]
+@test PhyloNetworks.inheritanceweight.(trees) ≈ [log(0.9), log(0.1)]
 
 end # of testset, displayednetworks! & displayedtrees
 
@@ -238,7 +238,7 @@ net5 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0
 net = readnewick("((((B)#H1)#H2,((D,C,#H2)S1,(#H1,A)S2)S3)S4);") # missing γ's, level 2
 @test writenewick(majortree(net)) == "(((D,C)S1,A)S3,B)S4;"
 @test writenewick(majortree(net; nofuse=true)) == "(((B)H1)H2,((D,C)S1,(A)S2)S3)S4;"
-setGamma!(net.edge[8], 0.8)
+setgamma!(net.edge[8], 0.8)
 @test writenewick(majortree(net)) == "((D,C)S1,(A,B)S2)S3;"
 @test writenewick(majortree(net; nofuse=true)) == "((D,C)S1,((B)H1,A)S2)S3;"
 @test writenewick(majortree(net; nofuse=true, keeporiginalroot=true)) == "(((D,C)S1,((B)H1,A)S2)S3)S4;"

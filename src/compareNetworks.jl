@@ -588,7 +588,7 @@ function displayedtrees(
 end
 
 """
-    inheritanceWeight(tree::HybridNetwork)
+    inheritanceweight(tree::HybridNetwork)
 
 Return the *log* inheritance weight of a network or tree
 (as provided by [`displayedtrees`](@ref) with `nofuse` = true for instance).
@@ -606,13 +606,13 @@ julia> net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);");
 
 julia> trees = displayedtrees(net,0.0; nofuse=true);
 
-julia> PhyloNetworks.inheritanceWeight.(trees)
+julia> PhyloNetworks.inheritanceweight.(trees)
 2-element Vector{Float64}:
  -0.105361
  -2.30259 
 ```
 """
-function inheritanceWeight(tree::HybridNetwork)
+function inheritanceweight(tree::HybridNetwork)
     ltw = 0.0
     for e in tree.edge
         e.gamma != 1.0 || continue

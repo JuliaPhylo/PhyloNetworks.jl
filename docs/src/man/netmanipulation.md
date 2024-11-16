@@ -91,7 +91,8 @@ To modify some of the core components of a network:
 - [`PhyloNetworks.unzip_canonical!`](@ref) to "unzip" (or zip down) all
   reticulations, or [`PhyloNetworks.rezip_canonical!`](@ref) to undo.
 - [`setlength!`](@ref) and [`setlengths!`](@ref) to change the length of one
-  or more edges
+  or more edges,
+  and [`setgamma!`](@ref) to change a hybrid edge inheritance γ
 
 To remove components from a network:
 
@@ -110,7 +111,7 @@ To add components to a network:
 - [`PhyloNetworks.addleaf!`](@ref)
 - [`PhyloNetworks.addhybridedge!`](@ref)
 
-To calibrate a network (modify it edge lengths):
+To calibrate a network (modify its edge lengths):
 
 - [`calibratefrompairwisedistances!`](@ref). This documentation has little
   about calibration so far, but see this

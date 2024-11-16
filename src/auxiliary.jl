@@ -848,7 +848,7 @@ end
 
 
 """
-    setGamma!(Edge, new γ, change_other::Bool=true)
+    setgamma!(Edge, new γ, change_other=true)
 
 Set inheritance probability γ for an edge, which must be a hybrid edge.
 The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
@@ -858,14 +858,16 @@ its partner is set to the minor parent.
 
 If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges
 and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
-`setGamma!(net.edge[3],0.2)`.
+`setgamma!(net.edge[3],0.2)`.
 This will automatically set γ of the partner hybrid edge to 0.8.
 
 The last argument is true by default. If false: the partner edge is not updated.
 This is useful if the new γ is 0.5, and the partner's γ is already 0.5,
 in which case the `ismajor` attributes can remain unchanged.
+
+See also [`PhyloNetworks.setmultiplegammas!`](@ref)
 """
-function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool=true)
+function setgamma!(edge::Edge, new_gamma::Float64, changeOther::Bool=true)
     new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
@@ -899,9 +901,15 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool=true)
     return nothing
 end
 
+"""
+    setmultiplegammas!(edges::Vector{Edge}, γs::Vector{Float64})
+
+Set the inheritance of the ith edge to the ith γ value,
+calling [`setgamma!`](@ref).
+"""
 @inline function setmultiplegammas!(edges::Vector{Edge}, gammas::Vector{Float64})
     for (e,g) in zip(edges, gammas)
-        setGamma!(e, g)
+        setgamma!(e, g)
     end
 end
 

@@ -140,7 +140,7 @@ We can display the exact same network differently, by changing
 the γ inheritance values to invert the major/minor consideration of the hybrid edges.
 ```@example dist_reroot
 net7taxa.edge[5] # just to check that it's one of the 2 hybrid edges of interest
-setGamma!(net7taxa.edge[5], 0.501) # switch major/minor edges
+setgamma!(net7taxa.edge[5], 0.501) # switch major/minor edges
 R"svg(name('reroot_net7taxa_3.svg'), width=4, height=4)"; # hide
 R"layout(matrix(1,1,1))"; # hide
 R"par"(mar=[0,0,0,0]); # hide

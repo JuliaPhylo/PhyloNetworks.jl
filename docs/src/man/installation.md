@@ -172,7 +172,7 @@ We can set them with
 
 ```@repl install
 setlength!(net.edge[1], 1.9)
-setGamma!(net.edge[3],  0.8)
+setgamma!(net.edge[3],  0.8)
 printEdges(net)
 ```
 where 1 and 3 correspond to the position of the given edge to modify in the list of edges.
@@ -181,7 +181,7 @@ not tree edges (for which γ=1 necessarily).
 Such an attempt below will cause an error with a message to explain that
 the edge was a tree edge:
 ```julia
-setGamma!(net.edge[4], 0.7)
+setgamma!(net.edge[4], 0.7)
 # should return this:
 # ERROR: cannot change gamma in a tree edge
 ```

@@ -1094,7 +1094,7 @@ function readnexus_assigngammas!(net::HybridNetwork, id2gamma::Dict)
         hn = net.hybrid[j]
         he = getparentedgeminor(hn)
         if he.gamma == -1.0
-            setGamma!(he, gam)
+            setgamma!(he, gam)
         else
             @warn "hybrid edge number $(he.number) has γ=$(he.gamma). won't erase with $gam."
         end
@@ -1304,7 +1304,7 @@ function hybridlambdaformat(net::HybridNetwork; prefix="I")
   for e in net.edge
     if e.hybrid && e.ismajor && e.gamma == -1.0
       @error("edge number $(e.number) is missing gamma: will use 0.5")
-      setGamma!(e, 0.5)
+      setgamma!(e, 0.5)
     end
   end
   for no in net.node

@@ -7,6 +7,7 @@
 @deprecate writeTopology      writenewick
 @deprecate writeMultiTopology writemultinewick
 # minor name changes: camelCase to smallcase
+@deprecate setGamma! setgamma!
 @deprecate hardwiredClusters hardwiredclusters
 @deprecate hardwiredCluster  hardwiredcluster
 @deprecate hardwiredCluster! hardwiredcluster!

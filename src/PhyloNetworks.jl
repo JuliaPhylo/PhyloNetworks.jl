@@ -82,7 +82,7 @@ module PhyloNetworks
         rotate!,
         setlength!,
         setlengths!,
-        setGamma!,
+        setgamma!,
         deletehybridthreshold!,
         displayedtrees,
         majortree,
