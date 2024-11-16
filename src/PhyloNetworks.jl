@@ -105,11 +105,11 @@ module PhyloNetworks
         writemultinewick,
         readmultinewick,
         ## Network Calibration
-        getNodeAges,
-        pairwiseTaxonDistanceMatrix,
-        calibrateFromPairwiseDistances!,
+        getnodeages,
+        pairwisetaxondistancematrix,
+        calibratefrompairwisedistances!,
         # recursion
-        sharedPathMatrix,
+        sharedpathmatrix,
         descendenceMatrix,
         vcv,
         ## parsimony

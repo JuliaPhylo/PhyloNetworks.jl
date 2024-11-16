@@ -139,7 +139,7 @@ The calculation of the covariance matrix requires a pre-ordering of nodes to be 
 If `checkpreorder` is true (default), then [`preorder!`](@ref) is run on the network beforehand.
 Otherwise, the network is assumed to be already in pre-order.
 
-This function internally calls [`sharedPathMatrix`](@ref), which computes the variance
+This function internally calls [`sharedpathmatrix`](@ref), which computes the variance
 matrix between all the nodes of the network.
 
 # Examples
@@ -200,7 +200,7 @@ function vcv(
     checkpreorder::Bool=true
 )
     @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
-    V = sharedPathMatrix(net; checkpreorder=checkpreorder)
+    V = sharedpathmatrix(net; checkpreorder=checkpreorder)
     C = V[:Tips]
     corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
     Cd = DataFrame(C, map(Symbol, V.tipNames))
@@ -209,7 +209,7 @@ end
 
 
 """
-    sharedPathMatrix(net::HybridNetwork; checkpreorder::Bool=true)
+    sharedpathmatrix(net::HybridNetwork; checkpreorder::Bool=true)
 
 This function computes the shared path matrix between all the nodes of a
 network. It assumes that the network is in the pre-order. If checkpreorder is
@@ -218,28 +218,28 @@ true (default), then it runs function `preorder!` on the network beforehand.
 Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
 """
-function sharedPathMatrix(net::HybridNetwork; checkpreorder::Bool=true)
+function sharedpathmatrix(net::HybridNetwork; checkpreorder::Bool=true)
     check_nonmissing_nonnegative_edgelengths(net,
         """The variance-covariance matrix of the network is not defined.
            A phylogenetic regression cannot be done.""")
     checkpreorder && preorder!(net)
     V = traversal_preorder(
             net.vec_node,
-            initsharedPathMatrix,
+            init_sharedpathmatrix,
             traversalupdate_default!,
-            updateTreeSharedPathMatrix!,
-            updateHybridSharedPathMatrix!,
+            updatetree_sharedpathmatrix!,
+            updatehybrid_sharedpathmatrix!,
         )
     M = MatrixTopologicalOrder(V, net, :b) # nodes in both columns & rows
     return M
 end
 
-function initsharedPathMatrix(nodes::Vector{Node},)
+function init_sharedpathmatrix(nodes::Vector{Node},)
     n = length(nodes)
     return(zeros(Float64,n,n))
 end
 
-function updateTreeSharedPathMatrix!(
+function updatetree_sharedpathmatrix!(
     V::Matrix,
     i::Int,
     parentIndex::Int,
@@ -253,7 +253,7 @@ function updateTreeSharedPathMatrix!(
     return true
 end
 
-function updateHybridSharedPathMatrix!(
+function updatehybrid_sharedpathmatrix!(
     V::Matrix,
     i::Int,
     parindx::AbstractVector{Int},

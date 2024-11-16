@@ -19,13 +19,14 @@ each hybrid node has exactly 2 parents (never more).
 
 - [`tipLabels`](@ref) for taxon labels
 - [`getroot`](@ref) gives the root node
-- [`pairwiseTaxonDistanceMatrix`](@ref) for *average* distances
-- [`vcv`](@ref) for the variance-covariance matrix under a Brownian Motion model
-  along the network
+- [`pairwisetaxondistancematrix`](@ref) for *average* distances
+- [`vcv`](@ref) for the variance-covariance matrix between taxa under a
+  Brownian Motion model along the network, and [`sharedpathmatrix`](@ref)
+  for the variance-covariance between all nodes (not just leaves)
 - [`istimeconsistent`](@ref): `true` or `false`, to know if for all nodes,
   the various paths from the root to that node have the same length
   (as expected if length was proportional to time)
-- [`getNodeAges`](@ref) assume the network is time-consistent and ultrametric
+- [`getnodeages`](@ref) assuming the network is time-consistent and ultrametric
 - [`displayedtrees`](@ref) or [`majortree`](@ref) to get the displayed trees
   or major tree, respectively
 - [`hardwiredclusters`](@ref) to get all clusters of taxa on a network
@@ -89,6 +90,8 @@ To modify some of the core components of a network:
 - [`PhyloNetworks.fliphybrid!`](@ref) to flip the direction of a hybrid edge
 - [`PhyloNetworks.unzip_canonical!`](@ref) to "unzip" (or zip down) all
   reticulations, or [`PhyloNetworks.rezip_canonical!`](@ref) to undo.
+- [`setlength`](@ref) and [`setlengths`](@ref) to change the length of one
+  or more edges
 
 To remove components from a network:
 
@@ -106,6 +109,12 @@ To add components to a network:
 
 - [`PhyloNetworks.addleaf!`](@ref)
 - [`PhyloNetworks.addhybridedge!`](@ref)
+
+To calibrate a network (modify it edge lengths):
+
+- [`calibratefrompairwisedistances!`](@ref). This documentation has little
+  about calibration so far, but see this
+  [tutorial](https://cecileane.github.io/networkPCM-workshop/topic1-netcalibration.html)
 
 ## Comparing two networks
 

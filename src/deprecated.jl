@@ -6,6 +6,7 @@
 @deprecate readBootstrapTrees readmultinewick_files
 @deprecate writeTopology      writenewick
 @deprecate writeMultiTopology writemultinewick
+# minor name changes: camelCase to smallcase
 @deprecate hardwiredClusters hardwiredclusters
 @deprecate hardwiredCluster  hardwiredcluster
 @deprecate hardwiredCluster! hardwiredcluster!
@@ -18,3 +19,7 @@
 @deprecate displayedTrees displayedtrees
 @deprecate minorTreeAt    minortreeat
 @deprecate majorTree      majortree
+@deprecate pairwiseTaxonDistanceMatrix pairwisetaxondistancematrix!
+@deprecate sharedPathMatrix sharedpathmatrix
+@deprecate getNodeAges getnodeages
+@deprecate calibrateFromPairwiseDistances! calibratefrompairwisedistances!

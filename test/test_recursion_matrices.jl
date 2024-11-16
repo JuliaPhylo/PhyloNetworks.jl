@@ -6,7 +6,7 @@ net = readnewick(tree_str)
 preorder!(net)
 
 ## V matrix
-V1 = sharedPathMatrix(net)
+V1 = sharedpathmatrix(net)
 @test_logs show(devnull, V1)
 
 ## By hand V matrix
@@ -89,7 +89,7 @@ T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
 
 net = readnewick("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);")
 preorder!(net)
-V1 = sharedPathMatrix(net)
+V1 = sharedpathmatrix(net)
 
 hyb = net.hybrid[2]
 
@@ -114,11 +114,11 @@ gam = par_edge_1.gamma
 ## Two extreme networks
 par_edge_1.gamma = 1.
 par_edge_2.gamma = 0.
-V_t_1 = sharedPathMatrix(net)
+V_t_1 = sharedpathmatrix(net)
 
 par_edge_1.gamma = 0.
 par_edge_2.gamma = 1.
-V_t_2 = sharedPathMatrix(net)
+V_t_2 = sharedpathmatrix(net)
 
 ## Descendant indicatrice matrix
 des = PhyloNetworks.descendants(par_edge_1, true) # true to get internal nodes also

@@ -1,5 +1,5 @@
 """
-    getNodeAges(net)
+    getnodeages(net)
 
 vector of node ages in pre-order, as in `vec_node`.
 
@@ -8,7 +8,7 @@ vector of node ages in pre-order, as in `vec_node`.
 - be time-consistent (all paths to the root to a given hybrid have the same length)
 - be ultrametric (all leaves have the same age: 0)
 """
-function getNodeAges(net::HybridNetwork)
+function getnodeages(net::HybridNetwork)
     x = Vector{Float64}(undef, length(net.vec_node))
     for i in reverse(1:length(net.vec_node)) # post-order
         n = net.vec_node[i]
@@ -29,9 +29,9 @@ function getNodeAges(net::HybridNetwork)
 end
 
 """
-    pairwiseTaxonDistanceMatrix(net; keepInternal=false,
+    pairwisetaxondistancematrix(net; keepInternal=false,
                                 checkPreorder=true, nodeAges=[])
-    pairwiseTaxonDistanceMatrix!(M, net, nodeAges)
+    pairwisetaxondistancematrix!(M, net, nodeAges)
 
 Return the matrix `M` of pairwise distances between nodes in the network:
 - between all nodes (internal and leaves) if `keepInternal=true`,
@@ -62,7 +62,7 @@ Providing node ages hence makes the network time consistent: such that
 all paths from the root to a given hybrid node have the same length.
 If node ages are not provided, the network need not be time consistent.
 """
-function pairwiseTaxonDistanceMatrix(
+function pairwisetaxondistancematrix(
     net::HybridNetwork;
     keepInternal::Bool=false,
     checkPreorder::Bool=true,
@@ -76,7 +76,7 @@ function pairwiseTaxonDistanceMatrix(
     M = zeros(Float64,nnodes,nnodes)
     isempty(nodeAges) || length(nodeAges) == nnodes ||
         error("there should be $nnodes node ages")
-    pairwiseTaxonDistanceMatrix!(M,net,nodeAges)
+    pairwisetaxondistancematrix!(M,net,nodeAges)
     if !keepInternal
         M = getTipSubmatrix(M, net)
     end
@@ -110,7 +110,7 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     end
 end
 
-function pairwiseTaxonDistanceMatrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)
+function pairwisetaxondistancematrix!(M::Matrix{Float64},net::HybridNetwork,nodeAges)
     traversal_preorder!(net.vec_node, M, # updates M in place
             traversalupdate_default!, # does nothing
             updateTreePairwiseTaxonDistanceMatrix!,
@@ -242,7 +242,7 @@ end
 
 
 """
-    calibrateFromPairwiseDistances!(net, distances::Matrix{Float64},
+    calibratefrompairwisedistances!(net, distances::Matrix{Float64},
         taxon_names::Vector{<:AbstractString})
 
 Calibrate the network to match (as best as possible) input
@@ -272,7 +272,7 @@ optional arguments (default):
   xtolRel (1e-10), xtolAbs (1e-10) on branch lengths / divergence times.
 - verbose (false)
 """
-function calibrateFromPairwiseDistances!(
+function calibratefrompairwisedistances!(
     net::HybridNetwork,
     D::Array{Float64,2},
     taxNames::Vector{<:AbstractString};
@@ -294,7 +294,7 @@ function calibrateFromPairwiseDistances!(
         # get smarter starting values: NJ? fast dating?
     end
     if ultrametric # get all node ages in pre-order
-        na = getNodeAges(net)
+        na = getnodeages(net)
     else na = Float64[]; end
     # get number and indices of edge/nodes to be optimized
     if forceMinorLength0 && !ultrametric
@@ -335,7 +335,7 @@ function calibrateFromPairwiseDistances!(
         end
     end
     # initialize M=dist b/w all nodes, G=gradient (constant)
-    M = pairwiseTaxonDistanceMatrix(net, keepInternal=true,
+    M = pairwisetaxondistancematrix(net, keepInternal=true,
             checkPreorder=false, nodeAges=na)
     if !ultrametric && sort([e.number for e in net.edge]) != collect(1:net.numedges)
         for i in 1:net.numedges # renumber edges, needed for G
@@ -433,7 +433,7 @@ function calibrateFromPairwiseDistances!(
             end
         end
         # update distances in M, in place
-        pairwiseTaxonDistanceMatrix!(M,net,na)
+        pairwisetaxondistancematrix!(M,net,na)
         ss = 0.0 # sum of squares between M and observed distances
         for i in 2:ntax; for j in 1:(i-1)
             ss += (M[tipind[i],tipind[j]]-D[i,j])^2
@@ -469,7 +469,7 @@ end
 
 Calibrate branch lengths in `net` by minimizing the mean squared error
 between the JC-adjusted pairwise distance between taxa, and network-predicted
-pairwise distances, using [`calibrateFromPairwiseDistances!`](@ref).
+pairwise distances, using [`calibratefrompairwisedistances!`](@ref).
 The network is *not* forced to be time-consistent nor ultrametric.
 To avoid one source of non-identifiability, the network is "zipped" by
 forcing minor hybrid edges to have length 0.
@@ -533,7 +533,7 @@ function startingBL!(
     taxonnames = [net.leaf[i].name for i in sortperm([n.number for n in net.leaf])]
     # taxon names: to tell the calibration that row i of dhat is for taxonnames[i]
     # trait[i][j] = trait j for taxon at node number i: 'node.number' = i
-    calibrateFromPairwiseDistances!(net, dhat, taxonnames,
+    calibratefrompairwisedistances!(net, dhat, taxonnames,
         forceMinorLength0=true, ultrametric=false)
         #= force minor length to 0 to avoid non-identifiability at zippers.
         works well if the true (or "the" best-fit) minor parent edge is shorter

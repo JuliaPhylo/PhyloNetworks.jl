@@ -7,7 +7,7 @@
                    hybrid_node_function, parameters...)
 
 Generic tool to apply a pre-order (or topological ordering) algorithm.
-Used by `sharedPathMatrix` and by `pairwiseTaxonDistanceMatrix`, for example.
+Used by `sharedpathmatrix` and by `pairwisetaxondistancematrix`, for example.
 `updatePreOrder!` is a helper that calls the root / tree node / hybrid node
 function as appropriate.
 
