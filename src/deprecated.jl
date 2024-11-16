@@ -23,3 +23,4 @@
 @deprecate sharedPathMatrix sharedpathmatrix
 @deprecate getNodeAges getnodeages
 @deprecate calibrateFromPairwiseDistances! calibratefrompairwisedistances!
+@deprecate parsimonySoftwired parsimonysoftwired

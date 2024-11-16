@@ -205,8 +205,8 @@ end
 
 
 """
-    parsimonySoftwired(net, tipdata)
-    parsimonySoftwired(net, species, sequences)
+    parsimonysoftwired(net, tipdata)
+    parsimonysoftwired(net, species, sequences)
 
 Calculate the most parsimonious (MP) score of a network given
 a discrete character at the tips.
@@ -240,7 +240,7 @@ extendable to other parsimony criteria.
    On computing the Maximum Parsimony score of a phylogenetic network.
    SIAM J. Discrete Math., 29(1):559-585.
 """
-function parsimonySoftwired(net::HybridNetwork, tips::Dict{String,T}) where {T}
+function parsimonysoftwired(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     species = String[]
     dat = Vector{T}[]
@@ -248,10 +248,10 @@ function parsimonySoftwired(net::HybridNetwork, tips::Dict{String,T}) where {T}
         push!(species, k)
         push!(dat, [v])
     end
-    parsimonySoftwired(net, species, dat)
+    parsimonysoftwired(net, species, dat)
 end
 
-function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
+function parsimonysoftwired(net::HybridNetwork, dat::DataFrame)
     i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
     if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing i=1; end # first column if no column named "taxon" or "species"
@@ -267,10 +267,10 @@ function parsimonySoftwired(net::HybridNetwork, dat::DataFrame)
     indna = findall(ismissing, tips) # species with missing data
     deleteat!(species, indna)
     deleteat!(tips,    indna)
-    parsimonySoftwired(net,tips)
+    parsimonysoftwired(net,tips)
 end
 
-function parsimonySoftwired(net::HybridNetwork, species::Array{String},
+function parsimonysoftwired(net::HybridNetwork, species::Array{String},
     sequenceData::AbstractArray)
 
     resetNodeNumbers!(net)
@@ -372,7 +372,7 @@ function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetw
 end
 
 """
-    readFastaToArray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
+    readfastatoarray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
 
 Read a fasta-formatted file. Return a tuple `species, sequences`
 where `species` is a vector of Strings with identifier names, and
@@ -385,7 +385,7 @@ where `species` is a vector of Strings with identifier names, and
   sequence may be broken across several lines though.
 - fails if all sequences aren't of the same length
 """
-function readFastaToArray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
+function readfastatoarray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
     reader = FASTX.FASTA.Reader(open(filename))
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
@@ -463,8 +463,8 @@ function readfastatodna(fastafile::String, countPatterns::Bool=false)
 end
 
 """
-    readCSVtoArray(dat::DataFrame)
-    readCSVtoArray(filename::String)
+    readcsvtoarray(dat::DataFrame)
+    readcsvtoarray(filename::String)
 
 Read a CSV table containing both species names and data,
 create two separate arrays: one for the species names,
@@ -475,7 +475,7 @@ Warning:
   If none found, it will assume the taxon names are in column 1.
 - will use all other columns as characters
 """
-function readCSVtoArray(dat::DataFrame)
+function readcsvtoarray(dat::DataFrame)
     i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
     if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing
@@ -504,9 +504,9 @@ function readCSVtoArray(dat::DataFrame)
     return species,seq
 end
 
-function readCSVtoArray(filename::String)
-    dat = DataFrame(CSV.File(filename); copycols=false)
-    readCSVtoArray(dat)
+function readcsvtoarray(filename::String)
+    dat = CSV.read(filename, DataFrame)
+    readcsvtoarray(dat)
 end
 
 """
@@ -537,7 +537,7 @@ of each hybrid node within a blob, so its complexity is of the order of
 `n * m * c^2 * c^level` where `n` is the number of tips,
 `m` the number of traits and `c` the number of states.
 
-See [`parsimonySoftwired`](@ref) for a faster algorithm, but
+See [`parsimonysoftwired`](@ref) for a faster algorithm, but
 solving the softwired criterion only.
 
 ## references
@@ -1049,7 +1049,7 @@ function maxParsimonyNetRun1!(
     failures = 0
     stillmoves = true
     Nmov = zeros(Int,6)
-    species, traits = readCSVtoArray(df)
+    species, traits = readcsvtoarray(df)
     currTr = deepcopy(currT)
     rootatnode!(currTr,outgroup)
     currT.fscore = parsimonyGF(currTr,species,traits,criterion)

@@ -113,7 +113,7 @@ module PhyloNetworks
         descendenceMatrix,
         vcv,
         ## parsimony
-        parsimonySoftwired,
+        parsimonysoftwired,
         parsimonyGF,
         #maxParsimonyNet # broken after v0.17 refactoring: fix network search
         readfastatodna,

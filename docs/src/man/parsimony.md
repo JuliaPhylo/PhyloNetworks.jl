@@ -46,7 +46,7 @@ converted to a list of vectors, with one vector for each species.
 An internal function is provided for this:
 
 ```@repl parsimony
-species, traits = PhyloNetworks.readCSVtoArray(dat);
+species, traits = PhyloNetworks.readcsvtoarray(dat);
 species
 traits
 ```
@@ -70,14 +70,14 @@ nothing # hide
 There are different types of parsimony scores on networks.
 Currently, we have implemented the **softwired** criterion only,
 with two different functions:
-[`parsimonySoftwired`](@ref) and
+[`parsimonysoftwired`](@ref) and
 [`parsimonyGF`](@ref).
 
-The function `parsimonySoftwired` uses a faster algorithm than
+The function `parsimonysoftwired` uses a faster algorithm than
 `parsimonyGF`, but can solve the softwired criterion only.
 
 ```@repl parsimony
-score = parsimonySoftwired(net, species, traits)
+score = parsimonysoftwired(net, species, traits)
 score = parsimonyGF(net,species,traits,:softwired)
 ```
 
