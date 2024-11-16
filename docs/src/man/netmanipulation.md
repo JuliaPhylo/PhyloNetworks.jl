@@ -90,7 +90,7 @@ To modify some of the core components of a network:
 - [`PhyloNetworks.fliphybrid!`](@ref) to flip the direction of a hybrid edge
 - [`PhyloNetworks.unzip_canonical!`](@ref) to "unzip" (or zip down) all
   reticulations, or [`PhyloNetworks.rezip_canonical!`](@ref) to undo.
-- [`setlength`](@ref) and [`setlengths`](@ref) to change the length of one
+- [`setlength!`](@ref) and [`setlengths!`](@ref) to change the length of one
   or more edges
 
 To remove components from a network:
