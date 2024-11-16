@@ -1355,23 +1355,3 @@ function maxParsimonyNet(
     return maxNet
     =#
 end
-
-
-## unused function:
-## function to check if currT agrees with the outgroup
-function correctRootPlace(currT::HybridNetwork, outgroup::AbstractString)
-    try
-        checkRootPlace!(currT,outgroup=outgroup)
-    catch err
-        if isa(err, RootMismatch)
-            println("RootMismatch: ", err.msg,
-                    """\nThe starting topology has hybrid edges that are incompatible with the desired outgroup.
-                    """)
-        else
-            println("error trying to reroot: ", err.msg);
-        end
-        return false
-    end
-    return true
-end
-
