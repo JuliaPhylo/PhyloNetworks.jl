@@ -59,7 +59,7 @@ function tree2Matrix(
 end
 
 """
-    hardwiredClusters(net::HybridNetwork, taxon_labels)
+    hardwiredclusters(net::HybridNetwork, taxon_labels)
 
 
 Returns a matrix describing all the hardwired clusters in a network, with
@@ -78,9 +78,9 @@ Both parent hybrid edges to a given hybrid node only contribute a single row (th
 - next columns: 0/1. 1=descendant of edge, 0=not a descendant, or missing taxon.
 - last column:  10/11 values. 10=tree edge, 11=hybrid edge
 
-See also [`hardwiredClusterDistance`](@ref) and [`hardwiredCluster`](@ref).
+See also [`hardwiredclusterdistance`](@ref) and [`hardwiredcluster`](@ref).
 """
-function hardwiredClusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})
+function hardwiredclusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})
     ne = length(net.edge)-net.numtaxa # number of internal branch lengths
     ne -= length(net.hybrid)          # to remove duplicate rows for the 2 parent edges of each hybrid
     if (net.node[net.rooti].leaf)     # root is leaf: the 1 edge stemming from the root is an external edge
@@ -89,12 +89,12 @@ function hardwiredClusters(net::HybridNetwork, S::Union{AbstractVector{String},A
     M = zeros(Int,ne,length(S)+2)
     ie = [1] # index of next edge to be documented: row index in M
     for e in net.node[net.rooti].edge
-        hardwiredClusters!(net.node[net.rooti],e,ie,M,S)
+        hardwiredclusters!(net.node[net.rooti],e,ie,M,S)
     end
     return M
 end
 
-function hardwiredClusters!(node::Node, edge::Edge, ie::AbstractVector{Int}, M::Matrix{Int},
+function hardwiredclusters!(node::Node, edge::Edge, ie::AbstractVector{Int}, M::Matrix{Int},
                             S::Union{AbstractVector{String},AbstractVector{Int}})
     child = getOtherNode(edge,node)
 
@@ -133,7 +133,7 @@ function hardwiredClusters!(node::Node, edge::Edge, ie::AbstractVector{Int}, M::
                 indsp != nothing || error("leaf $(grandchild.name) not in species list $(S)")
                 M[indedge,indsp+1] = 1 #indsp+1 because first column is edge numbers
             else
-                inde = hardwiredClusters!(child,e,ie,M,S)
+                inde = hardwiredclusters!(child,e,ie,M,S)
                 M[indedge,2:end-1] .|= M[inde,2:end-1]
             end
         end
@@ -143,9 +143,9 @@ end
 
 
 """
-    hardwiredCluster(edge::Edge, taxa::Union{AbstractVector{String},AbstractVector{Int}})
-    hardwiredCluster!(v::Vector{Bool}, edge::Edge, taxa)
-    hardwiredCluster!(v::Vector{Bool}, edge::Edge, taxa, visited::Vector{Int})
+    hardwiredcluster(edge::Edge, taxa::Union{AbstractVector{String},AbstractVector{Int}})
+    hardwiredcluster!(v::Vector{Bool}, edge::Edge, taxa)
+    hardwiredcluster!(v::Vector{Bool}, edge::Edge, taxa, visited::Vector{Int})
 
 Calculate the hardwired cluster of `edge`, coded as a vector of booleans:
 true for taxa that are descendent of the edge, false for other taxa (including missing taxa).
@@ -169,7 +169,7 @@ julia> taxa = net5 |> tipLabels # ABC EF D
  "F"
  "D"
 
-julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
+julia> hardwiredcluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
 6-element Vector{Bool}:
  0
  0
@@ -179,21 +179,21 @@ julia> hardwiredCluster(net5.edge[12], taxa) # descendants of 12th edge = CEF
  0
 ```
 
-See also [`hardwiredClusterDistance`](@ref) and [`hardwiredClusters`](@ref)
+See also [`hardwiredclusterdistance`](@ref) and [`hardwiredclusters`](@ref)
 """
-function hardwiredCluster(
+function hardwiredcluster(
     edge::Edge,
     taxa::Union{AbstractVector{String},AbstractVector{Int}}
 )
     v = zeros(Bool,length(taxa))
-    hardwiredCluster!(v,edge,taxa)
+    hardwiredcluster!(v,edge,taxa)
     return v
 end
 
-hardwiredCluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}}) =
-    hardwiredCluster!(v,edge,taxa,Int[])
+hardwiredcluster!(v::Vector{Bool},edge::Edge,taxa::Union{AbstractVector{String},AbstractVector{Int}}) =
+    hardwiredcluster!(v,edge,taxa,Int[])
 
-function hardwiredCluster!(
+function hardwiredcluster!(
     v::Vector{Bool},
     edge::Edge,
     taxa::Union{AbstractVector{String},AbstractVector{Int}},
@@ -212,7 +212,7 @@ function hardwiredCluster!(
     push!(visited, n.number)
     for ce in n.edge
         if n === getparent(ce)
-            hardwiredCluster!(v,ce,taxa,visited)
+            hardwiredcluster!(v,ce,taxa,visited)
         end
     end
     return nothing
@@ -723,7 +723,7 @@ end
 
 
 """
-    hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
+    hardwiredclusterdistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
 
 Hardwired cluster distance between the topologies of `net1` and `net2`, that is,
 the number of hardwired clusters found in one network and not in the other
@@ -757,7 +757,7 @@ julia> # using PhyloPlots; plot(net1, showedgenumber=true);
 
 julia> # in matrix below: column 1: edge number. last column: tree (10) vs hybrid (11) edge
        # middle columns: for 'taxa': t1,...t6. 1=descendant, 0=not descendant
-       hardwiredClusters(net1, taxa)
+       hardwiredclusters(net1, taxa)
 6×8 Matrix{Int64}:
  13  1  1  1  1  1  0  10
  12  1  1  1  1  0  0  10
@@ -768,7 +768,7 @@ julia> # in matrix below: column 1: edge number. last column: tree (10) vs hybri
 
 julia> net2 = readnewick("(t6,(t5,((t4,(t3)#H1),(#H1,(t1,t2)))));");
 
-julia> hardwiredClusters(net2, taxa)
+julia> hardwiredclusters(net2, taxa)
 6×8 Matrix{Int64}:
  13  1  1  1  1  1  0  10
  12  1  1  1  1  0  0  10
@@ -777,7 +777,7 @@ julia> hardwiredClusters(net2, taxa)
  11  1  1  1  0  0  0  10
  10  1  1  0  0  0  0  10
 
-julia> hardwiredClusterDistance(net1, net2, true) # true: as rooted networks
+julia> hardwiredclusterdistance(net1, net2, true) # true: as rooted networks
 4
 ```
 
@@ -823,12 +823,12 @@ then all degree-2 nodes are removed before comparing the hardwired clusters,
 and the minimum distance is returned over all possible ways to root the
 networks at internal nodes.
 
-See also: [`hardwiredClusters`](@ref), [`hardwiredCluster`](@ref)
+See also: [`hardwiredclusters`](@ref), [`hardwiredcluster`](@ref)
 """
-function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
+function hardwiredclusterdistance(net1::HybridNetwork, net2::HybridNetwork, rooted::Bool)
     bothtrees = (net1.numhybrids == 0 && net2.numhybrids == 0)
     rooted || bothtrees ||
-        return hardwiredClusterDistance_unrooted(net1, net2) # tries all roots, but removes degree-2 nodes
+        return hardwiredclusterdistance_unrooted(net1, net2) # tries all roots, but removes degree-2 nodes
     taxa = sort!(String[net1.leaf[i].name for i in 1:net1.numtaxa])
     length(setdiff(taxa, String[net2.leaf[i].name for i in 1:net2.numtaxa])) == 0 ||
         error("net1 and net2 do not share the same taxon set. Please prune networks first.")
@@ -837,8 +837,8 @@ function hardwiredClusterDistance(net1::HybridNetwork, net2::HybridNetwork, root
         M1 = tree2Matrix(net1, taxa, rooted=rooted)
         M2 = tree2Matrix(net2, taxa, rooted=rooted)
     else
-        M1 = hardwiredClusters(net1, taxa) # last row: 10/11 if tree/hybrid edge.
-        M2 = hardwiredClusters(net2, taxa)
+        M1 = hardwiredclusters(net1, taxa) # last row: 10/11 if tree/hybrid edge.
+        M2 = hardwiredclusters(net2, taxa)
         #println("M1="); print(M1); println("\nM2="); print(M2); println("\n");
     end
     dis = 0
@@ -866,25 +866,25 @@ end
 
 
 """
-    hardwiredClusterDistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
+    hardwiredclusterdistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
 
 Miminum hardwired cluster dissimilarity between the two networks, considered as
 unrooted (or semi-directed). This dissimilarity is defined as the minimum
 rooted distance, over all root positions that are compatible with the direction
 of hybrid edges.
-Called by [`hardwiredClusterDistance`](@ref).
+Called by [`hardwiredclusterdistance`](@ref).
 
 To avoid repeating identical clusters, all degree-2 nodes
 are deleted before starting the comparison.
 Since rooting the network at a leaf creates a root node of degree 2 and
 an extra cluster, leaves are excluded from possible rooting positions.
 """
-function hardwiredClusterDistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
-    return hardwiredClusterDistance_unrooted!(deepcopy(net1), deepcopy(net2))
+function hardwiredclusterdistance_unrooted(net1::HybridNetwork, net2::HybridNetwork)
+    return hardwiredclusterdistance_unrooted!(deepcopy(net1), deepcopy(net2))
 end
-function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNetwork)
+function hardwiredclusterdistance_unrooted!(net1::HybridNetwork, net2::HybridNetwork)
     #= fixit: inefficient function, because r1 * r2 "M" matrices of
-      hardwiredClusters() are calculated, where ri = # root positions in neti.
+      hardwiredclusters() are calculated, where ri = # root positions in neti.
       Rewrite to calculate only r1 + r2 M's.
     =#
     removedegree2nodes!(net1) # because re-rooting would remove them in an
@@ -919,7 +919,7 @@ function hardwiredClusterDistance_unrooted!(net1::HybridNetwork, net2::HybridNet
         rootatnode!(net1, n1)
         for n2 in net2roots
             rootatnode!(net2, n2)
-            diss = hardwiredClusterDistance(net1, net2, true) # rooted = true now
+            diss = hardwiredclusterdistance(net1, net2, true) # rooted = true now
             if diss < bestdissimilarity
                 bestns = (n1, n2)
                 bestdissimilarity = diss

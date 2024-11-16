@@ -1,5 +1,5 @@
 """
-    biconnectedComponents(network, ignoreTrivial=false)
+    biconnectedcomponents(network, ignoreTrivial=false)
 
 Calculate biconnected components (aka "blobs") using Tarjan's algorithm.
 
@@ -32,7 +32,7 @@ References:
 - nice explanation at this
   [url](https://www.cs.cmu.edu/~avrim/451f12/lectures/biconnected.pdf)
 """
-function biconnectedComponents(net, ignoreTrivial::Bool=false)
+function biconnectedcomponents(net, ignoreTrivial::Bool=false)
     for n in net.node
         n.intn1 = -1 # intn1 = lowpoint. -1 for missing, until the node is visited
         n.intn2 = -1 # k = index, order of visit during depth-first search
@@ -42,20 +42,20 @@ function biconnectedComponents(net, ignoreTrivial::Bool=false)
     end
     S = Edge[] # temporary stack
     blobs = Vector{Edge}[] # will contain the blobs
-    biconnectedComponents(net.node[net.rooti], [0], S, blobs, ignoreTrivial)
+    biconnectedcomponents(net.node[net.rooti], [0], S, blobs, ignoreTrivial)
     # if stack not empty: create last connected component
     length(S) == 0 || @error("stack of edges not empty at the end: $S")
     return blobs
 end
 
 """
-    biconnectedComponents(node, index, S, blobs, ignoreTrivial)
+    biconnectedcomponents(node, index, S, blobs, ignoreTrivial)
 
 Helper recursive function starting at a node (not a network).
 `index` is an array containing a single integer, thus mutable:
 order in which nodes are visited.
 """
-function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
+function biconnectedcomponents(node, index, S, blobs, ignoreTrivial)
     #println("\nentering biconnect, index=$(index[1])")
     children = 0
     # set depth index for v to the smallest unused index
@@ -74,7 +74,7 @@ function biconnectedComponents(node, index, S, blobs, ignoreTrivial)
             children += 1
             push!(S, e)
             #println(" edge $(e.number) on stack, intermediate step for node=$(node.number)")
-            biconnectedComponents(w, index, S, blobs, ignoreTrivial)
+            biconnectedcomponents(w, index, S, blobs, ignoreTrivial)
             # check if subtree rooted at w has connection to
             # one of the ancestors of node
             # Case 1 -- per Strongly Connected Components Article
@@ -115,7 +115,7 @@ end
 
 Array containing the entry node of the each biconnected component in `bcc`.
 `bcc` is supposed to contain the biconnected components as output by
-[`biconnectedComponents`](@ref), that is, an array of array of edges.
+[`biconnectedcomponents`](@ref), that is, an array of array of edges.
 
 These entry nodes depend on the rooting (whereas the BCC only depend on the
 unrooted graph). They are either the root of the network or cut node
@@ -145,7 +145,7 @@ end
 
 Array containing an array of the exit node(s) of the each biconnected component
 in `bcc`. `bcc` is supposed to contain the biconnected components as output by
-[`biconnectedComponents`](@ref), that is, an array of array of edges.
+[`biconnectedcomponents`](@ref), that is, an array of array of edges.
 
 These exit nodes depend on the rooting (whereas the BCC only depend on the
 unrooted graph). The degree of a blob is the number of exit nodes + 1 if
@@ -186,10 +186,10 @@ function biconnectedcomponent_exitnodes(net, bcc, preorder::Bool=true)
 end
 
 """
-    blobInfo(network, ignoreTrivial=true)
+    blobinfo(network, ignoreTrivial=true)
 
 Calculate the biconnected components (blobs) using function
-[`biconnectedComponents`](@ref) then:
+[`biconnectedcomponents`](@ref) then:
 - set node field `booln4` to true at the root of each
   non-trivial blob (and at the network root), false otherwise.
   (a better name for the field would be something like "isBlobRoot".)
@@ -211,10 +211,10 @@ keyword argument: `checkPreorder`, true by default. If false,
 the `ischild1` edge field and the `net.vec_node` network field
 are supposed to be correct.
 
-**warning**: see [`biconnectedComponents`](@ref) for node
+**warning**: see [`biconnectedcomponents`](@ref) for node
 attributes modified during the algorithm.
 """
-function blobInfo(
+function blobinfo(
     net,
     ignoreTrivial::Bool=true;
     checkPreorder::Bool=true
@@ -223,7 +223,7 @@ function blobInfo(
       directEdges!(net) # update ischild1, needed for preorder
       preorder!(net) # creates / updates net.vec_node
     end
-    bcc = biconnectedComponents(net, ignoreTrivial)
+    bcc = biconnectedcomponents(net, ignoreTrivial)
     bccRoots = biconnectedcomponent_entrynodes(net, bcc, false) # 1 entry node for each blob
     bccMajor = Vector{Edge}[] # one array for each blob
     bccMinor = Vector{Edge}[]
@@ -256,11 +256,11 @@ function blobInfo(
 end
 
 """
-    blobDecomposition!(network)
-    blobDecomposition(network)
+    blobdecomposition!(network)
+    blobdecomposition(network)
 
-Find blobs using [`biconnectedComponents`](@ref); find their roots
-using [`blobInfo`](@ref); create a forest in the form of a
+Find blobs using [`biconnectedcomponents`](@ref); find their roots
+using [`blobinfo`](@ref); create a forest in the form of a
 disconnected network (for efficiency), by deconnecting the
 root of each non-trivial blob from its parent.
 The root of each blob corresponds to a new leaf
@@ -276,17 +276,17 @@ Warnings:
   on which most functions don't work (like `writenewick`, plotting etc.)
   because the network is disconnected (to make the forest).
   Revert back to low-level functions, e.g. `printEdges` and `printNodes`.
-- see [`biconnectedComponents`](@ref) for node
+- see [`biconnectedcomponents`](@ref) for node
   attributes modified during the algorithm.
 """
-function blobDecomposition(net)
+function blobdecomposition(net)
     net2 = deepcopy(net)
-    blobR = blobDecomposition!(net2)
+    blobR = blobdecomposition!(net2)
     return net2, blobR
 end
-function blobDecomposition!(net)
+function blobdecomposition!(net)
     nextnumber = maximum([n.number for n in net.node])+1
-    blobR, tmp, tmp = blobInfo(net, true) # true: ignore trivial single-edge blobs
+    blobR, tmp, tmp = blobinfo(net, true) # true: ignore trivial single-edge blobs
     for r in blobR
         for e in r.edge
             r == e.node[e.ischild1 ? 1 : 2] || continue
@@ -319,7 +319,7 @@ Exception: if the network has a single leaf, the output `lsa` is the
 leaf's parent node, to maintain one external edge between the root and the leaf.
 
 *Warning*:
-uses [`biconnectedComponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
+uses [`biconnectedcomponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
 therefore share the same caveats regarding the use of
 fields `.inte1` and `.intn1` (for edges and nodes), `.intn2` (for nodes) etc.
 As a positivie side effect, the biconnected components can be recovered
@@ -333,7 +333,7 @@ function leaststableancestor(net, preorder::Bool=true)
         directEdges!(net)
         preorder!(net)
     end
-    bcc = biconnectedComponents(net, false)
+    bcc = biconnectedcomponents(net, false)
     entry = biconnectedcomponent_entrynodes(net, bcc, false)
     entryindex = indexin(entry, net.vec_node)
     exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)

@@ -107,7 +107,7 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
         push!(taxonnums, net.leaf[index].number) # note: not ordered as in taxonnames
     end
     # get interior ancestor edges in major tree (no hybrids)
-    matrix = hardwiredClusters(majorTree(net), vcat(taxonnames, outsideclade))
+    matrix = hardwiredclusters(majorTree(net), vcat(taxonnames, outsideclade))
     # look for row with ones in relevant columns, zeros everywhere else (or zeros there and ones everywhere else)
     edgenum = 0 # 0 until we find the stem edge
     comparator = zeros(Int8, size(matrix)[2]-2)
@@ -130,7 +130,7 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
         error("The taxa given do not form a clade in the network")
     end
     edgei = findfirst(e -> e.number == edgenum, net.edge)
-    edgei !== nothing || error("hmm. hardwiredClusters on the major tree got an edge number not in the network")
+    edgei !== nothing || error("hmm. hardwiredclusters on the major tree got an edge number not in the network")
     stemedge = net.edge[edgei]
     mrcanode = getchild(stemedge)
     TopologyConstraint(type, taxonnames, taxonnums, stemedge, mrcanode)

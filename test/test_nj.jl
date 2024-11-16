@@ -3,7 +3,7 @@
     tree = nj(D)
     # read results from ape implementation of nj
     apetree = readnewick(joinpath(@__DIR__, "..", "examples", "caudata_dist_nj.txt"))
-    @test hardwiredClusterDistance(tree, apetree, false) == 0
+    @test hardwiredclusterdistance(tree, apetree, false) == 0
     # also check branch lengths (more or less)
     @test sort!([e.length for e in tree.edge]) ≈ sort!([e.length for e in apetree.edge])
 

@@ -267,7 +267,7 @@ function hybridclades_support(
     reftre = majorTree(refnet, unroot=true)
     skipone = (!rooted && length(reftre.node[reftre.rooti].edge)<3) # not count same bipartition twice
     for pe in reftre.edge
-        hwc = hardwiredCluster(pe,taxa) # not very efficient, but human readable
+        hwc = hardwiredcluster(pe,taxa) # not very efficient, but human readable
         if skipone && refnet.node[refnet.rooti] ≡ getparent(pe) && sum(hwc)>1
             skipone = false             # wrong algo for trivial 2-taxon rooted tree (A,B);
             println("skip edge $(pe.number)")
@@ -301,7 +301,7 @@ function hybridclades_support(
           hwc = zeros(Bool,ntax) # new binding each time. pushed to clade below.
           for ce in pn.edge    # important if polytomy
             if ce ≢ he && pn ≡ getparent(ce)
-                hw = hardwiredCluster(ce,taxa)
+                hw = hardwiredcluster(ce,taxa)
                 if atroot && any(hw .& clade[ic]) # sister clade intersects child clade
                     (hw .& clade[ic]) == clade[ic] ||
                         @warn "weird clusters at the root in reference, hybrid node $(hn.number)"
@@ -327,7 +327,7 @@ function hybridclades_support(
             # pe == nothing if minor hybrid is at root and rooted=true. Will just miss edge and node number
             # for that clade, but in that case, the minor sister might have been assigned that edge anyway...
             if pe != nothing
-              hwc = hardwiredCluster(pe,taxa)
+              hwc = hardwiredcluster(pe,taxa)
               i = findfirst(isequal(hwc), clade) # i>0: (hybrid + minor sister) can be in main tree if
               # hybrid origin is ancestral, i.e. hybrid clade is nested within minor sister.
               if i===nothing
@@ -394,7 +394,7 @@ function hybridclades_support(
             hemaj, hemin, ce = hybridEdges(hn) # assumes no polytomy at hybrid node
             (hemin.hybrid && !hemin.ismajor) || error("edge should be hybrid and minor")
             (hemaj.hybrid &&  hemaj.ismajor) || error("edge should be hybrid and major")
-            hardwiredCluster!(hwcChi,hemin,taxa)
+            hardwiredcluster!(hwcChi,hemin,taxa)
             for sis in ["min","maj"]
                 he = (sis=="min" ? hemin : hemaj)
                 pn = getparent(he) # parent of hybrid edge
@@ -404,7 +404,7 @@ function hybridclades_support(
                 # if (atroot) @show i; @warn "$(sis)or edge is at the root!"; end
                 for ce in pn.edge
                   if ce ≢ he && pn ≡ getparent(ce)
-                    hwc = hardwiredCluster(ce,taxa)
+                    hwc = hardwiredcluster(ce,taxa)
                     if !atroot || sum(hwc .& hwcChi) == 0 # empty intersection
                       if (sis=="maj") hwcSib .|= hwc;
                       else            hwcPar .|= hwc; end

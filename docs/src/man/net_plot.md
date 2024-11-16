@@ -88,7 +88,7 @@ Robinson-Foulds distance on trees.
 See [Comparing and manipulating networks](@ref) for more on this dissimilarity.
 
 ```@repl snaqplot
-hardwiredClusterDistance(net2, net3, false) # rooted=false: to consider net2 and net3 as semidirected
+hardwiredclusterdistance(net2, net3, false) # rooted=false: to consider net2 and net3 as semidirected
 ```
 
 Indeed, these networks have the same semidirected topology.

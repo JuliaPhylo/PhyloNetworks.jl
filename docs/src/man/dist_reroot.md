@@ -31,7 +31,7 @@ using a function that extends the Robinson-Foulds distance to general networks
 (more on this below).
 
 ```@repl dist_reroot
-hardwiredClusterDistance(astraltree, net0, false)
+hardwiredclusterdistance(astraltree, net0, false)
 ```
 The last option `false` is to consider topologies as unrooted.
 The RF distance is 0, so the two unrooted topologies are the same.
@@ -39,7 +39,7 @@ If we had considered them as rooted, with whatever root they
 currently have in their internal representation,
 we would find a difference:
 ```@repl dist_reroot
-hardwiredClusterDistance(astraltree, net0, true)
+hardwiredclusterdistance(astraltree, net0, true)
 ```
 
 ## Re-rooting trees and networks
@@ -50,7 +50,7 @@ as rooted topologies (and find no difference):
 ```@repl dist_reroot
 rootatnode!(astraltree, "O")
 rootatnode!(net0, "O")
-hardwiredClusterDistance(astraltree, net0, true)
+hardwiredclusterdistance(astraltree, net0, true)
 ```
 ```@example dist_reroot
 using PhyloPlots, RCall
@@ -169,7 +169,7 @@ Its placement might be correct, but then its direction would be incorrect.
 We can also compare the networks estimated with h=0 (`net0`) and h=1 (`net1`):
 ```@repl dist_reroot
 rootatnode!(net1, "O"); # the ; suppresses screen output
-hardwiredClusterDistance(net0, net1, true)
+hardwiredclusterdistance(net0, net1, true)
 ```
 ```@example dist_reroot
 R"svg(name('net1_O.svg'), width=4, height=4)" # hide
@@ -189,7 +189,7 @@ that is, delete the hybrid edge supported by less than 50% of genes.
 Then we can compare this tree with the ASTRAL/SNaQ tree `net0`.
 ```@repl dist_reroot
 tree1 = majorTree(net1); # major tree from net1
-hardwiredClusterDistance(net0, tree1, true)
+hardwiredclusterdistance(net0, tree1, true)
 ```
 They are identical (at distance 0), so here the species network
 with 1 hybrid node is a refinement of the estimated species tree
@@ -244,7 +244,7 @@ We can compare two networks using the hardwired-cluster dissimilarity.
     ([Cardona et al. 2014](https://doi.org/10.1155/2014/254279)).
 
 ```@repl dist_reroot
-hardwiredClusterDistance(net1, truenet, true) # true: yes consider these networks as rooted
+hardwiredclusterdistance(net1, truenet, true) # true: yes consider these networks as rooted
 ```
 Our estimated network is at distance 4 (not 0), so it is *different* from the
 true network (there was estimation error). From the plots, we see that:

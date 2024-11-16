@@ -94,7 +94,7 @@ PN.deletehybridedge!(net0, net0.edge[2], false, false, false, true, false)
 
 end # of testing deletehybridedge!
 
-@testset "testing deleteleaf! and hardwiredClusterDistance" begin
+@testset "testing deleteleaf! and hardwiredclusterdistance" begin
 
 cui2str = "(Xgordoni,Xmeyeri,(Xcouchianus,(Xvariatus,(Xevelynae,((Xxiphidium,#H25:9.992::0.167):1.383,(Xmilleri,(Xandersi,(Xmaculatus,((((Xhellerii,(Xalvarezi,Xmayae):0.327):0.259,Xsignum):1.866,(Xclemenciae_F2,Xmonticolus):1.461):0.786,((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.807):0.372,((Xbirchmanni_GARC,Xmalinche_CHIC2):1.003,Xcortezi):0.454):0.63,((Xcontinens,Xpygmaeus):1.927,((Xnigrensis,Xmultilineatus):1.304,#H26:0.0::0.193):0.059):2.492):2.034)#H25:0.707::0.833):1.029):0.654):0.469):0.295):0.41):0.646):3.509):0.263);"
 cui3str = "(Xmayae,((Xhellerii,(((Xclemenciae_F2,Xmonticolus):1.458,(((((Xmontezumae,(Xnezahuacoyotl)#H26:0.247::0.804):0.375,((Xbirchmanni_GARC,Xmalinche_CHIC2):0.997,Xcortezi):0.455):0.63,(#H26:0.0::0.196,((Xcontinens,Xpygmaeus):1.932,(Xnigrensis,Xmultilineatus):1.401):0.042):2.439):2.0)#H7:0.787::0.835,(Xmaculatus,(Xandersi,(Xmilleri,((Xxiphidium,#H7:9.563::0.165):1.409,(Xevelynae,(Xvariatus,(Xcouchianus,(Xgordoni,Xmeyeri):0.263):3.532):0.642):0.411):0.295):0.468):0.654):1.022):0.788):1.917)#H27:0.149::0.572):0.668,Xalvarezi):0.257,(Xsignum,#H27:1.381::0.428):4.669);"
@@ -107,19 +107,19 @@ tree2 = majorTree(net2);        tree3 = majorTree(net3);
 rootatnode!(tree2,"Xmayae");    rootatnode!(tree3,"Xmayae");
 deleteleaf!(tree2,"Xhellerii"); deleteleaf!(tree3,"Xhellerii");
 deleteleaf!(tree2,"Xsignum");   deleteleaf!(tree3,"Xsignum");
-hardwiredClusterDistance(tree2, tree3, false) == 0 ||
+hardwiredclusterdistance(tree2, tree3, false) == 0 ||
   error("HWDist not 0, major tree, root then prune");
 # major tree, delete 2 leaves then root with outgroup:
 tree2 = majorTree(net2);        tree3 = majorTree(net3);
 deleteleaf!(tree2,"Xhellerii"); deleteleaf!(tree3,"Xhellerii");
 deleteleaf!(tree2,"Xsignum");   deleteleaf!(tree3,"Xsignum");
-hardwiredClusterDistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
-@test hardwiredClusterDistance(tree2, tree3, true) == 21
+hardwiredclusterdistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
+@test hardwiredclusterdistance(tree2, tree3, true) == 21
 rootatnode!(tree3,"Xmaculatus");
-hardwiredClusterDistance(tree2, tree3, true) == 15 || error("rooted RF dist not 15");
+hardwiredclusterdistance(tree2, tree3, true) == 15 || error("rooted RF dist not 15");
 rootatnode!(tree2,"Xgordoni");
-hardwiredClusterDistance(tree2, tree3, true) == 16 || error("rooted RF dist not 16");
-hardwiredClusterDistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
+hardwiredclusterdistance(tree2, tree3, true) == 16 || error("rooted RF dist not 16");
+hardwiredclusterdistance(tree2, tree3, false) == 0 || error("HWD not 0, major tree - 2 taxa");
 end
 
 # network: delete 2 leaves
@@ -130,10 +130,10 @@ net2  = readnewick(cui2str);
 net3  = readnewick(cui3str);
 @test_logs deleteleaf!(net3,"Xhellerii");
 @test_logs deleteleaf!(net3,"Xsignum");
-@test hardwiredClusterDistance(net2, net3, true) == 3
+@test hardwiredclusterdistance(net2, net3, true) == 3
 @test_logs rootatnode!(net3,"Xmayae");
-@test hardwiredClusterDistance(net2, net3, true) == 4
-@test hardwiredClusterDistance(net2, net3, false) == 4
+@test hardwiredclusterdistance(net2, net3, true) == 4
+@test hardwiredclusterdistance(net2, net3, false) == 4
 @test_logs deleteleaf!(net3,"Xmayae"; unroot=true);    #plot(net3);
 @test net3.numhybrids == 2
 # using simplify=false in deleteleaf!
@@ -148,7 +148,7 @@ deleteleaf!(net3,"Xmayae", simplify=false, unroot=true);
 @test net3.numhybrids==3
 @test net3.numnodes == 46
 
-end # of testset for deleteleaf! and hardwiredClusterDistance
+end # of testset for deleteleaf! and hardwiredclusterdistance
 
 #----------------------------------------------------------#
 #   testing functions to display trees / subnetworks       #
@@ -287,9 +287,9 @@ M2 ==
 [ 4 0 1 0 0 0 1;
  12 0 0 1 1 1 0;
   8 0 0 1 1 0 0] || error("bad M2, from net5")
-hardwiredClusterDistance(tree[1], tree[2], true) == 2 || error("wrong dist between rooted trees 1 and 2");
-hardwiredClusterDistance(tree[1], tree[2], false)== 2 || error("wrong dist between unrooted trees 1 and 2");
-hardwiredClusters(net5, taxa) ==
+hardwiredclusterdistance(tree[1], tree[2], true) == 2 || error("wrong dist between rooted trees 1 and 2");
+hardwiredclusterdistance(tree[1], tree[2], false)== 2 || error("wrong dist between unrooted trees 1 and 2");
+hardwiredclusters(net5, taxa) ==
 [16 0 1 1 1 1 1 10;
   4 0 1 0 0 0 1 10;
   3 0 0 0 0 0 1 11;
@@ -298,7 +298,7 @@ hardwiredClusters(net5, taxa) ==
   8 0 0 1 1 0 0 10;
   7 0 0 0 1 0 0 11;
  11 0 0 0 1 1 0 10] || error("wrong matrix of hardwired clusters for net5");
-hardwiredClusterDistance(net5, tree[2], true) == 4 || error("wrong dist between net5 and tree 2");
+hardwiredclusterdistance(net5, tree[2], true) == 4 || error("wrong dist between net5 and tree 2");
 end
 
 ## check things with R
@@ -324,14 +324,14 @@ phy2 = readnewick("((t3:0.9152618761,t4:0.4574306419):0.7603277895,(((t1:0.42917
 phy3 = readnewick("(((t7:0.3309174306,t6:0.8330178803):0.7741786113,(((t2:0.4048132468,t8:0.6809111023):0.6810255498,(t4:0.6540613638,t5:0.2610215396):0.8490990005):0.6802781771,t3:0.2325445588):0.911911567):0.94644987,t1:0.09404937108);");
 phy10= readnewick("((t4:0.1083955287,((t1:0.8376079942,t8:0.1745392387):0.6178579947,((t6:0.3196466176,t2:0.9228881211):0.3112748025,t7:0.05162345758):0.7137957355):0.5162231021):0.06693460606,(t5:0.005652675638,t3:0.2584615161):0.7333540542);");
 
-@test hardwiredClusterDistance(phy1, phy10, false)== 8
-@test hardwiredClusterDistance(phy2, phy10, false)== 6
-@test hardwiredClusterDistance(phy3, phy10, false)==10
-@test hardwiredClusterDistance(phy1, phy2,  false)== 8
-@test hardwiredClusterDistance(phy1, phy3,  false)==10
-@test hardwiredClusterDistance(phy2, phy3,  false)==10
-@test hardwiredClusterDistance(phy1, phy10, true) ==10
-@test hardwiredClusterDistance(phy2, phy10, true) == 8
+@test hardwiredclusterdistance(phy1, phy10, false)== 8
+@test hardwiredclusterdistance(phy2, phy10, false)== 6
+@test hardwiredclusterdistance(phy3, phy10, false)==10
+@test hardwiredclusterdistance(phy1, phy2,  false)== 8
+@test hardwiredclusterdistance(phy1, phy3,  false)==10
+@test hardwiredclusterdistance(phy2, phy3,  false)==10
+@test hardwiredclusterdistance(phy1, phy10, true) ==10
+@test hardwiredclusterdistance(phy2, phy10, true) == 8
 # or: wrong RF distance between some of the trees
 
 end # of testset, tree2Matrix
@@ -342,44 +342,44 @@ end # of testset, tree2Matrix
 #   used for detection of given hybridization event        #
 #----------------------------------------------------------#
 
-@testset "test displayedTrees, hardwiredClusters, hardwiredClusterDistance, displayedNetworkAt!" begin
+@testset "test displayedTrees, hardwiredclusters, hardwiredclusterdistance, displayedNetworkAt!" begin
 
 estnet = readnewick("(6,((5,#H7:0.0::0.402):8.735,((1,2):6.107,((3,4):1.069)#H7:9.509::0.598):6.029):0.752);")
 # originally from "../msSNaQ/simulations/estimatedNetworks/baseline/nloci10/1_julia.out"
 trunet = readnewick("((((1,2),((3,4))#H1),(#H1,5)),6);");
-@test hardwiredClusterDistance(majorTree(trunet), majorTree(estnet),false) == 0 # false: unrooted
+@test hardwiredclusterdistance(majorTree(trunet), majorTree(estnet),false) == 0 # false: unrooted
 truminor = minorTreeAt(trunet, 1); # (1:1.0,2:1.0,((5:1.0,(3:1.0,4:1.0):2.0):1.0,6:1.0):2.0);
 estminor = minorTreeAt(estnet, 1); # (5:1.0,(3:1.0,4:1.0):1.069,(6:1.0,(1:1.0,2:1.0):10.0):8.735);
 @test writenewick(truminor) == "(((5,(3,4)),(1,2)),6);"
 @test writenewick(estminor) == "(6,((5,(3,4):1.069):8.735,(1,2):12.136):0.752);"
-@test hardwiredClusterDistance(truminor, estminor, false) == 0 # false: unrooted
+@test hardwiredclusterdistance(truminor, estminor, false) == 0 # false: unrooted
 # so the hybrid edge was estimated correctly!!
 rootatnode!(trunet, -8)
-@test hardwiredClusterDistance(estnet, trunet, true) == 3
-# next: testing hardwiredClusterDistance_unrooted, via the option rooted=false
-@test hardwiredClusterDistance(estnet, trunet, false) == 0
+@test hardwiredclusterdistance(estnet, trunet, true) == 3
+# next: testing hardwiredclusterdistance_unrooted, via the option rooted=false
+@test hardwiredclusterdistance(estnet, trunet, false) == 0
 h0est = readnewick("(((2:0.01,1:0.01):0.033,(3:0.0154,4:0.0149):0.0186):0.0113,6:0.0742,5:0.0465);")
 truenet = readnewick("((((1,2),((3,4))#H1),(#H1,5)),6);")
 h1est = readnewick("(5:0.0,6:0.0,(((2:0.0)#H1:0.0::0.95,1:0.0):0.0,((4:0.0,3:0.0):0.0,#H1:0.0::0.05):0.0):0.0);")
-@test hardwiredClusterDistance(h0est, truenet, false) == 2
-@test hardwiredClusterDistance(truenet, h0est, false) == 2
-@test hardwiredClusterDistance(h1est, truenet, false) == 4
-@test hardwiredClusterDistance(truenet, h1est, false) == 4
+@test hardwiredclusterdistance(h0est, truenet, false) == 2
+@test hardwiredclusterdistance(truenet, h0est, false) == 2
+@test hardwiredclusterdistance(h1est, truenet, false) == 4
+@test hardwiredclusterdistance(truenet, h1est, false) == 4
 
 net5 = readnewick("(A,((B,#H1:::0.2),(((C,(E)#H2:::0.7),(#H2:::0.3,F)),(D)#H1:::0.8)));");
 tree = displayedTrees(net5, 0.0);
 taxa = PhyloNetworks.tipLabels(net5);
-@test hardwiredClusters(tree[1], taxa) ==
+@test hardwiredclusters(tree[1], taxa) ==
 [16 0 1 1 1 1 1 10;
  15 0 0 1 1 1 1 10;
  12 0 0 1 1 1 0 10;
   8 0 0 1 1 0 0 10]
-@test hardwiredClusters(tree[2], taxa) ==
+@test hardwiredclusters(tree[2], taxa) ==
 [16 0 1 1 1 1 1 10;
   4 0 1 0 0 0 1 10;
  12 0 0 1 1 1 0 10;
   8 0 0 1 1 0 0 10]
-@test hardwiredClusters(net5, taxa) ==
+@test hardwiredclusters(net5, taxa) ==
 [16 0 1 1 1 1 1 10;
   4 0 1 0 0 0 1 10;
   3 0 0 0 0 0 1 11;
@@ -392,28 +392,28 @@ taxa = PhyloNetworks.tipLabels(net5);
 if doalltests
 trunet = readnewick("(((1,2),((3,4))#H1),(#H1,5),6);"); # unrooted
 taxa = PhyloNetworks.tipLabels(trunet);
-hardwiredClusters(trunet, taxa) ==
+hardwiredclusters(trunet, taxa) ==
 [8 1 1 1 1 0 0 10
  3 1 1 0 0 0 0 10
  7 0 0 1 1 0 0 11
  6 0 0 1 1 0 0 10
 11 0 0 1 1 1 0 10] || error("wrong hardwired cluster matrix for unrooted trunet");
 trunet = readnewick("((((1,2),((3,4))#H1),(#H1,5)),6);"); # rooted: good!
-hardwiredClusters(trunet, taxa) ==
+hardwiredclusters(trunet, taxa) ==
 [12 1 1 1 1 1 0 10;
   8 1 1 1 1 0 0 10;
   3 1 1 0 0 0 0 10;
   7 0 0 1 1 0 0 11;
   6 0 0 1 1 0 0 10;
  11 0 0 1 1 1 0 10] || error("wrong hardwired cluster matrix for trunet");
-hardwiredClusters(estnet, taxa) ==
+hardwiredclusters(estnet, taxa) ==
 [13 1 1 1 1 1 0 10
   4 0 0 1 1 1 0 10
   3 0 0 1 1 0 0 11
  10 0 0 1 1 0 0 10
  12 1 1 1 1 0 0 10
   7 1 1 0 0 0 0 10] || error("wrong hardwired cluster matrix for estnet")
-hardwiredClusterDistance(trunet,estnet,true) == 0 ||
+hardwiredclusterdistance(trunet,estnet,true) == 0 ||
  error("trunet and estnet should be found to be at HWDist 0");
 
 net51 = readnewick("(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,(E:0.5)#H2:0.02::0.7):0.6,(#H2:0.01::0.3,F:0.7):0.8):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7):0.1;")
@@ -428,27 +428,27 @@ displayedNetworkAt!(net52, net52.hybrid[2])
 writenewick(net52) == "(A:1.0,((B:1.1,#H1:0.2::0.2):1.2,(((C:0.52,E:0.52):0.6,F:1.5):0.9,(D:0.8)#H1:0.3::0.8):1.3):0.7);" ||
   error("wrong net52 after displayedNetworkAt!");
 taxa = PhyloNetworks.tipLabels(net52); # order: A B C E F D
-hardwiredClusters(net51, taxa) ==
+hardwiredclusters(net51, taxa) ==
 [16 0 1 1 1 1 1 10;
  15 0 0 1 1 1 1 10;
  12 0 0 1 1 1 0 10;
   8 0 0 1 1 0 0 10;
   7 0 0 0 1 0 0 11;
  11 0 0 0 1 1 0 10] || error("wrong hardwired clusters for net51");
-hardwiredClusters(net52, taxa) ==
+hardwiredclusters(net52, taxa) ==
 [16 0 1 1 1 1 1 10;
   4 0 1 0 0 0 1 10;
   3 0 0 0 0 0 1 11;
  15 0 0 1 1 1 1 10;
  12 0 0 1 1 1 0 10;
   8 0 0 1 1 0 0 10] || error("wrong hardwired clusters for net52");
-hardwiredClusterDistance(net51,net52,true) == 4 ||
+hardwiredclusterdistance(net51,net52,true) == 4 ||
  error("wrong HWDist between net51 and net52");
 end
 
-end # of testset: displayedTrees, hardwiredClusters, hardwiredClusterDistance, displayedNetworkAt!
+end # of testset: displayedTrees, hardwiredclusters, hardwiredclusterdistance, displayedNetworkAt!
 
-@testset "testing hardwiredCluster! on single nodes" begin
+@testset "testing hardwiredcluster! on single nodes" begin
 
 net5 = "(A,((B,#H1),(((C,(E)#H2),(#H2,F)),(D)#H1)));" |> readnewick |> directEdges! ;
 taxa = net5 |> tipLabels # ABC EF D
@@ -469,8 +469,8 @@ m = hcat([true,false,false,false,false,false],
 [false,false,true,true,true,true],
 [false,true,true,true,true,true])
 for i = 1:16
-  @test hardwiredCluster(net5.edge[i], taxa) == m[:,i]
+  @test hardwiredcluster(net5.edge[i], taxa) == m[:,i]
 end
-end # of testset, hardwiredCluster! on single nodes
+end # of testset, hardwiredcluster! on single nodes
 
 end

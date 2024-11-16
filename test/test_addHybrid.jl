@@ -26,7 +26,7 @@ newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
 @test netl1.numhybrids == 3
 PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getparentedgeminor(newhybridnode))
-@test hardwiredClusterDistance(netl1, readnewick(str_level1), true) == 0
+@test hardwiredclusterdistance(netl1, readnewick(str_level1), true) == 0
 end # of addhybridedge! top function
 
 @testset "addhybridedge! helper function" begin

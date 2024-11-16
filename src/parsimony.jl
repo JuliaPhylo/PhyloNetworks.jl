@@ -287,7 +287,7 @@ function parsimonySoftwired(net::HybridNetwork, species::Array{String},
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
     checkGap = eltype(sequenceData) == BioSequences.BioSequence
     sequenceType = eltype(sequenceData[1])
-    blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets ischild1
+    blobroots, majorEdges, minorEdges = blobinfo(net) # calls directEdges!: sets ischild1
 
     score = 0.0
     #allscores = Float64[]
@@ -675,7 +675,7 @@ function parsimonyGF(
     tips = Dict{String, typeof(sequenceData[1][1])}() # to re-use memory later (?)
     checkGap = eltype(sequenceData) == BioSequences.BioSequence
     sequenceType = eltype(sequenceData[1])
-    blobroots, majorEdges, minorEdges = blobInfo(net) # calls directEdges!: sets ischild1
+    blobroots, majorEdges, minorEdges = blobinfo(net) # calls directEdges!: sets ischild1
     # fixit: use trivial biconnected components, and compare running time
         # pick 1 parent node (the minor parent arbitrarily) for each hybrid, then
     # "cut" both children edges of that parent: mark its `boole2` = false
