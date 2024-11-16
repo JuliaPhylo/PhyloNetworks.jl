@@ -16,11 +16,11 @@ net2distances = pairwisetaxondistancematrix(net2)
  0.3   0.0   2.703 2.9
  2.603 2.703 0.0   1.663
  2.8   2.9   1.663 0.0]
-g = PhyloNetworks.pairwiseTaxonDistanceGrad(net2);
+g = PhyloNetworks.pairwisetaxondistance_gradient(net2);
 @test size(g) == (9,9,9)
 na = getnodeages(net2);
 @test na ≈ [1.7,0.11,0.0,1.6,0.1,0.0,0.1,0.0,0.0]
-g = PhyloNetworks.pairwiseTaxonDistanceGrad(net2, nodeAges=na);
+g = PhyloNetworks.pairwisetaxondistance_gradient(net2, nodeAges=na);
 @test size(g) == (9,9,9)
 @test g[:,:,1] ≈ [0 1 1 1 1 1 1 1 1;1 0 0 2 1.4 1.4 2 2 2; 1 0 0 2 1.4 1.4 2 2 2
  1 2 2 0 .6 .6 0 0 0; 1 1.4 1.4 .6 0 0 .6 .6 .6; 1 1.4 1.4 .6 0 0 .6 .6 .6
@@ -81,7 +81,7 @@ na = getnodeages(net);
 @test na ≈ [6.,1,4,0,0,5,0,4,0,3,2,0,1,0,0]
 pairwisetaxondistancematrix(net, nodeAges=na); # update edge lengths in net
 @test [e.length for e in net.edge] ≈ [1.,1,1,2,1,1,4,1,5,1,1,1,4,-3,5]
-g = PhyloNetworks.pairwiseTaxonDistanceGrad(net, nodeAges=na);
+g = PhyloNetworks.pairwisetaxondistance_gradient(net, nodeAges=na);
 net.edge[11].length = 4.; # to respect constraints
 net.edge[14].length = 0.;
 net.edge[15].length = 2.;

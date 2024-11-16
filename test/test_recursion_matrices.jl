@@ -69,7 +69,7 @@ tree_str= "(A:0.5,((B:1,#H1:1::0.4):1,(C:1,(D:1)#H1:1::0.6):1):0.5);"
 net = readnewick(tree_str)
 preorder!(net)
 
-T = descendenceMatrix(net)
+T = descendencematrix(net)
 
 T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
        1.0  1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0

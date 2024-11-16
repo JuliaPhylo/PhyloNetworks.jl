@@ -379,7 +379,7 @@ net_level1_i, c_species = PhyloNetworks.mapindividuals(net_level1_s, filename)
 @test writenewick(net_level1_i) == "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 # updateconstraints!
-PhyloNetworks.resetNodeNumbers!(net_level1_i)
+PhyloNetworks.resetnodenumbers!(net_level1_i)
 net_level1_i.node[22].number = 100 # S1C
 PhyloNetworks.updateconstraints!(c_species, net_level1_i)
 @test c_species[1].taxonnums == Set([8,9,100])

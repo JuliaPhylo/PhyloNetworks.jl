@@ -117,7 +117,7 @@ end
 
 Generic tool to apply a post-order (or reverse topological ordering) algorithm,
 acting on a matrix where rows & columns correspond to nodes.
-Used by [`descendenceMatrix`](@ref).
+Used by [`descendencematrix`](@ref).
 
 output: matrix `output_array`.
 

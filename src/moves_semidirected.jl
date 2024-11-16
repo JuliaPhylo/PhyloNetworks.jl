@@ -178,7 +178,7 @@ end
 Update the set `taxonnum` in each constraint, assuming that the stem edge and
 the crown node are still correct, and that their descendants are still correct.
 May be needed if the node and edge numbers were modified by
-[`resetNodeNumbers!`](@ref) or [`resetEdgeNumbers!`](@ref).
+[`resetnodenumbers!`](@ref) or [`resetedgenumbers!`](@ref).
 
 Warning: does *not* check that the names of leaves with numbers in `taxonnum`
 are `taxonnames`.
@@ -202,7 +202,7 @@ Clade constraint, on tips: 1a, 1b, 1c, 4, 5
  stem edge number 12
  crown node number -7
 
-julia> PhyloNetworks.resetNodeNumbers!(net)
+julia> PhyloNetworks.resetnodenumbers!(net)
 
 julia> net.node[4].number = 111;
 

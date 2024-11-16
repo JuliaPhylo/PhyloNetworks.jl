@@ -110,7 +110,7 @@ module PhyloNetworks
         calibratefrompairwisedistances!,
         # recursion
         sharedpathmatrix,
-        descendenceMatrix,
+        descendencematrix,
         vcv,
         ## parsimony
         parsimonysoftwired,

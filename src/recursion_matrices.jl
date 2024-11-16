@@ -277,7 +277,7 @@ function updatehybrid_sharedpathmatrix!(
 end
 
 """
-    descendenceMatrix(net::HybridNetwork; checkpreorder::Bool=true)
+    descendencematrix(net::HybridNetwork; checkpreorder::Bool=true)
 
 Descendence matrix between all the nodes of a network:
 object `D` of type [`MatrixTopologicalOrder`](@ref) in which
@@ -287,7 +287,7 @@ an ancestor of `i`).
 The network is assumed to be pre-ordered if `checkpreorder` is false.
 If `checkpreorder` is true (default), `preorder!` is run on the network beforehand.
 """
-function descendenceMatrix(net::HybridNetwork; checkpreorder::Bool=true)
+function descendencematrix(net::HybridNetwork; checkpreorder::Bool=true)
     checkpreorder && preorder!(net)
     V = traversal_postorder(
         net.vec_node,

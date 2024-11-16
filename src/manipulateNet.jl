@@ -1019,7 +1019,7 @@ function deleteaboveLSA!(net::HybridNetwork, preorder::Bool=true)
 end
 
 """
-    resetNodeNumbers!(net::HybridNetwork; checkPreorder=true, type=:ape)
+    resetnodenumbers!(net::HybridNetwork; checkPreorder=true, type=:ape)
 
 Change internal node numbers of `net` to consecutive numbers from 1 to the total
 number of nodes.
@@ -1042,7 +1042,7 @@ keyword arguments:
 ```jldoctest
 julia> net = readnewick("(A,(B,(C,D)));");
 
-julia> PhyloNetworks.resetNodeNumbers!(net)
+julia> PhyloNetworks.resetnodenumbers!(net)
 
 julia> printNodes(net) # first column "node": root is 5
 node leaf  hybrid name i_cycle edges'numbers
@@ -1056,7 +1056,7 @@ node leaf  hybrid name i_cycle edges'numbers
 
 julia> net = readnewick("(A,(B,(C,D)));");
 
-julia> PhyloNetworks.resetNodeNumbers!(net; type=:postorder)
+julia> PhyloNetworks.resetnodenumbers!(net; type=:postorder)
 
 julia> printNodes(net) # first column "node": root is 7
 node leaf  hybrid name i_cycle edges'numbers
@@ -1069,7 +1069,7 @@ node leaf  hybrid name i_cycle edges'numbers
 7    false false       -1      1    6   
 ```
 """
-function resetNodeNumbers!(
+function resetnodenumbers!(
     net::HybridNetwork;
     checkPreorder::Bool=true,
     type::Symbol=:ape
@@ -1105,12 +1105,12 @@ function resetNodeNumbers!(
 end
 
 """
-    resetEdgeNumbers!(net::HybridNetwork, verbose=true)
+    resetedgenumbers!(net::HybridNetwork, verbose=true)
 
 Check that edge numbers of `net` are consecutive numbers from 1 to the total
 number of edges. If not, reset the edge numbers to be so.
 """
-function resetEdgeNumbers!(net::HybridNetwork, verbose::Bool=true)
+function resetedgenumbers!(net::HybridNetwork, verbose::Bool=true)
     enum = [e.number for e in net.edge]
     ne = length(enum)
     unused = setdiff(1:ne, enum)

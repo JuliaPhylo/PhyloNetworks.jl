@@ -18,7 +18,7 @@ end
 net = readnewick("(A,(B,(C,D)));")
 tips = Dict("A" => 0, "B" => 0, "C" => 1, "D" => 1)
 redirect_stdout(devnull) # requires julia v1.6
-score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
+score, states = PhyloNetworks.parsimonyfitch(net, tips)
 redirect_stdout(originalstdout)
 @test score==1
 @test states==Dict(4=>Set([1]),-4=>Set([1]),-3=>Set([0]),
@@ -27,7 +27,7 @@ redirect_stdout(originalstdout)
 # on a network:
 net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 redirect_stdout(devnull)
-score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
+score, states = PhyloNetworks.parsimonyfitch(net, tips)
 redirect_stdout(originalstdout)
 @test score==1
 @test states==Dict(4=>Set([1]),-4=>Set([0]),-3=>Set([1]),
@@ -35,7 +35,7 @@ redirect_stdout(originalstdout)
 
 tips = Dict("A" => 0, "B" => 1, "C" => 0, "D" => 1)
 redirect_stdout(devnull)
-score, states = PhyloNetworks.parsimonyDiscreteFitch(net, tips)
+score, states = PhyloNetworks.parsimonyfitch(net, tips)
 redirect_stdout(originalstdout)
 @test score==2
 @test states==Dict(4=>Set([0]),-6=>Set([0]),-4=>Set([0]),
@@ -44,7 +44,7 @@ redirect_stdout(originalstdout)
 # from a data frame and with missing data:
 dat = DataFrame(taxon=["A","E","B","C","D"], trait=[missing,2,0,1,1])
 redirect_stdout(devnull)
-score, states = PhyloNetworks.parsimonyDiscreteFitch(net, dat)
+score, states = PhyloNetworks.parsimonyfitch(net, dat)
 redirect_stdout(originalstdout)
 @test score==1
 @test states==Dict(4=>Set([1]),-6=>Set([1]),-4=>Set([0]),

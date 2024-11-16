@@ -24,6 +24,7 @@
 @deprecate majorTree      majortree
 @deprecate pairwiseTaxonDistanceMatrix pairwisetaxondistancematrix!
 @deprecate sharedPathMatrix sharedpathmatrix
+@deprecate descendenceMatrix descendencematrix
 @deprecate getNodeAges getnodeages
 @deprecate calibrateFromPairwiseDistances! calibratefrompairwisedistances!
 @deprecate parsimonySoftwired parsimonysoftwired

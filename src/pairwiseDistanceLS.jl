@@ -159,7 +159,7 @@ function updateHybridPairwiseTaxonDistanceMatrix!(
 end
 
 """
-    pairwiseTaxonDistanceGrad(net; checkEdgeNumber=true, nodeAges=[])
+    pairwisetaxondistance_gradient(net; checkEdgeNumber=true, nodeAges=[])
 
 3-dim array: gradient of pairwise distances between all nodes.
 (internal and leaves); gradient with respect to edge lengths
@@ -170,7 +170,7 @@ not on branch lengths or node ages (distances are linear in either).
 
 WARNING: edge numbers need to range between 1 and #edges.
 """
-function pairwiseTaxonDistanceGrad(
+function pairwisetaxondistance_gradient(
     net::HybridNetwork;
     checkEdgeNumber::Bool=true,
     nodeAges::Vector{Float64}=Float64[]
@@ -342,7 +342,7 @@ function calibratefrompairwisedistances!(
             net.edge[i].number = i
         end
     end # G assumes edges numbered 1:#edges, if optim edge lengths
-    G = pairwiseTaxonDistanceGrad(net, checkEdgeNumber=false, nodeAges=na) .* 2
+    G = pairwisetaxondistance_gradient(net, checkEdgeNumber=false, nodeAges=na) .* 2
     # match order of leaves in input matrix, versus pre-order
     nodenames = [n.name for n in net.vec_node] # pre-ordered
     ntax = length(taxNames)

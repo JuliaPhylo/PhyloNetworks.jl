@@ -1,6 +1,6 @@
 
 """
-    parsimonyBottomUpFitch!(node, states, score)
+    parsimonyfitch_bottomup!(node, states, score)
 
 Bottom-up phase (from tips to root) of the Fitch algorithm:
 assign sets of character states to internal nodes based on
@@ -9,14 +9,14 @@ Assumes a *tree* (no reticulation) and correct ischild1 attribute.
 
 output: dictionary with state sets and most parsimonious score
 """
-function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int,Set{T}}, parsimonyscore::Array{Int,1}) where {T}
+function parsimonyfitch_bottomup!(node::Node, possibleStates::Dict{Int,Set{T}}, parsimonyscore::Array{Int,1}) where {T}
     node.leaf && return # change nothing if leaf
     childrenStates = Set{T}[] # state sets for the 2 (or more) children
     for e in node.edge
         if e.node[e.ischild1 ? 1 : 2] == node continue; end
         # excluded parent edges only: assuming tree here
         child = getOtherNode(e, node)
-        parsimonyBottomUpFitch!(child, possibleStates, parsimonyscore)
+        parsimonyfitch_bottomup!(child, possibleStates, parsimonyscore)
         if haskey(possibleStates, child.number) # false if missing data
             push!(childrenStates, possibleStates[child.number])
         end
@@ -40,7 +40,7 @@ function parsimonyBottomUpFitch!(node::Node, possibleStates::Dict{Int,Set{T}}, p
 end
 
 """
-    parsimonyTopDownFitch!(node, states)
+    parsimonyfitch_topdown!(node, states)
 
 Top-down phase (root to tips) of the Fitch algorithm:
 constrains character states at internal nodes based on
@@ -48,7 +48,7 @@ the state of the root. Assumes a *tree*: no reticulation.
 
 output: dictionary with state sets
 """
-function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int,Set{T}}) where {T}
+function parsimonyfitch_topdown!(node::Node, possibleStates::Dict{Int,Set{T}}) where {T}
     for e in node.edge
         child = e.node[e.ischild1 ? 1 : 2]
         if child == node continue; end # exclude parent edges
@@ -57,17 +57,17 @@ function parsimonyTopDownFitch!(node::Node, possibleStates::Dict{Int,Set{T}}) wh
         if !isempty(commonState)
             possibleStates[child.number] = Set(commonState) # restrain states to those with cost 0
         end
-        parsimonyTopDownFitch!(child, possibleStates)
+        parsimonyfitch_topdown!(child, possibleStates)
     end
     return possibleStates # updated dictionary of sets of character states
 end
 
 """
-    parsimonySummaryFitch(tree, nodestates)
+    parsimonyfitch_summary(tree, nodestates)
 
 summarize character states at nodes, assuming a *tree*
 """
-function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int,Set{T}}) where {T}
+function parsimonyfitch_summary(tree::HybridNetwork, nodestates::Dict{Int,Set{T}}) where {T}
     println("node number => character states on tree ",
             writenewick(tree,di=true,round=true,digits=1))
     for n in tree.node
@@ -80,7 +80,7 @@ function parsimonySummaryFitch(tree::HybridNetwork, nodestates::Dict{Int,Set{T}}
 end
 
 """
-    parsimonyDiscreteFitch(net, tipdata)
+    parsimonyfitch(net, tipdata)
 
 Calculate the most parsimonious (MP) score of a network given
 a discrete character at the tips.
@@ -95,7 +95,7 @@ also return the union of all optimized character states
 at each internal node as obtained by Fitch algorithm,
 where the union is taken over displayed trees with the MP score.
 """
-function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where {T}
+function parsimonyfitch(net::HybridNetwork, tips::Dict{String,T}) where {T}
     # T = type of characters. Typically Int if data are binary 0-1
     # initialize dictionary: node number -> admissible character states
     possibleStates = Dict{Int,Set{T}}()
@@ -107,14 +107,14 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     charset = union(possibleStates) # fixit
     # assign this set to all tips with no data
 
-    directedges!(net) # parsimonyBottomUpFitch! uses ischild1 attributes
+    directedges!(net) # parsimonyfitch_bottomup! uses ischild1 attributes
     trees = displayedtrees(net, 0.0) # all displayed trees
     mpscore = Int[] # one score for each tree
     statesets = Dict{Int,Set{T}}[] # one state set dict per tree
     for tree in trees
         statedict = deepcopy(possibleStates)
         parsimonyscore = [0] # initialization, mutable
-        parsimonyBottomUpFitch!(tree.node[tree.rooti], statedict, parsimonyscore)
+        parsimonyfitch_bottomup!(tree.node[tree.rooti], statedict, parsimonyscore)
         push!(mpscore, parsimonyscore[1])
         push!(statesets, statedict)
     end
@@ -123,8 +123,8 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     statedictUnion = statesets[mpt[1]] # later: union over all MP trees
     # println("parsimony score: ", mps)
     for i in mpt # top down calculation for best trees only
-        parsimonyTopDownFitch!(trees[i].node[trees[i].rooti], statesets[i])
-        parsimonySummaryFitch(trees[i], statesets[i])
+        parsimonyfitch_topdown!(trees[i].node[trees[i].rooti], statesets[i])
+        parsimonyfitch_summary(trees[i], statesets[i])
         if i == mpt[1] continue; end
         for n in keys(statesets[i])
           if haskey(statedictUnion, n) # degree-2 nodes absent from trees
@@ -139,7 +139,7 @@ function parsimonyDiscreteFitch(net::HybridNetwork, tips::Dict{String,T}) where 
     return mps, statedictUnion
 end
 
-function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
+function parsimonyfitch(net::HybridNetwork, dat::DataFrame)
     i = findfirst(isequal(:taxon), DataFrames.propertynames(dat))
     if i===nothing i = findfirst(isequal(:species), DataFrames.propertynames(dat)); end
     if i===nothing i=1; end # first column if no column named "taxon" or "species"
@@ -154,11 +154,11 @@ function parsimonyDiscreteFitch(net::HybridNetwork, dat::DataFrame)
         if ismissing(dat[r,j]) continue; end
         tips[dat[r,i]] = dat[r,j]
     end
-    parsimonyDiscreteFitch(net,tips)
+    parsimonyfitch(net,tips)
 end
 
 """
-    parsimonyBottomUpSoftwired!(node, blobroot, states, w, scores)
+    parsimonysoftwired_bottomup!(node, blobroot, states, w, scores)
 
 Computing the MP scores (one for each assignment of the root state)
 of a swicthing as described in Algorithm 1 in the following paper:
@@ -170,7 +170,7 @@ SIAM J. Discrete Math., 29(1):559-585.
 Assumes a *switching* (ie correct `boole2` field) and correct ischild1 field.
 The field `booln4` is used to know which nodes are at the root of a blob.
 """
-function parsimonyBottomUpSoftwired!(node::Node, blobroot::Node, nchar::Integer,
+function parsimonysoftwired_bottomup!(node::Node, blobroot::Node, nchar::Integer,
     w::AbstractArray, parsimonyscore::AbstractArray)
 
     #println("entering with node $(node.number)")
@@ -181,7 +181,7 @@ function parsimonyBottomUpSoftwired!(node::Node, blobroot::Node, nchar::Integer,
     for e in node.edge
         if (e.hybrid && e.boole2) || getchild(e) == node continue; end # boole2= edge switched off
         son = getchild(e)
-        parsimonyBottomUpSoftwired!(son, blobroot, nchar, w, parsimonyscore)
+        parsimonysoftwired_bottomup!(son, blobroot, nchar, w, parsimonyscore)
     end
     for s in 1:nchar
         for e in node.edge
@@ -270,10 +270,12 @@ function parsimonysoftwired(net::HybridNetwork, dat::DataFrame)
     parsimonysoftwired(net,tips)
 end
 
-function parsimonysoftwired(net::HybridNetwork, species::Array{String},
-    sequenceData::AbstractArray)
-
-    resetNodeNumbers!(net)
+function parsimonysoftwired(
+    net::HybridNetwork,
+    species::Array{String},
+    sequenceData::AbstractArray
+)
+    resetnodenumbers!(net)
     nsites = length(sequenceData[1])
     nspecies = length(species) # no check to see if == length(sequenceData)
     nchar = 0 # this is to allocate the needed memory for w and
@@ -307,7 +309,7 @@ function parsimonysoftwired(net::HybridNetwork, species::Array{String},
       charset = union(values(tips))
       nchari = length(charset) # possibly < nchar
       nchari > 0 || continue
-      initializeWeightsFromLeavesSoftwired!(w, net, tips, charset) # data are now in w
+      initializeweightsfromleaves_softwired!(w, net, tips, charset) # data are now in w
       fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
       # @show tips; @show w
 
@@ -328,7 +330,7 @@ function parsimonysoftwired(net::HybridNetwork, species::Array{String},
                 majorEdges[bcnumber][h].boole2 =  switching[h]
                 minorEdges[bcnumber][h].boole2 = !switching[h]
             end
-            parsimonyBottomUpSoftwired!(r, r, nchari, w, parsimonyscore) # updates parsimonyscore
+            parsimonysoftwired_bottomup!(r, r, nchari, w, parsimonyscore) # updates parsimonyscore
             for s in 1:nchari
               mpscoreSwitchings[iswitch,s] = parsimonyscore[r.number,s]
             end
@@ -350,13 +352,18 @@ function parsimonysoftwired(net::HybridNetwork, species::Array{String},
 end
 
 """
-    initializeWeightsFromLeavesSoftwired!(w, net, tips, charset)
+    initializeweightsfromleaves_softwired!(w, net, tips, charset)
 
 Modify weight in w: to Inf for w[n, s] if the "tips" data
 has a state different from s at node number n.
 Assumes that w was initialized to 0 for the leaves.
 """
-function initializeWeightsFromLeavesSoftwired!(w::AbstractArray, net::HybridNetwork, tips, charset)
+function initializeweightsfromleaves_softwired!(
+    w::AbstractArray,
+    net::HybridNetwork,
+    tips,
+    charset
+)
     fill!(w, 0.0)
     for node in net.node
         node.leaf || continue
@@ -551,7 +558,7 @@ solving the softwired criterion only.
    On computing the Maximum Parsimony score of a phylogenetic network.
    SIAM J. Discrete Math., 29(1):559-585.
 
-Use the recursive helper function [`parsimonyBottomUpGF!`](@ref).
+Use the recursive helper function [`parsimonyGF_bottomup!`](@ref).
 Use the fields `ischild1`,
 `booln4` to know which nodes are at the root of a blob, and
 `boole2` to know which edges are cut (below the minor parent of each hybrid).
@@ -577,7 +584,7 @@ function parsimonyGF(
     sequenceData::AbstractArray,
     criterion::Symbol=:softwired
 )
-    resetNodeNumbers!(net) # direct edges and checks pre-order by default
+    resetnodenumbers!(net) # direct edges and checks pre-order by default
     rootnumber = net.node[net.rooti].number
     nsites = length(sequenceData[1])
     nspecies = length(species) # no check to see if == length(sequenceData)
@@ -747,7 +754,7 @@ function parsimonyGF(
       if criterion == :softwired
         nchari = nstatesi + 1
       end
-      initializeWeightsFromLeaves!(w, net, tips, stateset, criterion) # data are now in w
+      initializeweightsfromleaves!(w, net, tips, stateset, criterion) # data are now in w
       #fill!(parsimonyscore, 0.0) # reinitialize parsimonyscore too
       # @show tips; @show w
 
@@ -768,7 +775,7 @@ function parsimonyGF(
                 end
                 w[p.number, guesses[pind]] = 0.0
             end
-            parsimonyBottomUpGF!(r, r, nchari, w, parsimonyscore, costmatrix1, costmatrix2)
+            parsimonyGF_bottomup!(r, r, nchari, w, parsimonyscore, costmatrix1, costmatrix2)
             # recursion above: updates parsimonyscore
             #@show nchari
             if firstguess
@@ -807,7 +814,7 @@ function parsimonyGF(
 end
 
 """
-    initializeWeightsFromLeaves!(w, net, tips, stateset, criterion)
+    initializeweightsfromleaves!(w, net, tips, stateset, criterion)
 
 Modify weight in w: to Inf for w[n, i] if the "tips" data
 has a state different from the lineage state of index i at node number n.
@@ -816,8 +823,13 @@ Assumes that w was initialized to 0 for the leaves.
 criterion: should be one of `:softwired`, `:parental` or `:hardwired`.
 - softwired parsimony: lineage states are in this order: ∅,{1},{2},{3},...,{nstates}
 """
-function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips, stateset,
-        criterion::Symbol)
+function initializeweightsfromleaves!(
+    w::AbstractArray,
+    net::HybridNetwork,
+    tips,
+    stateset,
+    criterion::Symbol
+)
     fill!(w, 0.0)
     if criterion == :softwired
         nchar = length(stateset) + 1
@@ -841,7 +853,7 @@ function initializeWeightsFromLeaves!(w::AbstractArray, net::HybridNetwork, tips
 end
 
 """
-    parsimonyBottomUpGF!(node, blobroot, nchar, w, scores,
+    parsimonyGF_bottomup!(node, blobroot, nchar, w, scores,
                          costmatrix1, costmatrix2)
 
 Compute the MP scores (one for each assignment of the blob root state)
@@ -875,10 +887,15 @@ Field `intn1` is assumed to store the # of detached parents (with guessed states
 
 used by [`parsimonyGF`](@ref).
 """
-function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
-    w::AbstractArray, parsimonyscore::AbstractArray,
-    costmatrix1::AbstractArray, costmatrix2::AbstractArray)
-
+function parsimonyGF_bottomup!(
+    node::Node,
+    blobroot::Node,
+    nchar::Integer,
+    w::AbstractArray,
+    parsimonyscore::AbstractArray,
+    costmatrix1::AbstractArray,
+    costmatrix2::AbstractArray
+)
     #println("entering with node $(node.number)")
     parsimonyscore[node.number,1:nchar] = w[node.number,1:nchar] # at all nodes to re-initialize between guesses
     if !node.leaf && (!node.booln4 || node == blobroot)
@@ -886,7 +903,7 @@ function parsimonyBottomUpGF!(node::Node, blobroot::Node, nchar::Integer,
     for e in node.edge # post-order traversal according to major tree: detached edges were minor.
         if !e.ismajor || getchild(e) == node continue; end # Even if we didn't visit one parent (yet),
         son = getchild(e) # that parent is a minor parent with an assigned guessed state.
-        parsimonyBottomUpGF!(son, blobroot, nchar, w, parsimonyscore, costmatrix1, costmatrix2)
+        parsimonyGF_bottomup!(son, blobroot, nchar, w, parsimonyscore, costmatrix1, costmatrix2)
     end
     # check to see if "node" has guessed value: by checking to see if all its children edges were cut
     cutparent = false

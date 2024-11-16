@@ -28,7 +28,7 @@ Assume `vec_node` was updated, to list nodes in pre-order.
 ```jldoctest
 julia> net = readnewick("(A,(B,(C,D)));");
 
-julia> PhyloNetworks.resetNodeNumbers!(net);
+julia> PhyloNetworks.resetnodenumbers!(net);
 
 julia> PhyloNetworks.majoredgematrix(net)
 6×2 Matrix{Int64}:
@@ -110,7 +110,7 @@ end
 Matrix of integers, representing the minor hybrid edges in `net`.
 edge[i,1] is the number of the parent node of the ith minor hybrid edge,
 and edge[i,2] is the number of its child node.
-Node numbers may be negative, unless they were modified by `resetNodeNumbers!`.
+Node numbers may be negative, unless they were modified by `resetnodenumbers!`.
 Assumes correct `ischild1` fields.
 
 # Examples
