@@ -163,7 +163,7 @@ and, for example, print a list of its edges:
 ```@repl install
 newickstring = "(A,((B,#H1),(C,(D)#H1)));";
 net = readnewick(newickstring);
-printEdges(net)
+printedges(net)
 ```
 
 We see that the edges do not have branch lengths,
@@ -173,7 +173,7 @@ We can set them with
 ```@repl install
 setlength!(net.edge[1], 1.9)
 setgamma!(net.edge[3],  0.8)
-printEdges(net)
+printedges(net)
 ```
 where 1 and 3 correspond to the position of the given edge to modify in the list of edges.
 We can only change the γ value of hybrid edges,

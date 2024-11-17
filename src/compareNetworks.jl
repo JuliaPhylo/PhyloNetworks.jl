@@ -373,7 +373,7 @@ julia> tree = readnewick("(O,A,((B1,B2),(E,(C,D))));");
 
 julia> PhyloNetworks.resetnodenumbers!(tree; checkPreorder=true, type=:postorder)
 
-julia> printNodes(tree)
+julia> printnodes(tree)
 node leaf  hybrid name i_cycle edges'numbers
 1    true  false  O    -1      1   
 2    true  false  A    -1      2   

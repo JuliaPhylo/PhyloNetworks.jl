@@ -6,7 +6,7 @@ if !(@isdefined doalltests) doalltests = false; end
 global net
 net = readnewick("((((B:102.3456789)#H1)#H2,((D:0.00123456789,C,#H2:::0.123456789)S1,(#H1,A_coolname)S2)S3)S4);")
 s = IOBuffer()
-@test_logs printEdges(s, net)
+@test_logs printedges(s, net)
 @test String(take!(s)) == """
 edge parent child  length  hybrid ismajor gamma   containroot i_cycle
 1    2      1      102.346 false  true    1       false       -1     
@@ -22,7 +22,7 @@ edge parent child  length  hybrid ismajor gamma   containroot i_cycle
 11   10     9              false  true    1       true        -1     
 """
 close(s); s = IOBuffer()
-@test_logs printNodes(s, net)
+@test_logs printnodes(s, net)
 @test String(take!(s)) == """
 node leaf  hybrid name       i_cycle edges'numbers
 1    true  false  B          -1      1   
@@ -39,8 +39,8 @@ node leaf  hybrid name       i_cycle edges'numbers
 close(s);
 originalstdout = stdout
 redirect_stdout(devnull)
-printEdges(net) # method without io argument
-printNodes(net)
+printedges(net) # method without io argument
+printnodes(net)
 redirect_stdout(originalstdout)
 
 @test_throws ErrorException getparent(net.node[net.rooti])

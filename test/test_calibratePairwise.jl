@@ -118,7 +118,7 @@ trait_dat = Vector{Vector{Union{Missings.Missing,Int}}}([
   [4,3,1,4,2], # taxon 5
 ])
 net = readnewick("((t1,t2),(t3,t4),t5);");
-# printNodes(net) # leaf named "ti" does have node.number i
+# printnodes(net) # leaf named "ti" does have node.number i
 PhyloNetworks.startingBL!(net, trait_dat, trait_weights)
 # ((t1:0.159,t2:0.0):0.099,(t3:0.018,t4:0.0):0.0,t5:0.146);
 @test all([e.length for e in net.edge] .≈

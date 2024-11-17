@@ -44,8 +44,8 @@ module PhyloNetworks
         removedegree2nodes!,
         shrink2cycles!,
         shrink3cycles!,
-        printEdges,
-        printNodes,
+        printedges,
+        printnodes,
         readInputTrees,
         readnexus_treeblock,
 

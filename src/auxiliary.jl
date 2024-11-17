@@ -666,19 +666,18 @@ function searchHybridEdge(net::Network)
 end
 
 """
-    printEdges(net)
-    printEdges(io::IO, net)
+    printedges(net)
+    printedges(io::IO, net)
 
-Print information on the edges of a `HybridNetwork` or `QuartetNetwork` object
+Print information on the edges of a `HybridNetwork`
 `net`: edge number, numbers of nodes attached to it, edge length, whether it's
 a hybrid edge, its γ inheritance value, whether it's a major edge,
 if it could contain the root (this field is not always updated, though)
-and attributes pertaining to level-1 networks used in SNaQ:
-in which cycle it is contained (-1 if no cycle), and if the edge length
-is identifiable (based on quartet concordance factors).
+and one more attribute pertaining to level-1 networks used in SNaQ:
+in which cycle it is contained (-1 if no cycle).
 """
-printEdges(x) = printEdges(stdout::IO, x)
-function printEdges(io::IO, net::HybridNetwork)
+printedges(x) = printedges(stdout::IO, x)
+function printedges(io::IO, net::HybridNetwork)
     if net.intg1 > 0
         println(io, "net has $(net.intg1) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
     end
@@ -695,8 +694,8 @@ end
 
 
 """
-    printNodes(net)
-    printNodes(io, net)
+    printnodes(net)
+    printnodes(io, net)
 
 Print information on the nodes of a `HybridNetwork` net: node number,
 whether it's a leaf, whether it's a hybrid node, it's name (label),
@@ -704,8 +703,8 @@ its `intn1` field (for level-1 networks in SNaQ: number given to the cycle in
 which the node might be, -1 if the node it *not* in a cycle cycle),
 and the list of edges attached to it, by their numbers.
 """
-printNodes(x) = printNodes(stdout::IO, x)
-function printNodes(io::IO, net::Network)
+printnodes(x) = printnodes(stdout::IO, x)
+function printnodes(io::IO, net::Network)
     namepad = max(4, maximum(length.([n.name for n in net.node])))
     println(io, "node leaf  hybrid ", rpad("name", namepad), " i_cycle edges'numbers")
     for n in net.node
@@ -857,7 +856,7 @@ accordingly, to 1-γ. The field `ismajor` is also changed accordingly.
 If the new γ is approximately 0.5, `Edge` is set to the major parent,
 its partner is set to the minor parent.
 
-If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges
+If `net` is a HybridNetwork object, `printedges(net)` will show the list of edges
 and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
 `setgamma!(net.edge[3],0.2)`.
 This will automatically set γ of the partner hybrid edge to 0.8.

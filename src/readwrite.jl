@@ -558,7 +558,7 @@ function readnewick(s::IO,verbose::Bool)
             end
         end
         # @debug "after readsubtree:"
-        # @debug begin printEdges(net); "printed edges" end
+        # @debug begin printedges(net); "printed edges" end
         # delete the root edge, if present
         if size(n.edge,1) == 1 # root node n has only one edge
             edge = n.edge[1]

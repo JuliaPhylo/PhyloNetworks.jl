@@ -7,6 +7,8 @@
 @deprecate writeTopology      writenewick
 @deprecate writeMultiTopology writemultinewick
 # minor name changes: camelCase to smallcase
+@deprecate printEdges printedges
+@deprecate printNodes printnodes
 @deprecate tipLabels tiplabels
 @deprecate setGamma! setgamma!
 @deprecate directEdges! directedges!
