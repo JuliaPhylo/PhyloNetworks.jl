@@ -55,7 +55,7 @@ end
 
 ## Test names with tree
 tree_str = "(((t2:0.1491947961,t4:0.3305515735):0.5953111246,t3:0.9685578963):0.1415281736,(t5:0.7093406462,t1:0.1888024569):0.9098094522);"
-C = vcv(readTopology(tree_str))
+C = vcv(readnewick(tree_str))
 # C_R = R"ape::vcv(ape::read.tree(text = $tree_str))"
 # names_R = rcopy(R"colnames($C_R)")
 names_R = ["t2", "t4", "t3", "t5", "t1"]

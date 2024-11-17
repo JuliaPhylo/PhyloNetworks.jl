@@ -1101,7 +1101,7 @@ true
 
 ```jldoctest
 #inconsistent networks give different results
-julia> inconsistent_net = readTopology("((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:2.5::0.6):1.25);");
+julia> inconsistent_net = readnewick("((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:2.5::0.6):1.25);");
 
 julia> getnodeheights_average(inconsistent_net;warn=false)
 7-element Vector{Float64}:
