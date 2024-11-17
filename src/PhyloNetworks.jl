@@ -36,8 +36,10 @@ module PhyloNetworks
         ## Network Definition
         HybridNetwork,
         readnewick,
+        readmultinewick,
         writenewick,
         writesubtree!,
+        writemultinewick,
         hybridlambdaformat,
         deleteleaf!,
         deleteaboveLSA!,
@@ -46,7 +48,6 @@ module PhyloNetworks
         shrink3cycles!,
         printedges,
         printnodes,
-        readInputTrees,
         readnexus_treeblock,
 
         ## getters
@@ -102,8 +103,6 @@ module PhyloNetworks
         treeedges_support,
         hybridclades_support,
         readmultinewick_files,
-        writemultinewick,
-        readmultinewick,
         ## Network Calibration
         getnodeages,
         pairwisetaxondistancematrix,

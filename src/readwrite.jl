@@ -870,9 +870,6 @@ function writesubtree!(s::IO, n::Node, parent::Union{Edge,Nothing},
 end
 
 
-
-
-
 """
     readmultinewick(filename::AbstractString, fast=true)
     readmultinewick(newicktrees_list::Vector{<:AbstractString})
