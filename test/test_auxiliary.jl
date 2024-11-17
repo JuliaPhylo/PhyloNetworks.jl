@@ -7,9 +7,7 @@ using CSV
 
 @testset "auxiliary" begin
 
-
-
-@testset "setlengths and setgammas" begin
+@testset "show, setlengths, setgammas" begin
 originalstdout = stdout
 redirect_stdout(devnull) # requires julia v1.6
 @test_nowarn PhyloNetworks.citation()
@@ -17,6 +15,55 @@ redirect_stdout(originalstdout)
 
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net = readnewick(str_level1_s)
+net0 = readnewick(str_level1_s)
+
+s = IOBuffer()
+show(s, net0)
+@test String(take!(s)) == """
+HybridNetwork, Rooted Network
+20 edges
+19 nodes: 8 tips, 2 hybrid nodes, 9 internal tree nodes.
+tip labels: S8, S9, S1, S4, ...
+(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));
+"""
+show(s,net0.node[8])
+@test String(take!(s)) == """
+PhyloNetworks.Node:
+ number:6
+ name:H1
+ hybrid node
+ attached to 3 edges, numbered: 7 8 10
+"""
+show(s,net0.edge[10])
+@test String(take!(s)) == """
+PhyloNetworks.EdgeT{PhyloNetworks.Node}:
+ number:10
+ length:-1.0
+ minor hybrid edge with gamma=-1.0
+ attached to 2 node(s) (parent first): -10 6
+"""
+
+@test PhyloNetworks.isEqual(net, net0)
+@test getchild(net0.hybrid[1]).name == "S5"
+@test_throws "0 children instead of 1" getchild(net0.leaf[1])
+@test_throws "did not find a partner" getpartneredge(net0.edge[1])
+@test PhyloNetworks.getIndex(net0.edge[10], net) == 10 # note: edge in net0, searched in net
+@test PhyloNetworks.getIndexNode(net0.edge[10], net0.node[8]) == 1
+@test PhyloNetworks.getIndexHybrid(net0.node[8], net) == 1
+@test PhyloNetworks.getconnectingedge(net0.node[8], net0.node[13]) === net0.edge[10]
+PhyloNetworks.deleteIntNode!(net0, getroot(net0))
+@test net0.numedges == 19
+@test net0.numnodes == 18
+e1,e2,e3 = PhyloNetworks.hybridEdges(net0.node[13])
+# broken: bc utilities to update `intn1` (cycle number for level-1 nets) are in SNaQ.
+# fix later with blob decomposition for general networks
+# @test (e1.number, e2.number, e3.number) == (10,14,13)
+# edge 14 is part of the cycle from hybrid 6 (H1), yet net.edge[14].inte1 is -1
+net0.hybrid[1].name = ""
+PhyloNetworks.assignhybridnames!(net0)
+@test net0.hybrid[1].name == "H6"
+ee = PhyloNetworks.adjacentedges(net0.edge[10])
+@test [e.number for e in ee] == [7,8,10,13,14]
 
 setlengths!([net.edge[1]], [1.1])
 @test net.edge[1].length == 1.1
@@ -81,6 +128,24 @@ PhyloNetworks.deletehybridedge!(net, net.edge[7], false,true,false,false)
 # shrink 3-cycle, which deletes edge 10 (with γ=0) : same result in the end
 @test shrink3cycles!(net0)
 @test writenewick(net) == "(a:2.0,c:2.0,b:3.42);"
+end
+
+@testset "readwrite.jl" begin
+exdir = joinpath(@__DIR__,"..","examples")
+# exdir = joinpath(dirname(pathof(PhyloNetworks)), "..","examples")
+ns = readmultinewick(joinpath(exdir,"net1.networks"), false) # not fast
+@test length(ns) == 5
+ns = (@test_logs (:warn, r"won't erase with") (:warn, r"^skipped phylogeny on line 15") readnexus_treeblock(
+    joinpath(exdir,"test_reticulatetreeblock.nex")))
+@test length(ns) == 3
+@test tiplabels(ns[2]) == ["tax4","tax3","tax2","tax1"]
+# net with a hybrid leaf
+net = readnewick("((#H1:::0.1,b),c,#H1:::0.9);")
+PhyloNetworks.addChild!(net, net.node[1])
+PhyloNetworks.addChild!(net, net.node[1])
+@test writenewick(net) == "((#H1:::0.1,b),c,(H1_4:0.0,H1_5:0.0)#H1:::0.9);"
+PhyloNetworks.expandChild!(net, net.node[1])
+@test writenewick(net) == "((#H1:::0.1,b),c,((H1_5:0.0,H1_4:0.0)H1_6:0.0)#H1:::0.9);"
 end
 
 end # of set of auxiliary test sets

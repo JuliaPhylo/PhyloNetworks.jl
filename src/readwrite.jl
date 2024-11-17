@@ -704,43 +704,48 @@ end
 # aux function to add a child to a leaf hybrid
 function addChild!(net::HybridNetwork, n::Node)
     n.hybrid || error("cannot add child to tree node $(n.number).")
-    ed1 = Edge(net.numedges+1,0.0);
-    n1 = Node(size(net.names,1)+1,true,false,[ed1]);
-    setEdge!(n,ed1);
-    setNode!(ed1,[n,n1]);
-    pushNode!(net,n1);
-    pushEdge!(net,ed1);
+    ed1 = Edge(net.numedges+1,0.0)
+    ed1.containroot = false
+    n1num = size(net.names,1)+1
+    n1 = Node(n1num,true,false,[ed1])
+    n1.name = "$(n.name)_$n1num"
+    push!(net.names, n1.name)
+    setEdge!(n,ed1)
+    setNode!(ed1,[n1,n])
+    pushNode!(net,n1)
+    pushEdge!(net,ed1)
+    if n.leaf
+        n.leaf = false
+        i = findfirst(isequal(n), net.leaf)
+        deleteat!(net.leaf, i)
+    end
+    return n1
 end
-# aux function to expand the children of a hybrid node
+# expand the children of a hybrid node: n -newedge-> newnode - -> previous children
 function expandChild!(net::HybridNetwork, n::Node)
-    if n.hybrid
-        suma = count([!e.hybrid for e in n.edge]);
-        #println("create edge $(net.numedges+1)")
-        ed1 = Edge(net.numedges+1,0.0);
-        n1 = Node(size(net.names,1)+1,false,false,[ed1]);
-        #println("create node $(n1.number)")
-        hyb = Edge[];
-        for i in 1:size(n.edge,1)
-            if !n.edge[i].hybrid push!(hyb,n.edge[i]); end
-        end
-        #println("hyb tiene $([e.number for e in hyb])")
-        for e in hyb
-            #println("se va a borrar a $(e.number)")
-            removeEdge!(n,e);
-            removeNode!(n,e);
-            setEdge!(n1,e);
-            setNode!(e,n1);
-        end
-        #println("now node $(n1.number) has the edges $([e.number for e in n1.edge])")
-        setEdge!(n,ed1);
-        setNode!(ed1,[n,n1]);
-        pushNode!(net,n1);
-        pushEdge!(net,ed1);
-        if size(n1.edge,1) > 3
-            resolvetreepolytomy!(net,n1)
-        end
-    else
-        error("cannot expand children of a tree node.")
+    n.hybrid || error("cannot expand children of a tree node.")
+    suma = count(!e.hybrid for e in n.edge)
+    ed1 = Edge(net.numedges+1, 0.0)
+    ed1.containroot = false
+    n1num = size(net.names,1)+1
+    n1 = Node(n1num, false, false, [ed1])
+    n1.name = "$(n.name)_$n1num"
+    for e in reverse(n.edge) # n.edge is modified inside
+        e.hybrid && continue # skip hybrid edges: to skip parents of n
+        # now e is a tree edge: *assumes no hybrid ladder*
+        # println("se va a borrar a $(e.number)")
+        removeEdge!(n,e)
+        removeNode!(n,e)
+        setEdge!(n1,e)
+        setNode!(e,n1)
+    end
+    #println("now node $(n1.number) has the edges $([e.number for e in n1.edge])")
+    setEdge!(n,ed1)
+    setNode!(ed1,[n1,n]) # child is n1
+    pushNode!(net,n1)
+    pushEdge!(net,ed1)
+    if size(n1.edge,1) > 3
+        resolvetreepolytomy!(net,n1)
     end
 end
 

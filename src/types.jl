@@ -68,7 +68,13 @@ function EdgeT{T}(
     y = exp(-length)
     EdgeT{T}(number,length,hybrid,y,1.0-y, hybrid ? gamma : 1.,T[],true,ismajor,-1,!hybrid,true,false)
 end
-function EdgeT{T}(number::Int, length::Float64,hybrid::Bool,gamma::Float64,node::Vector{T}) where {T<:ANode}
+function EdgeT{T}(
+  number::Int,
+  length::Float64,
+  hybrid::Bool,
+  gamma::Float64,
+  node::Vector{T}
+) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
     y = exp(-length)
     Edge{T}(number,length,hybrid,y,1.0-y,

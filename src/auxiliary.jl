@@ -389,15 +389,6 @@ function getIndex(node::Node, net::Network)
     return i
 end
 
-function getIndex(edge::Edge, net::Network)
-    i = 1;
-    while(i<= size(net.edge,1) && !isEqual(edge,net.edge[i]))
-        i = i+1;
-    end
-    i <= size(net.edge,1) || error("edge $(edge.number) not in network")
-    return i
-end
-
 function getIndex(edge::Edge, edges::Vector{Edge})
     i = 1;
     while(i<= size(edges,1) && !isEqual(edge,edges[i]))
@@ -406,6 +397,7 @@ function getIndex(edge::Edge, edges::Vector{Edge})
     i <= size(edges,1) || error("edge $(edge.number) not in array of edges")
     return i
 end
+getIndex(edge::Edge, net::Network) = getIndex(edge, net.edge)
 
 # aux function to find the index of a node in a
 # node array
@@ -438,12 +430,6 @@ end
 # find the index of an edge in node.edge
 function getIndexEdge(edge::Edge,node::Node)
     findfirst(e -> isequal(edge,e), node.edge)
-end
-
-# find the index of an edge with given number in node.edge
-# bug found & fixed 2019-08-22. Unused function?
-function getIndexEdge(number::Integer,node::Node)
-    findfirst(e -> isequal(number,e.number), node.edge)
 end
 
 # find the index of a node in edge.node
@@ -733,7 +719,7 @@ If `node` is a hybrid node:
 - e2 is the minor hybrid parent edge
 - e3 is the tree edge, child of `node`.
 
-If `node` is a tree node parent of one child edge:
+If `node` is a tree node parent of one child hybrid edge:
 
 - e1 is the hybrid edge, child of `node`
 - e2 is the tree edge that belongs to the cycle created by e1
