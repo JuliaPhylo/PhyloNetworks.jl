@@ -30,8 +30,8 @@ function readmultinewick_files(filelist::AbstractString; relative2listfile::Bool
 end
 
 """
-    sampleBootstrapTrees(vector of tree lists; seed=0, generesampling=false, row=0)
-    sampleBootstrapTrees!(tree list, vector of tree lists; seed=0, generesampling=false, row=0)
+    samplebootstrap_multiloci(vector of tree lists; seed=0, generesampling=false, row=0)
+    samplebootstrap_multiloci!(tree list, vector of tree lists; seed=0, generesampling=false, row=0)
 
 Sample bootstrap gene trees, 1 tree per gene.
 Set the seed with keyword argument `seed`, which is 0 by default.
@@ -48,17 +48,17 @@ each one of length 1 or more (error if one vector is empty, tested in `bootsnaq`
 
 output: one vector of trees. the modifying function (!) modifies the input tree list and returns it.
 """
-function sampleBootstrapTrees(
+function samplebootstrap_multiloci(
     trees::Vector{Vector{HybridNetwork}};
     seed::Integer=0,
     generesampling::Bool=false,
     row::Integer=0
 )
     bootTrees = Array{HybridNetwork}(undef, length(trees))
-    sampleBootstrapTrees!(bootTrees, trees, seed=seed, generesampling=generesampling, row=row)
+    samplebootstrap_multiloci!(bootTrees, trees, seed=seed, generesampling=generesampling, row=row)
 end
 
-function sampleBootstrapTrees!(
+function samplebootstrap_multiloci!(
     bootTrees::Vector{HybridNetwork},
     trees::Vector{Vector{HybridNetwork}};
     seed::Integer=0,

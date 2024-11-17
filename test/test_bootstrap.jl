@@ -9,6 +9,11 @@ bootnet = readmultinewick(joinpath(exdir,"fish3hyb_20boostrap.net"));
 # issues with bootstrap networks 12, 21, 42, 96
 # plot(bootnet[20], showedgenumber=true)
 # include(string(home, "bootstrap.jl"))
+
+bt = PhyloNetworks.samplebootstrap_multiloci([bootnet, bootnet])
+@test isa(bt, Vector{HybridNetwork})
+@test length(bt) == 2
+
 resn, rese, resc, gam, edgenum = hybridclades_support(bootnet,bestnet);
 #@show resn; @show rese; showall(gam); @show edgenum; resc
 # plot(bestnet, shownodenumber=true);
