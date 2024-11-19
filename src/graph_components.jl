@@ -207,7 +207,7 @@ Blobs are ordered in reverse topological ordering
 (aka post order).
 If `ignoreTrivial` is true, trivial components are ignored.
 
-keyword argument: `checkPreorder`, true by default. If false,
+keyword argument: `checkpreorder`, true by default. If false,
 the `ischild1` edge field and the `net.vec_node` network field
 are supposed to be correct.
 
@@ -217,9 +217,9 @@ attributes modified during the algorithm.
 function blobinfo(
     net,
     ignoreTrivial::Bool=true;
-    checkPreorder::Bool=true
+    checkpreorder::Bool=true
 )
-    if checkPreorder
+    if checkpreorder
       directedges!(net) # update ischild1, needed for preorder
       preorder!(net) # creates / updates net.vec_node
     end

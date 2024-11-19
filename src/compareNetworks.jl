@@ -371,7 +371,7 @@ WARNING: assumes that
 ```jldoctest
 julia> tree = readnewick("(O,A,((B1,B2),(E,(C,D))));");
 
-julia> PhyloNetworks.resetnodenumbers!(tree; checkPreorder=true, type=:postorder)
+julia> PhyloNetworks.resetnodenumbers!(tree; checkpreorder=true, type=:postorder)
 
 julia> printnodes(tree)
 node leaf  hybrid name i_cycle edges'numbers

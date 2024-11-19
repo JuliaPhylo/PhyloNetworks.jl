@@ -30,7 +30,7 @@ end
 
 """
     pairwisetaxondistancematrix(net; keepInternal=false,
-                                checkPreorder=true, nodeAges=[])
+                                checkpreorder=true, nodeAges=[])
     pairwisetaxondistancematrix!(M, net, nodeAges)
 
 Return the matrix `M` of pairwise distances between nodes in the network:
@@ -51,7 +51,7 @@ if branch lengths are in substitutions/site.
 
 optional arguments:
 
-- `checkPreorder`: if true, `net.vec_node` is updated to get a
+- `checkpreorder`: if true, `net.vec_node` is updated to get a
   topological ordering of nodes.
 - `nodeAges`: if not provided, i.e. empty vector, the network is *not* modified.  
   If provided and non-empty, `nodeAges` should list node ages in the
@@ -65,11 +65,11 @@ If node ages are not provided, the network need not be time consistent.
 function pairwisetaxondistancematrix(
     net::HybridNetwork;
     keepInternal::Bool=false,
-    checkPreorder::Bool=true,
+    checkpreorder::Bool=true,
     nodeAges::Vector{Float64}=Float64[]
 )
     net.isrooted || error("net needs to be rooted for preorder recursion")
-    if(checkPreorder)
+    if checkpreorder
         preorder!(net)
     end
     nnodes = net.numnodes
@@ -259,7 +259,7 @@ distance data equally well (lack of identifiability).
 This function will output *one* of these equally good calibrations.
 
 optional arguments (default):
-- checkPreorder (true)
+- checkpreorder (true)
 - forceMinorLength0 (false) to force minor hybrid edges to have a length of 0
 - ultrametric (true) to force the network to be
   * time-consistent: all paths from the root to a given node must have the same
@@ -276,7 +276,7 @@ function calibratefrompairwisedistances!(
     net::HybridNetwork,
     D::Array{Float64,2},
     taxNames::Vector{<:AbstractString};
-    checkPreorder::Bool=true,
+    checkpreorder::Bool=true,
     forceMinorLength0::Bool=false,
     verbose::Bool=false,
     ultrametric::Bool=true,
@@ -286,7 +286,7 @@ function calibratefrompairwisedistances!(
     xtolRel::Float64=xRelBL,
     xtolAbs::Float64=xAbsBL
 )
-    checkPreorder && preorder!(net)
+    checkpreorder && preorder!(net)
     # fixit: remove root node if of degree 2, and if ultrametric=false
     defaultedgelength = median(D)/(length(net.edge)/2)
     for e in net.edge
@@ -336,7 +336,7 @@ function calibratefrompairwisedistances!(
     end
     # initialize M=dist b/w all nodes, G=gradient (constant)
     M = pairwisetaxondistancematrix(net, keepInternal=true,
-            checkPreorder=false, nodeAges=na)
+            checkpreorder=false, nodeAges=na)
     if !ultrametric && sort([e.number for e in net.edge]) != collect(1:net.numedges)
         for i in 1:net.numedges # renumber edges, needed for G
             net.edge[i].number = i

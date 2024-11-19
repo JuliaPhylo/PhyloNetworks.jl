@@ -32,7 +32,7 @@ net  = readnewick("((#H1:0.06::0.3,A:0.6):1.3,(B:0.1)#H1:0.7::0.7,(C,D):1.4);");
 # here: branch lengths not identifiable, even if minor fixed to 0
 calibratefrompairwisedistances!(net, net2distances, taxa, #verbose=true,
   forceMinorLength0=true, ultrametric=false)
-est = pairwisetaxondistancematrix(net, checkPreorder=false)
+est = pairwisetaxondistancematrix(net, checkpreorder=false)
 @test est ≈ [0 1.663 2.9 2.8; 1.663 0 2.703 2.603; 2.9 2.703 0 .3;
              2.8 2.603 .3 0] atol=.00002
 # deep    LN_BOBYQA: 146 evaluations
@@ -66,7 +66,7 @@ o = [4,3,5,6,7,1,2]; # to get leaves in same order as in taxa. inverse: [6,7,2,1
 calibratefrompairwisedistances!(net, netdist, taxa,
   forceMinorLength0=true, ultrametric=false)
 # got 0.0 at [0.19998, 0.19998, 1.30003, 1.5, 0.6802, 0.69964, 2.79995, 0.20002, 2.99995, 0.50006, 2.9999, 2.49952, 0.50049, 0.50006] after 1000 iterations (returned MAXEVAL_REACHED)
-est = pairwisetaxondistancematrix(net, checkPreorder=false)
+est = pairwisetaxondistancematrix(net, checkpreorder=false)
 @test est ≈ netdist[o,o] atol=.0005
 # most edge lengths are correct, except for 5 edges:
 # - the 2 edges at the root: expected (the network should be unrooted)

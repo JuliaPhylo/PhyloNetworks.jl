@@ -1019,7 +1019,7 @@ function deleteaboveLSA!(net::HybridNetwork, preorder::Bool=true)
 end
 
 """
-    resetnodenumbers!(net::HybridNetwork; checkPreorder=true, type=:ape)
+    resetnodenumbers!(net::HybridNetwork; checkpreorder=true, type=:ape)
 
 Change internal node numbers of `net` to consecutive numbers from 1 to the total
 number of nodes.
@@ -1033,7 +1033,7 @@ keyword arguments:
   If `:internalonly`, leaves are unchanged. Only internal nodes are modified,
   to take consecutive numbers from (max leaf number)+1 and up. With this
   last option, the post-ordering of nodes is by-passed.
-- `checkPreorder`: if false, the `ischild1` edge field and the `net.vec_node`
+- `checkpreorder`: if false, the `ischild1` edge field and the `net.vec_node`
   network field are supposed to be correct (to get nodes in preorder).
   This is not needed when `type=:internalonly`.
 
@@ -1071,10 +1071,10 @@ node leaf  hybrid name i_cycle edges'numbers
 """
 function resetnodenumbers!(
     net::HybridNetwork;
-    checkPreorder::Bool=true,
+    checkpreorder::Bool=true,
     type::Symbol=:ape
 )
-    if checkPreorder
+    if checkpreorder
       directedges!(net)
       preorder!(net) # to create/update net.vec_node
     end
