@@ -3,7 +3,7 @@ using Documenter
 # fixit: this installs the dev version of PhyloPlots for compatibility.
 # edit back to install the "master" version of PhyloPlots
 using Pkg
-Pkg.add(PackageSpec(name="PhyloPlots", rev="dev11"))
+Pkg.add(PackageSpec(name="PhyloPlots", rev="master"))
 
 
 using PhyloNetworks
