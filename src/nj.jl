@@ -6,8 +6,8 @@ function check_distance_matrix(D::Matrix{<:Real})
     if any(diag(D) .!= 0.0)
         throw(DomainError(D, "Diagonal entry not 0"))
     end
+    return nothing
 end
-
 
 """
     nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[];
@@ -23,17 +23,17 @@ is changed to 0.0 (with a message).
 
 Warning: `D` is modified.
 """
-function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[];
-             force_nonnegative_edges::Bool=false)
-
+function nj!(
+    D::Matrix{Float64},
+    names::AbstractVector{<:AbstractString}=String[];
+    force_nonnegative_edges::Bool=false
+)
     check_distance_matrix(D)
-    n = size(D, 1)              # number of species
-
-    # when no names arg is supplied
+    n = size(D, 1)    # number of species
+    active_size = n   # tracks the current active size of matrix
     if isempty(names)
         names = string.(1:n)
     end
-
     # create empty network with n unconnected leaf nodes
     nodes = map(function(i)
                 node = Node(i, true)
@@ -41,24 +41,19 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
                 return node
                 end,
                 1:n)
-
     net = HybridNetwork(nodes, Edge[])
-    # an array of Node s.t. active_nodes[i] would correspond to the
-    # ith entry in distance matrix D at each iteration
     active_nodes = copy(nodes)
-
     neglenp = 0  # number of negative edge lengths
 
-    while n > 2
-        # compute Q matrix and find min
-        # warning: here i and j are indeces for D, not actual id's
-        sums = sum(D, dims = 1)
+    while active_size > 2
+        # compute Q matrix and find pair with minimum Q
+        sums = sum(D[1:active_size, 1:active_size], dims = 1)
         cur = Inf
         min_index = (0, 0)
-        for i = 1:n
-            for j = i:n
+        for i = 1:active_size
+            for j = i:active_size
                 if j != i
-                    qij = (n-2) * D[i,j] - sums[i] - sums[j]
+                    qij = (active_size-2) * D[i,j] - sums[i] - sums[j]
                     if qij < cur
                         cur = qij
                         min_index = (i, j)
@@ -66,12 +61,11 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
                 end
             end
         end
-
         # connect the nodes, compute the length of the edge
         (i, j) = min_index
-        dik = D[i,j] / 2 + (sums[i] - sums[j]) / (2 * (n - 2))
+        dik = D[i,j] / 2 + (sums[i] - sums[j]) / (2 * (active_size - 2))
         djk = D[i,j] - dik
-        # force negative lengths to 0, if any
+        
         if dik < 0.0
             neglenp += 1
             if force_nonnegative_edges dik = 0.0; end
@@ -80,12 +74,11 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
             neglenp += 1
             if force_nonnegative_edges djk = 0.0; end
         end
-
         # create new edges and node, update tree
-        edgenum = net.numEdges
-        eik = Edge(edgenum + 1, dik) # edge length must be Float64 for Edge()
+        edgenum = net.numedges
+        eik = Edge(edgenum + 1, dik)
         ejk = Edge(edgenum + 2, djk)
-        node_k = Node(net.numNodes+1, false, false, [eik, ejk]) # new node
+        node_k = Node(net.numnodes+1, false, false, [eik, ejk])
         node_i = active_nodes[i]
         node_j = active_nodes[j]
         setNode!(eik, Node[node_i, node_k])
@@ -96,50 +89,50 @@ function nj!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[
         pushEdge!(net, ejk)
         pushNode!(net, node_k)
 
-        # update map and D
-        # replace D[l, i] with D[l, k], delete D[ , j]
-        for l in 1:n
-            if !(l in [i j])
-                D[l, i] = (D[l,i] + D[j,l] - D[i,j]) / 2
-                D[i, l] = D[l, i]
+        # Update distances to new node k, placed in position i
+        if i == active_size # swap with j instead, if i is last active position
+            (i,j) = (j,i)
+        end
+        for l in 1:active_size
+            if !(l in [i, j])
+                D[l,i] = (D[l,i] + D[l,j] - D[i,j]) / 2
+                D[i,l] = D[l,i]
             end
         end
-        newidx = filter(u->u!=j, 1:n) # index 1:n\{j}
-        D = view(D, newidx, newidx)
-
-        # update active_nodes
+        # swap j with last active position using whole column/row operations
+        if j != active_size
+            D[:, j], D[:, active_size] = D[:, active_size], D[:, j]
+            D[j, :], D[active_size, :] = D[active_size, :], D[j, :]
+            active_nodes[j] = active_nodes[active_size]
+        end
+        # inactivate last active position: okay bc k replaces i != active_size
+        active_size -= 1
         active_nodes[i] = node_k
-        active_nodes = view(active_nodes, newidx)
-
-        n = n - 1
     end
 
-    # base case
+    # base case: 2 leaves
     if D[1,2] < 0.0
         neglenp += 1
         if force_nonnegative_edges D[1,2] = 0.0; end
     end
     node1 = active_nodes[1]
     node2 = active_nodes[2]
-    newedge = Edge(net.numEdges+1, D[1,2])
-    setNode!(newedge, [node1, node2]) # isChild1 = true by default: nodes are [child, parent]
-    if node1.number == net.numNodes
-        newedge.isChild1 = false # to direct the edge from the last created node to the other node
+    newedge = Edge(net.numedges+1, D[1,2])
+    setNode!(newedge, [node1, node2]) # ischild1 = true by default: nodes are [child, parent]
+    if node1.number == net.numnodes
+        newedge.ischild1 = false # direct the edge: last created node -> other node
     end
     setEdge!(node1, newedge)
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
 
-    net.root = net.numNodes # to place the root at the last created node, which is internal
-
-    # report on number of negative branches
+    net.rooti = net.numnodes # root = last created node, which is internal
     if neglenp > 0
         infostr = (force_nonnegative_edges ?
-                   "$neglenp branches had negative lengths, reset to 0" :
-                   "$neglenp branches have negative lengths" )
+                   "$neglenp branch(es) of negative length, reset to 0" :
+                   "$neglenp branch(es) of negative length" )
         @info infostr
     end
-
     return net
 end
 

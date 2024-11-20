@@ -3,26 +3,10 @@
 # Claudia February 2015
 #####################
 
-function setCHECKNET(b::Bool)
-    global CHECKNET
-    CHECKNET = b
-    CHECKNET && @warn "PhyloNetworks.CHECKNET is true: will slow snaq! down."
-    b || @info "PhyloNetworks.CHECKNET set to false"
-end
+
 
 # ----- aux general functions ---------------
 
-#based in coupon's collector: E+sqrt(V)
-function coupon(n::Number)
-    return n*log(n) + n
-end
-
-function binom(n::Number,k::Number)
-    n >= k || return 0
-    n == 1 && return 1
-    k == 0 && return 1
-    binom(n-1,k-1) + binom(n-1,k) #recursive call
-end
 
 function approxEq(a::Number,b::Number,absTol::Number,relTol::Number)
     if(a<eps() || b<eps())
@@ -38,7 +22,7 @@ approxEq(a::Number,b::Number) = approxEq(a,b,1e-5,100)
 #                    Useful after a deepcopy of a network.
 # For nodes (or edges etc.) in the same network, use instead n1 == n2 or n1 != n2.
 function isEqual(n1::Node,n2::Node)
-    return (n1.number == n2.number && approxEq(n1.gammaz,n2.gammaz) && n1.inCycle == n2.inCycle)
+    return (n1.number == n2.number && approxEq(n1.fvalue,n2.fvalue) && n1.intn1 == n2.intn1)
 end
 
 function isEqual(n1::Edge,n2::Edge)
@@ -47,22 +31,22 @@ end
 
 function isEqual(net1::HybridNetwork, net2::HybridNetwork)
     result = true
-    result &= (net1.numTaxa == net2.numTaxa)
-    result &= (net1.numNodes == net2.numNodes)
-    result &= (net1.numEdges == net2.numEdges)
+    result &= (net1.numtaxa == net2.numtaxa)
+    result &= (net1.numnodes == net2.numnodes)
+    result &= (net1.numedges == net2.numedges)
     ## result &= (net1.node == net2.node)
     ## result &= (net1.edge == net2.edge)
-    result &= (net1.root == net2.root)
+    result &= (net1.rooti == net2.rooti)
     result &= (net1.names == net2.names)
 ##    result &= (net1.hybrid == net2.hybrid)
-    result &= (net1.numHybrids == net2.numHybrids)
+    result &= (net1.numhybrids == net2.numhybrids)
 ##    result &= (net1.leaf == net2.leaf)
-    result &= (net1.ht == net2.ht)
-    result &= (net1.numht == net2.numht)
-    result &= (net1.numBad == net2.numBad)
-    result &= (net1.hasVeryBadTriangle == net2.hasVeryBadTriangle)
-    result &= (net1.index == net2.index)
-    result &= (net1.loglik == net2.loglik)
+    result &= (net1.vec_float == net2.vec_float)
+    result &= (net1.vec_int2 == net2.vec_int2)
+    result &= (net1.intg1 == net2.intg1)
+    result &= (net1.boolg1 == net2.boolg1)
+    result &= (net1.vec_int3 == net2.vec_int3)
+    result &= (net1.fscore == net2.fscore)
     return result
 end
 
@@ -80,46 +64,49 @@ end
 
 #------------- EDGE functions --------------------#
 
-# warning: node needs to be defined as hybrid before adding to a
-#          hybrid edge. First, an edge is defined as hybrid, and then
-#          the nodes are added to it. If the node added is leaf, the
-#          edge length is set unidentifiable (as it is external edge)
+#= warning: node needs to be defined as hybrid before adding to a hybrid edge.
+First, an edge is defined as hybrid, and then the nodes are added to it.
+The edge length is *not* identifiable via edge.boole1, e.g. when the edge is
+- external, or
+- tree edge in "fromBadDiamondI"  via edge.boole2
+- possibly, if in a bad 3- or 4-cycle via .booln2, .booln3, booln6
+=#
 function setNode!(edge::Edge, node::Node)
     size(edge.node,1)  !=  2 || error("vector of nodes already has 2 values");
     push!(edge.node,node);
     if size(edge.node,1) == 1
         if edge.hybrid
-            edge.isChild1 = node.hybrid
+            edge.ischild1 = node.hybrid
         end
-        edge.istIdentifiable = !node.leaf
+        edge.boole1 = !node.leaf # is edge identifiable?
     else
         if node.leaf
             !edge.node[1].leaf || error("edge $(edge.number) has two leaves")
-            edge.istIdentifiable = false;
+            edge.boole1 = false;
         else
           if edge.hybrid
             if node.hybrid
                 # @debug (edge.node[1].hybrid ? "hybrid edge $(edge.number) has two hybrid nodes" : "")
-                edge.isChild1 = false;
-	        else
-	            edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
-	            edge.isChild1 = true;
-	        end
+                edge.ischild1 = false;
+            else
+                edge.node[1].hybrid || error("hybrid edge $(edge.number) has no hybrid nodes");
+                edge.ischild1 = true;
+            end
           else #edge is tree
             if !edge.node[1].leaf
                 if !node.hybrid && !edge.node[1].hybrid
-                    edge.istIdentifiable = !edge.fromBadDiamondI
+                    edge.boole1 = !edge.boole2
                 else
-                    if node.hybrid && (node.isBadDiamondI || node.isBadDiamondII || node.isBadTriangle)
-                        edge.istIdentifiable = false
-                    elseif edge.node[1].hybrid && (edge.node[1].isBadDiamondI ||edge.node[1].isBadDiamondII || edge.node[1].isBadTriangle)
-                        edge.istIdentifiable = false
+                    if node.hybrid && (node.booln2 || node.booln3 || node.booln6)
+                        edge.boole1 = false
+                    elseif edge.node[1].hybrid && (edge.node[1].booln2 ||edge.node[1].booln3 || edge.node[1].booln6)
+                        edge.boole1 = false
                     else
-                        edge.istIdentifiable = true
+                        edge.boole1 = true
                     end
                 end
             else
-                edge.istIdentifiable = false
+                edge.boole1 = false
             end
           end
         end
@@ -128,22 +115,23 @@ end
 
 # warning: node needs to be defined as hybrid before adding to a hybrid edge.
 #          First, an edge is defined as hybrid, and then the nodes are added to it.
-#          If there is a leaf in node, the edge.istIdentifiable=false
+#          If there is a leaf in node, then edge.boole1=false
+#          to mean that its length is not identifiable.
 function setNode!(edge::Edge,node::Array{Node,1})
     size(node,1) ==  2 || error("vector of nodes must have exactly 2 values")
     edge.node = node;
     if(edge.hybrid)
       if(node[1].hybrid)
-          edge.isChild1 = true;
+          edge.ischild1 = true;
       else
           node[2].hybrid || error("hybrid edge without hybrid node");
-          edge.isChild1 = false;
+          edge.ischild1 = false;
       end
     end
     if(edge.node[1].leaf || edge.node[2].leaf)
-        edge.istIdentifiable = false;
+        edge.boole1 = false;
     else
-        edge.istIdentifiable = true;
+        edge.boole1 = true;
     end
 end
 
@@ -156,7 +144,7 @@ description or for network traversals.
 
 See also: [`isrootof`](@ref)
 """
-getroot(net::HybridNetwork) = net.node[net.root]
+getroot(net::HybridNetwork) = net.node[net.rooti]
 
 """
     isrootof(node, net)
@@ -185,7 +173,7 @@ isexternal(edge::Edge) = any(isleaf.(edge.node))
     ischildof(node, edge)
 
 `true` if `node` is the tail / head, or parent / child, of `edge`; `false` otherwise.
-Assumes that the edge's direction is correct, meaning it's field `isChild1` is
+Assumes that the edge's direction is correct, meaning its field `ischild1` is
 reliable (in sync with the rooting).
 
 See also: [`getparent`](@ref), [`getchild`](@ref), [`isrootof`](@ref)
@@ -197,7 +185,7 @@ ischildof( node::Node, edge::Edge) = node === getchild(edge)
 """
     hassinglechild(node)
 
-`true` if `node` has a single child, based on the edges' `isChild1` field;
+`true` if `node` has a single child, based on the edges' `ischild1` field;
 `false` otherwise.
 
 See also: [`getchild`](@ref), [`getparent`](@ref)
@@ -219,7 +207,7 @@ Get child(ren) **node(s)**.
 
 Single child **edge** of `node`. Checks that it's a single child.
 
-*Warning*: these functions rely on correct edge direction, via their `isChild1` field.
+*Warning*: these functions rely on correct edge direction, via their `ischild1` field.
 
 See also:
 [`getparent`](@ref),
@@ -227,7 +215,7 @@ See also:
 [`isparentof`](@ref),
 [`hassinglechild`](@ref).
 """
-getchild(edge::Edge) = edge.node[edge.isChild1 ? 1 : 2]
+getchild(edge::Edge) = edge.node[edge.ischild1 ? 1 : 2]
 getchild(node::Node) = getchild(getchildedge(node))
 
 @doc (@doc getchild) getchildren
@@ -270,15 +258,15 @@ Get one parental **edge** of a `node`.
 If `node` has multiple major (resp. minor) parent edges, the first one would be
 returned without any warning or error.
 
-*Warning*: these functions use the field `isChild1` of edges.
+*Warning*: these functions use the field `ischild1` of edges.
 
 See also: [`getchild`](@ref),
 [`getpartneredge`](@ref).
 """
-getparent(edge::Edge) = edge.node[edge.isChild1 ? 2 : 1]
+getparent(edge::Edge) = edge.node[edge.ischild1 ? 2 : 1]
 @inline function getparent(node::Node)
     for e in node.edge
-        if e.isMajor && ischildof(node, e)
+        if e.ismajor && ischildof(node, e)
             return getparent(e)
         end
     end
@@ -288,7 +276,7 @@ end
 @doc (@doc getparent) getparentminor
 @inline function getparentminor(node::Node)
     for e in node.edge
-        if !e.isMajor && node == getchild(e)
+        if !e.ismajor && node == getchild(e)
             return getparent(e)
         end
     end
@@ -309,7 +297,7 @@ end
 @doc (@doc getparent) getparentedge
 @inline function getparentedge(n::Node)
     for ee in n.edge
-        if ee.isMajor && ischildof(n,ee)
+        if ee.ismajor && ischildof(n,ee)
             return ee
         end
     end
@@ -318,7 +306,7 @@ end
 @doc (@doc getparent) getparentedgeminor
 @inline function getparentedgeminor(n::Node)
     for ee in n.edge
-        if !ee.isMajor && n == ee.node[(ee.isChild1 ? 1 : 2)]
+        if !ee.ismajor && n == ee.node[(ee.ischild1 ? 1 : 2)]
             return ee
         end
     end
@@ -361,7 +349,7 @@ Return a symbol:
 - `:parent` if `e` is a parent of `node`,
 - `:child` if `e` is a child of `node`
 
-using the `isChild1` attribute of edges.
+using the `ischild1` attribute of edges.
 Useful when `e` iterates over all edges adjacent to `node` and when
 `origin` is one of the edges adjacent to `node`,
 to known the order in which these edges come.
@@ -381,7 +369,7 @@ end
 
 function setEdge!(node::Node,edge::Edge)
    push!(node.edge,edge);
-   node.hasHybEdge = any(e -> e.hybrid, node.edge)
+   node.booln1 = any(e -> e.hybrid, node.edge)
 end
 
 function getOtherNode(edge::Edge, node::Node)
@@ -401,15 +389,6 @@ function getIndex(node::Node, net::Network)
     return i
 end
 
-function getIndex(edge::Edge, net::Network)
-    i = 1;
-    while(i<= size(net.edge,1) && !isEqual(edge,net.edge[i]))
-        i = i+1;
-    end
-    i <= size(net.edge,1) || error("edge $(edge.number) not in network")
-    return i
-end
-
 function getIndex(edge::Edge, edges::Vector{Edge})
     i = 1;
     while(i<= size(edges,1) && !isEqual(edge,edges[i]))
@@ -418,6 +397,7 @@ function getIndex(edge::Edge, edges::Vector{Edge})
     i <= size(edges,1) || error("edge $(edge.number) not in array of edges")
     return i
 end
+getIndex(edge::Edge, net::Network) = getIndex(edge, net.edge)
 
 # aux function to find the index of a node in a
 # node array
@@ -452,12 +432,6 @@ function getIndexEdge(edge::Edge,node::Node)
     findfirst(e -> isequal(edge,e), node.edge)
 end
 
-# find the index of an edge with given number in node.edge
-# bug found & fixed 2019-08-22. Unused function?
-function getIndexEdge(number::Integer,node::Node)
-    findfirst(e -> isequal(number,e.number), node.edge)
-end
-
 # find the index of a node in edge.node
 function getIndexNode(edge::Edge,node::Node)
     size(edge.node,1) == 2 || @warn "this edge $(edge.number) has more or less than 2 nodes: $([n.number for n in edge.node])"
@@ -481,23 +455,22 @@ function getIndexHybrid(node::Node, net::Network)
     return i
 end
 
+"""
+    getconnectingedge(node1::Node, node2::Node)
 
-# function that given two nodes, it gives you the edge that connects them
-# returns error if they are not connected by an edge
-function getConnectingEdge(node1::Node,node2::Node)
-    found = false;
-    i = 1;
-    while(i<= size(node1.edge,1) && !found)
-        if(isequal(getOtherNode(node1.edge[i],node1),node2))
-            found = true;
+Edge shared by (or connecting) `node1` and `node2`, that is: edge incident
+to both nodes. An error is thrown if the 2 nodes are not connected.
+
+See also [`isconnected`](@ref)
+"""
+function getconnectingedge(node1::Node, node2::Node)
+    for e1 in node1.edge
+        for e2 in node2.edge
+            e1 === e2 && return e1
         end
-        i = i+1;
     end
-    if(found)
-        return node1.edge[i-1]
-    else
-        error("nodes not connected")
-    end
+    error("nodes not connected")
+    return nothing
 end
 
 """
@@ -505,38 +478,28 @@ end
 
 Check if two nodes are connected by an edge. Return true if connected, false
 if not connected.
+
+See also [`getconnectingedge`](@ref)
 """
 function isconnected(node1, node2)
-    for e in node1.edge
-        if e in node2.edge
-            return true
-        end
-    end
+    !isdisjoint(node1.edge, node2.edge) # requires Julia v1.5
+end
+
+
+
+function isTree(net::HybridNetwork)
+    net.numhybrids == length(net.hybrid) || error("numhybrids does not match to length of net.hybrid")
+    net.numhybrids != 0 || return true
     return false
 end
 
-# function to check in an edge is in an array by comparing
-# edge numbers (could use isEqual for adding comparisons of gammaz and inCycle)
-# needed for updateHasEdge
-function isEdgeNumIn(edge::Edge,array::Array{Edge,1})
-    enum = edge.number
-    return any(e -> e.number == enum, array)
-end
-
-# function to check in a leaf is in an array by comparing
-# the numbers (uses isEqual)
-# needed for updateHasEdge
-function isNodeNumIn(node::Node,array::Array{Node,1})
-    return all((e->!isEqual(node,e)), array) ? false : true
-end
-
 # function to push a Node in net.node and
-# update numNodes and numTaxa
+# update numnodes and numtaxa
 function pushNode!(net::Network, n::Node)
     push!(net.node,n);
-    net.numNodes += 1;
+    net.numnodes += 1;
     if(n.leaf)
-        net.numTaxa += 1
+        net.numtaxa += 1
         push!(net.leaf,n);
     end
     if(n.hybrid)
@@ -545,19 +508,19 @@ function pushNode!(net::Network, n::Node)
 end
 
 # function to push an Edge in net.edge and
-# update numEdges
+# update numedges
 function pushEdge!(net::Network, e::Edge)
     push!(net.edge,e);
-    net.numEdges += 1;
+    net.numedges += 1;
 end
 
 
 # function to push a hybrid Node in net.hybrid and
-# update numHybrids
+# update numhybrids
 function pushHybrid!(net::Network, n::Node)
     if(n.hybrid)
         push!(net.hybrid,n);
-        net.numHybrids += 1;
+        net.numhybrids += 1;
     else
         error("node $(n.number) is not hybrid, so cannot be pushed in net.hybrid")
     end
@@ -565,13 +528,11 @@ end
 
 """
     deleteNode!(net::HybridNetwork, n::Node)
-    deleteNode!(net::QuartetNetwork, n::Node)
 
 Delete node `n` from a network, i.e. removes it from
 net.node, and from net.hybrid or net.leaf as appropriate.
-Update attributes `numNodes`, `numTaxa`, `numHybrids`.
-Warning: `net.names` is *not* updated, and this is a feature (not a bug)
-for networks of type QuartetNetwork.
+Update attributes `numnodes`, `numtaxa`, `numhybrids`.
+
 
 Warning: if the root is deleted, the new root is arbitrarily set to the
 first node in the list. This is intentional to save time because this function
@@ -583,11 +544,11 @@ function deleteNode!(net::HybridNetwork, n::Node)
     #          isEqual (from above) could match nodes across different networks
     index !== nothing || error("Node $(n.number) not in network");
     deleteat!(net.node,index);
-    net.numNodes -= 1;
-    if net.root == index  # do not check containRoot to save time in snaq!
-        net.root = 1      # arbitrary
-    elseif net.root > index
-        net.root -= 1
+    net.numnodes -= 1;
+    if net.rooti == index  # do not check containroot to save time in snaq!
+        net.rooti = 1      # arbitrary
+    elseif net.rooti > index
+        net.rooti -= 1
     end
     if n.hybrid
        removeHybrid!(net,n)
@@ -597,33 +558,20 @@ function deleteNode!(net::HybridNetwork, n::Node)
     end
 end
 
-function deleteNode!(net::QuartetNetwork, n::Node)
-    index = findfirst(no -> no.number == n.number, net.node)
-    # isEqual (from above) checks for more than node number
-    index !== nothing || error("Node $(n.number) not in quartet network");
-    deleteat!(net.node,index);
-    net.numNodes -= 1
-    if n.hybrid
-       removeHybrid!(net,n)
-    end
-    if n.leaf
-        index = findfirst(no -> no === n, net.leaf)
-        index !== nothing || error("node $(n.number) not net.leaf")
-        deleteat!(net.leaf,index)
-        net.numTaxa -= 1
-    end
-end
 
 """
     deleteEdge!(net::HybridNetwork,  e::Edge; part=true)
-    deleteEdge!(net::QuartetNetwork, e::Edge)
 
-Delete edge `e` from `net.edge` and update `net.numEdges`.
+Delete edge `e` from `net.edge` and update `net.numedges`.
 If `part` is true, update the network's partition field.
+
+*Warning*: if `part` is true (the default), then `net` is assumed to be of
+level-1, with valid internal fields `e.inte1` (to track which cycle
+`e` may be in) and valid `net.partition`, which then gets updated.
 """
-function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
+function deleteEdge!(net::HybridNetwork, e::Edge; part::Bool=true)
     if part
-        if e.inCycle == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net)
+        if e.inte1 == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net)
             ind = whichPartition(net,e)
             indE = getIndex(e,net.partition[ind].edges)
             deleteat!(net.partition[ind].edges,indE)
@@ -632,42 +580,32 @@ function deleteEdge!(net::HybridNetwork, e::Edge; part=true::Bool)
     i = findfirst(x -> x===e, net.edge)
     i !== nothing || error("edge $(e.number) not in network: can't delete");
     deleteat!(net.edge, i);
-    net.numEdges -= 1;
+    net.numedges -= 1;
 end
-
-# function to delete an Edge in net.edge and
-# update numEdges from a QuartetNetwork
-function deleteEdge!(net::QuartetNetwork, e::Edge)
-    index = findfirst(x -> x.number == e.number, net.edge)
-    # isEqual (from above) checks for more than edge number
-    index !== nothing || error("edge not in quartet network");
-    deleteat!(net.edge,index);
-    net.numEdges -= 1;
-end
-
 
 """
     removeHybrid!(net::Network, n::Node)
 
 Delete a hybrid node `n` from `net.hybrid`, and update `net.numHybrid`.
 The actual node `n` is not deleted. It is kept in the full list `net.node`.
+Very internal function, used by [`deletehybridedge!`](@ref) and others.
 """
 function removeHybrid!(net::Network, n::Node)
     n.hybrid || error("cannot delete node $(n.number) from net.hybrid because it is not hybrid")
     i = findfirst(x -> x===n, net.hybrid)
     i !== nothing || error("hybrid node $(n.number) not in the network's list of hybrids");
     deleteat!(net.hybrid, i);
-    net.numHybrids -= 1;
+    net.numhybrids -= 1;
 end
 
 # function to delete a leaf node in net.leaf
-# and update numTaxa
+# and update numtaxa
 function removeLeaf!(net::Network,n::Node)
     n.leaf || error("cannot delete node $(n.number) from net.leaf because it is not leaf")
     index = findfirst(no -> no === n, net.leaf)
     index !== nothing || error("leaf node $(n.number) not in network")
     deleteat!(net.leaf,index)
-    net.numTaxa -= 1
+    net.numtaxa -= 1
 end
 
 # function to delete an internal node with only 2 edges
@@ -714,61 +652,51 @@ function searchHybridEdge(net::Network)
 end
 
 """
-    printEdges(net)
-    printEdges(io::IO, net)
+    printedges(net)
+    printedges(io::IO, net)
 
-Print information on the edges of a `HybridNetwork` or `QuartetNetwork` object
+Print information on the edges of a `HybridNetwork`
 `net`: edge number, numbers of nodes attached to it, edge length, whether it's
 a hybrid edge, its γ inheritance value, whether it's a major edge,
 if it could contain the root (this field is not always updated, though)
-and attributes pertaining to level-1 networks used in SNaQ:
-in which cycle it is contained (-1 if no cycle), and if the edge length
-is identifiable (based on quartet concordance factors).
+and one more attribute pertaining to level-1 networks used in SNaQ:
+in which cycle it is contained (-1 if no cycle).
 """
-printEdges(x) = printEdges(stdout::IO, x)
-function printEdges(io::IO, net::HybridNetwork)
-    if net.numBad > 0
-        println(io, "net has $(net.numBad) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
+printedges(x) = printedges(stdout::IO, x)
+function printedges(io::IO, net::HybridNetwork)
+    if net.intg1 > 0
+        println(io, "net has $(net.intg1) bad diamond I. Some γ and edge lengths t are not identifiable, although their γ * (1-exp(-t)) are.")
     end
     miss = ""
-    println(io, "edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable")
+    println(io, "edge parent child  length  hybrid ismajor gamma   containroot i_cycle")
     for e in net.edge
         @printf(io, "%-4d %-6d %-6d ", e.number, getparent(e).number, getchild(e).number)
         if e.length==-1.0 @printf(io, "%-7s ", miss); else @printf(io, "%-7.3f ", e.length); end
-        @printf(io, "%-6s %-7s ", e.hybrid, e.isMajor)
+        @printf(io, "%-6s %-7s ", e.hybrid, e.ismajor)
         if e.gamma==-1.0  @printf(io, "%-7s ", miss); else @printf(io, "%-7.4g ", e.gamma); end
-        @printf(io, "%-11s %-7d %-5s\n", e.containRoot, e.inCycle, e.istIdentifiable)
+        @printf(io, "%-11s %-7d\n", e.containroot, e.inte1)
     end
 end
 
-function printEdges(io::IO, net::QuartetNetwork)
-    println(io, "edge parent child  length  hybrid isMajor gamma   containRoot inCycle istIdentitiable")
-    for e in net.edge
-        @printf(io, "%-4d %-6d %-6d ", e.number, getparent(e).number, getchild(e).number)
-        @printf(io, "%-7.3f %-6s %-7s ", e.length, e.hybrid, e.isMajor)
-        @printf(io, "%-7.4g %-11s %-7d %-5s\n", e.gamma, e.containRoot, e.inCycle, e.istIdentifiable)
-    end
-end
 
-# print for every node, inCycle and edges
 """
-    printNodes(net)
-    printNodes(io, net)
+    printnodes(net)
+    printnodes(io, net)
 
 Print information on the nodes of a `HybridNetwork` net: node number,
-whether it's a leaf, whether it's a hybrid node, whether it's connected to one
-or more hybrid edges, it's name (label),
-the cycle in which it is belong (-1 if no cycle; makes sense for level-1 networks),
+whether it's a leaf, whether it's a hybrid node, it's name (label),
+its `intn1` field (for level-1 networks in SNaQ: number given to the cycle in
+which the node might be, -1 if the node it *not* in a cycle cycle),
 and the list of edges attached to it, by their numbers.
 """
-printNodes(x) = printNodes(stdout::IO, x)
-function printNodes(io::IO, net::Network)
+printnodes(x) = printnodes(stdout::IO, x)
+function printnodes(io::IO, net::Network)
     namepad = max(4, maximum(length.([n.name for n in net.node])))
-    println(io, "node leaf  hybrid hasHybEdge ", rpad("name", namepad), " inCycle edges'numbers")
+    println(io, "node leaf  hybrid ", rpad("name", namepad), " i_cycle edges'numbers")
     for n in net.node
-        @printf(io, "%-4d %-5s %-6s %-10s ", n.number, n.leaf, n.hybrid, n.hasHybEdge)
+        @printf(io, "%-4d %-5s %-6s ", n.number, n.leaf, n.hybrid)
         print(io, rpad(n.name,namepad))
-        @printf(io, " %-7d", n.inCycle)
+        @printf(io, " %-7d", n.intn1)
         for e in n.edge
             @printf(io, " %-4d", e.number)
         end
@@ -780,8 +708,10 @@ end
     hybridEdges(node::Node)
 
 Return the 3 edges attached to `node` in a specific order [e1,e2,e3].
-**Warning**: assume a level-1 network with node field `hasHybEdge`
-and edge field `inCycle` up-to-date.
+**Warning**: assume a level-1 network with up-to-date node fields
+`booln1` (tracking whether the node is incident to a hybrid edge
+and edge) and field `intn1` (tracking the number given to the cycle in which
+the node might be).
 
 If `node` is a hybrid node:
 
@@ -789,7 +719,7 @@ If `node` is a hybrid node:
 - e2 is the minor hybrid parent edge
 - e3 is the tree edge, child of `node`.
 
-If `node` is a tree node parent of one child edge:
+If `node` is a tree node parent of one child hybrid edge:
 
 - e1 is the hybrid edge, child of `node`
 - e2 is the tree edge that belongs to the cycle created by e1
@@ -801,28 +731,28 @@ Otherwise:
 """
 function hybridEdges(node::Node)
     size(node.edge,1) == 3 || error("node $(node.number) has $(size(node.edge,1)) edges instead of 3");
-    if(node.hybrid)
+    if node.hybrid
         hybmajor = nothing;
         hybminor = nothing;
         tree = nothing;
         for e in node.edge
-            (e.hybrid && e.isMajor) ? hybmajor = e : nothing
-            (e.hybrid && !e.isMajor) ? hybminor = e : nothing
+            (e.hybrid && e.ismajor) ? hybmajor = e : nothing
+            (e.hybrid && !e.ismajor) ? hybminor = e : nothing
             !e.hybrid ? tree = e : nothing
         end
         return hybmajor, hybminor, tree
-    elseif(node.hasHybEdge)
+    elseif node.booln1
         hybrid = nothing;
         treecycle = nothing;
         tree = nothing;
         for e in node.edge
             (e.hybrid) ? hybrid = e : nothing
-            (!e.hybrid && e.inCycle != -1) ? treecycle = e : nothing
-            (!e.hybrid && e.inCycle == -1) ? tree = e : nothing
+            (!e.hybrid && e.inte1 != -1) ? treecycle = e : nothing
+            (!e.hybrid && e.inte1 == -1) ? tree = e : nothing
         end
         return hybrid, treecycle, tree
     else
-        #@warn "node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (hasHybEdge) $(node.hasHybEdge), return the node.edge in order, unless a leaf is attached, then the edge attached to leaf is last";
+        #@warn "node $(node.number) is not hybrid $(node.hybrid) nor tree with hybrid edges (booln1) $(node.booln1), return the node.edge in order, unless a leaf is attached, then the edge attached to leaf is last";
         edge1 = nothing
         edge2 = nothing
         edge3 = nothing
@@ -877,14 +807,14 @@ end
 # warning: deletion is final, you can only
 #          have edge back by pushing it again
 # warning: if the edge removed is hybrid and node is tree,
-#          node.hasHybEdge is set to false
+#          node.booln1 is set to false
 #          assuming any tree node can only have one
 #          one hybrid edge
 function removeEdge!(node::Node, edg::Edge)
     index = findfirst(x -> x === edg, node.edge)
     index !== nothing || error("edge $(edg.number) not in node $(node.number)")
     deleteat!(node.edge,index)
-    node.hasHybEdge = any(e -> e.hybrid, node.edge)
+    node.booln1 = any(e -> e.hybrid, node.edge)
 end
 
 # function to remove a node from a edge
@@ -901,87 +831,35 @@ end
 
 # ----------------------------------------------------------------------------------------
 
-# setLength
-# warning: allows to change edge length for istIdentifiable=false
-#          but issues a warning
-# negative=true means it allows negative branch lengths (useful in qnet typeHyb=4)
-function setLength!(edge::Edge, new_length::Number, negative::Bool)
-    (negative || new_length >= 0) || error("length has to be nonnegative: $(new_length), cannot set to edge $(edge.number)")
-    new_length >= -0.4054651081081644 || error("length can be negative, but not too negative (greater than -log(1.5)) or majorCF<0: new length is $(new_length)")
-    #println("setting length $(new_length) to edge $(edge.number)")
-    if(new_length > 10.0)
-        new_length = 10.0;
-    end
-    edge.length = new_length;
-    edge.y = exp(-new_length);
-    edge.z = 1.0 - edge.y;
-    #edge.istIdentifiable || @warn "set edge length for edge $(edge.number) that is not identifiable"
-    return nothing
-end
-
-"""
-    setLength!(edge, newlength)`
-
-Set the length of `edge`, and set `edge.y` and `edge.z` accordingly.
-Warning: specific to SNaQ. Use [`setlengths!`](@ref) or [`setBranchLength!`](@ref)
-for more general tools.
-
-- The new length is censored to 10: if the new length is above 10,
-  the edge's length will be set to 10. Lengths are interpreted in coalescent
-  units, and 10 is close to infinity: near perfect gene tree concordance.
-  10 is used as an upper limit to coalescent units that can be reliably estimated.
-- The new length is allowed to be negative, but must be greater than -log(1.5),
-  to ensure that the major quartet concordance factor (1 - 2/3 exp(-length)) is >= 0.
-"""
-setLength!(edge::Edge, new_length::Number) = setLength!(edge, new_length, false)
 
 
 """
-    setBranchLength!(Edge, newlength)
-
-Set the length of an Edge object. The new length needs to be non-negative,
-or -1.0 to be interpreted as missing. `edge.y` and `edge.z` are updated
-accordingly.
-"""
-function setBranchLength!(edge::Edge, new_length::Number)
-    (new_length >= 0 || new_length == -1.0) || error("length $(new_length) has to be nonnegative or -1.0 (for missing).")
-    edge.length = new_length;
-    edge.y = exp(-new_length);
-    edge.z = 1.0 - edge.y;
-end
-
-
-"""
-    setGamma!(Edge, new γ)
-    setGamma!(Edge, new γ, change_other=true::Bool)
+    setgamma!(Edge, new γ, change_other=true)
 
 Set inheritance probability γ for an edge, which must be a hybrid edge.
 The new γ needs to be in [0,1]. The γ of the "partner" hybrid edge is changed
-accordingly, to 1-γ. The field `isMajor` is also changed accordingly.
+accordingly, to 1-γ. The field `ismajor` is also changed accordingly.
 If the new γ is approximately 0.5, `Edge` is set to the major parent,
 its partner is set to the minor parent.
 
-If `net` is a HybridNetwork object, `printEdges(net)` will show the list of edges
+If `net` is a HybridNetwork object, `printedges(net)` will show the list of edges
 and their γ's. The γ of the third hybrid edge (say) can be changed to 0.2 with
-`setGamma!(net.edge[3],0.2)`.
+`setgamma!(net.edge[3],0.2)`.
 This will automatically set γ of the partner hybrid edge to 0.8.
 
 The last argument is true by default. If false: the partner edge is not updated.
 This is useful if the new γ is 0.5, and the partner's γ is already 0.5,
-in which case the `isMajor` attributes can remain unchanged.
+in which case the `ismajor` attributes can remain unchanged.
+
+See also [`PhyloNetworks.setmultiplegammas!`](@ref)
 """
-setGamma!(edge::Edge, new_gamma::Float64) = setGamma!(edge, new_gamma, true)
-
-# warning in the bad diamond/triangle cases because gamma is not identifiable
-# changeOther = true, looks for the other hybrid edge and changes gamma too
-
-function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
+function setgamma!(edge::Edge, new_gamma::Float64, changeOther::Bool=true)
     new_gamma >= 0.0 || error("gamma has to be positive: $(new_gamma)")
     new_gamma <= 1.0 || error("gamma has to be less than 1: $(new_gamma)")
     edge.hybrid || error("cannot change gamma in a tree edge");
     node = getchild(edge) # child of hybrid edge
     node.hybrid || @warn "hybrid edge $(edge.number) not pointing at hybrid node"
-    # @debug (node.isBadDiamondI ? "bad diamond situation: gamma not identifiable" : "")
+    # @debug (node.booln2 ? "bad diamond I situation: gamma not identifiable" : "")
     partner = Edge[] # list of other hybrid parents of node, other than edge
     for e in node.edge
         if e.hybrid && e != edge && node == getchild(e)
@@ -996,70 +874,584 @@ function setGamma!(edge::Edge, new_gamma::Float64, changeOther::Bool)
     new_ismajor = new_gamma >= 0.5
     edge.gamma = new_gamma
     if changeOther
-        edge.isMajor = new_ismajor
+        edge.ismajor = new_ismajor
         e2.gamma = 1.0 - new_gamma
-        e2.isMajor = !new_ismajor
+        e2.ismajor = !new_ismajor
     else
         if onehalf # who is major is arbitrary: so we pick what's consistent with the partner
-            edge.isMajor = !e2.isMajor
+            edge.ismajor = !e2.ismajor
         else
-            edge.isMajor = new_ismajor
+            edge.ismajor = new_ismajor
         end
     end
     return nothing
 end
 
+"""
+    setmultiplegammas!(edges::Vector{Edge}, γs::Vector{Float64})
+
+Set the inheritance of the ith edge to the ith γ value,
+calling [`setgamma!`](@ref).
+"""
 @inline function setmultiplegammas!(edges::Vector{Edge}, gammas::Vector{Float64})
     for (e,g) in zip(edges, gammas)
-        setGamma!(e, g)
+        setgamma!(e, g)
     end
 end
 
 """
-    setGammaBLfromGammaz!(node, network)
+    remove_edgelengthsgammas!(net::HybridNetwork)
 
-Update the γ values of the two sister hybrid edges in a bad diamond I, given the `gammaz` values
-of their parent nodes, and update the branch lengths t1 and t2 of their parent edges
-(those across from the hybrid nodes), in such a way that t1=t2 and that these branch lengths
-and γ values are consistent with the `gammaz` values in the network.
-
-Similar to the first section of [`undoGammaz!`](@ref),
-but does not update anything else than γ and t's.
-Unlike `undoGammaz!`, no error if non-hybrid `node` or not at bad diamond I.
+Reset all edge lengths and all hybrid edge γs to be missing (coded as -1.0).
 """
-function setGammaBLfromGammaz!(node::Node, net::HybridNetwork)
-    if !node.isBadDiamondI || !node.hybrid
-        return nothing
+function remove_edgelengthsgammas!(net::HybridNetwork)
+    for e in net.edge
+        e.length = -1.0
+        if e.hybrid
+            e.gamma = -1.0
+        end
     end
-    edge_maj, edge_min, tree_edge2 = hybridEdges(node);
-    other_maj = getOtherNode(edge_maj,node);
-    other_min = getOtherNode(edge_min,node);
-    edgebla,tree_edge_incycle1,tree_edge = hybridEdges(other_min);
-    edgebla,tree_edge_incycle2,tree_edge = hybridEdges(other_maj);
-    if(approxEq(other_maj.gammaz,0.0) && approxEq(other_min.gammaz,0.0))
-        edge_maj.gamma = 1.0 # γ and t could be anything if both gammaz are 0
-        edge_min.gamma = 0.0 # will set t's to 0 and minor γ to 0.
-        newt = 0.0
+end
+
+"""
+    check_nonmissing_nonnegative_edgelengths(net, str="")
+
+Throw an Exception if `net` has undefined edge lengths (coded as -1.0) or
+negative edge lengths. The error message indicates the number of the offending
+edge(s), followed by `str`.
+"""
+function check_nonmissing_nonnegative_edgelengths(net::HybridNetwork, str="")
+    if any(e.length == -1.0 for e in net.edge)
+        undefined = [e.number for e in net.edge if e.length == -1.0]
+        error(string("Branch(es) number ", join(undefined,","), " have no length.\n", str))
+    end
+    if any(e.length < 0 for e in net.edge)
+        negatives = [e.number for e in net.edge if e.length < 0.0]
+        error(string("Branch(es) number ", join(negatives,","), " have negative length.\n", str))
+    end
+end
+
+
+"""
+    getnodeheights(net, checkpreorder::Bool=true)
+    getnodeheights!(net, checkpreorder::Bool=true)
+
+Vector of node heights, that is: the distance of each node to the root.
+An error is thrown if the network is not time-consistent.
+A network is time-consistent if, for any node `v`, all paths from the root to `v`
+have the same length. (It is sufficient to check this condition at hybrid nodes).
+Ultrametricity is not assumed: tips need not all be at the same distance from the root.
+If `checkpreorder=false`, assumes the network has already been preordered
+with [`preorder!`](@ref).
+
+If a tree edge has a missing length (coded as -1), both functions throw an error.
+In general, there may be an exponential number of ways to assign tree edge
+lengths that make the network time-consistent.
+
+`getnodeheights` sends a warning upon finding a missing hybrid edge length,
+otherwises proceeds as `getnodeheights!` but without modifying the network.
+`getnodeheights!` will attempt to assign values to missing lengths, for hybrid
+edges only, so as to make the network time-consistent.
+
+If a hybrid edge `e` has a missing length, `getnodeheights!` proceeds as follows
+at its child hybrid node `h`:
+- If all of `h`'s parent edges lack a length: the shortest non-negative lengths
+  are assigned to make the network time-consistent at `h`. In particular, one of
+  the partner edges is assigned length 0, and `h` is made as old as possible,
+  that is, as close to the root as possible: the reticulation is "zipped-up".
+- Otherwise: the length of `e` is set to the unique value that makes the network
+  time-consistent at `h`, based on the partner edge's length.
+  If this value is negative, then an error is thrown.
+
+Output: vector of node heights, one per node, in the same order as in
+`net.vec_node`.
+
+See also: [`istimeconsistent`](@ref) and [`getnodeheights_average`](@ref).
+
+Examples:
+
+```jldoctest
+julia> net = readnewick("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2)root;");
+
+julia> # using PhyloPlots; plot(net, useedgelength=true, showedgelength=true, shownodenumber=true); # to see
+
+julia> nodeheight = getnodeheights(net)
+9-element Vector{Float64}:
+ 0.0
+ 5.2
+ 1.0
+ 3.2
+ 5.2
+ 2.0
+ 3.5
+ 4.5
+ 3.0
+
+julia> [node.number => (height, node.name) for (height,node) in zip(nodeheight, net.vec_node)]
+9-element Vector{Pair{Int64, Tuple{Float64, String}}}:
+ -2 => (0.0, "root")
+  5 => (5.2, "O")
+ -3 => (1.0, "")
+ -6 => (3.2, "")
+  4 => (5.2, "E")
+ -4 => (2.0, "")
+  3 => (3.5, "H1")
+  2 => (4.5, "A")
+  1 => (3.0, "C")
+
+```
+"""
+getnodeheights(net::HybridNetwork, checkpreorder::Bool=true) =
+    _getnodeheights(net, false, timeinconsistency_error, checkpreorder)[2]
+@doc (@doc getnodeheights) getnodeheights!
+getnodeheights!(net::HybridNetwork, checkpreorder::Bool=true) =
+    _getnodeheights(net, true, timeinconsistency_error, checkpreorder)[2]
+
+"""
+    getnodeheights_average(net, checkpreorder::Bool=true; warn=true)
+
+Vector of average node heights, that is: the average distance from the root to
+each node. The average is a weighted average with weights taken to be the
+hybrid edges' inheritance values γ, if available. Equal weights are used at
+hybrid nodes with some parents lacking a γ inheritance value (with a warning).
+
+missing edge lengths:
+- An error is thrown if a tree edge has a missing edge length.
+- If all parent hybrid edges have missing lengths at a given hybrid node, then
+  the hybrid node is assumed to be as close to the root as possible, that is,
+  the reticulation is assumed "zipped-up" with one of its hybrid edges of length 0.
+- If some but not all parent hybrid edges have a missing length, then the
+  average node height is calculated based on the non-missing parents only.
+  If the hybrid node height turns out to be lower than one of the parent's height
+  (such that some missing length would need to be negative) then a warning is
+  issued.
+
+A warning is issued, unless `warn=false`, if the network is not time-consistent.
+
+See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref), and `getnodeheights_majortree`](@ref).
+"""
+function getnodeheights_average(
+    net::HybridNetwork,
+    checkpreorder::Bool=true;
+    warn::Bool=true
+)
+    (isTC, nh) = _getnodeheights(net, false, timeinconsistency_average, checkpreorder)
+    warn && !isTC && @warn "the network is not time consistent"
+    return nh
+end
+
+"""
+    getnodeheights_majortree(net, checkpreorder::Bool=true; warn=true)
+
+Vector of node heights from the major tree, that is: the distance from the root to
+each node when considering the major tree for node heights. 
+
+missing edge lengths:
+- An error is thrown if a tree edge has a missing edge length.
+- If all parent hybrid edges have missing lengths at a given hybrid node, then
+  the hybrid node is assumed to be as close to the root as possible, that is,
+  the reticulation is assumed "zipped-up" with one of its hybrid edges of length 0.
+- If a major hybrid edge has a missing length, then the hybrid node height will
+  be calculated using the node height and edge length of the minor parent with
+  the largest inheritance γ (with a warning). If the major hybrid edge lacks a length and
+  all non-missing minor edges lack an inheritance γ or have the same value,
+  then an error is thrown.
+
+A warning is issued, unless `warn=false`, if the network is not time-consistent.
+
+See also: [`istimeconsistent`](@ref), [`getnodeheights`](@ref) and
+[`getnodeheights_average`](@ref).
+
+```jldoctest
+#node heights of time-consistent networks are the same 
+julia> consistent_net = readnewick("((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:0.5::0.6):1.25);");
+
+julia> heights = getnodeheights(consistent_net)
+7-element Vector{Float64}:
+ 0.0
+ 1.25
+ 2.75
+ 0.25
+ 1.75
+ 2.75
+ 2.75
+
+julia> heights_average = getnodeheights_average(consistent_net);
+
+julia> heights_major = getnodeheights_majortree(consistent_net);
+
+julia> heights == heights_average == heights_major  
+true
+```
+
+```jldoctest
+#inconsistent networks give different results
+julia> inconsistent_net = readnewick("((A:2.5,#H1:1.5::0.4):0.25,(C:1.5,(B:1)#H1:2.5::0.6):1.25);");
+
+julia> getnodeheights_average(inconsistent_net;warn=false)
+7-element Vector{Float64}:
+ 0.0
+ 1.25
+ 2.75
+ 0.25
+ 2.95
+ 3.95
+ 2.75
+
+julia> getnodeheights_majortree(inconsistent_net;warn=false) 
+7-element Vector{Float64}:
+ 0.0
+ 1.25
+ 2.75
+ 0.25
+ 3.75
+ 4.75
+ 2.75
+
+```
+"""
+function getnodeheights_majortree(net::HybridNetwork, checkpreorder::Bool=true; warn::Bool=true)
+    (isTC, nh) = _getnodeheights(net, false, timeinconsistency_majortree, checkpreorder)
+    warn && !isTC && @warn "the network is not time consistent"
+    return nh
+end
+
+"""
+    istimeconsistent(net, checkpreorder::Bool=true)
+
+True (resp. false) if `net` network is (resp. is not) time-consistent.
+A network is time-consistent if for any node `v`, all paths from the root to `v`
+have the same length.
+It is sufficient to check this condition at nodes `v` that are hybrid nodes.
+
+See also [`getnodeheights`](@ref) and [`getnodeheights_average`](@ref).
+"""
+istimeconsistent(net::HybridNetwork, checkpreorder::Bool=true) =
+    _getnodeheights(net, false, timeinconsistency_check, checkpreorder)[1]
+
+
+"""
+    _getnodeheights(net::HybridNetwork, fixmissing::Bool,
+                    inconsistencyhandler::Function, checkpreorder::Bool=true)
+
+Helper to determine time-consistency and calculate node heights
+(distance from the root), used by [`getnodeheights`](@ref) for example.
+
+output: `(isconsistent, nodes_distance_from_root)`
+
+Arguments:
+
+- `fixmissing`:
+  * if `false`, any missing hybrid edge length will cause a warning, the network
+    is *not* modified, and the best-case is assumed to determine time-consistency
+    (as explained below)
+  * if `true`, will attempt to find values for missing lengths of *hybrid* edges,
+    if any, to make the network time-consistent, placing hybrid nodes as close
+    to the root as possible (as this gives most chances to find a time-consistent
+    assignment of all missing hybrid edge lengths).
+    If there is a time-consistent assignment, then the network is modified
+    (with missing hybrid edge lengths set to time-consistent values).
+    Otherwise, the network is not modified.
+
+  This option is passed to `update_getnodeheights_hybrid!` that handles
+  1 hybrid node at a time.
+
+- `inconsistencyhandler`: function to check & handle time-consistency as desired
+  as a given hybrid node `h`, and to decide if the traversal should continue.
+  It should take as input:
+  * a vector of ≥1 candicate heights for `h` from parent edges with non-missing
+    length, and
+  * a vector of ≥0 heights of parent nodes whose child edge to `h` has no length
+  * `isconsistent`: a boolean that is modified to `false` if the network is
+    not time-consistent at `h` (unless an error is thrown anyway!).
+  
+  This handler function decides what to do if the candidate heights are not
+  all equal (the network is time-inconsistent), and if the values to be
+  assigned to missing edge lengths would be negative. Its output should be:
+  `(keepgoing_boolean, hybrid_node_height)`.
+
+  Examples:
+  [`timeinconsistency_error`](@ref) is conservative and throws an
+  error in both cases.
+  [`timeinconsistency_average`](@ref) is lenient: only throws warnings,
+  but keeps going and returns γ-weighted average node heights
+"""
+function _getnodeheights(
+    net::HybridNetwork,
+    fixmissing::Bool,
+    inconsistencyhandler::Function,
+    checkpreorder::Bool=true,
+)
+    checkpreorder && preorder!(net)
+    missing_e = Tuple{Edge,Float64}[] # vector of (edge, fixed_length) for edges with missing length
+    isconsistent = Ref(true)
+    rootdistance = traversal_preorder(
+        net.vec_node,
+        getnodeheights_init,
+        traversalupdate_default!, # nothing to do at the root
+        update_getnodeheights_tree!,
+        update_getnodeheights_hybrid!,
+        missing_e,
+        isconsistent,
+        inconsistencyhandler)
+    # assign values to fix missing edge lengths: ! modifies net !
+    if fixmissing
+        (x-> x[1].length=x[2]).(missing_e)
     else
-        ((approxEq(other_min.gammaz,0.0) || other_min.gammaz >= 0.0) &&
-         (approxEq(other_maj.gammaz,0.0) || other_maj.gammaz >= 0.0)    ) ||
-            error("bad diamond I in node $(node.number) but missing (or <0) gammaz")
-        ztotal = other_maj.gammaz + other_min.gammaz
-        edge_maj.gamma = other_maj.gammaz / ztotal
-        edge_min.gamma = other_min.gammaz / ztotal
-        newt = -log(1-ztotal)
+        isempty(missing_e) || @warn "some hybrid edge length is missing"
     end
-    setLength!(tree_edge_incycle1,newt)
-    setLength!(tree_edge_incycle2,newt)
+    return (isconsistent[], rootdistance)
+end
+
+function getnodeheights_init(nodes::Vector{Node}, params...)
+    n = length(nodes)
+    return zeros(Float64,n)
+end
+
+function update_getnodeheights_tree!(
+    rootdistance::Vector{Float64},
+    i::Int,
+    parind::Int,
+    paredge::Edge,
+    params...
+) 
+    if paredge.length == -1.0 # interpreted as missing
+        paredge.hybrid && @error("weird, hybrid edge at tree node")
+        error("Edge $(paredge.number) has a missing edge length: node height cannot be determined")
+    end
+    rootdistance[i] = rootdistance[parind] + paredge.length 
+    return true
+end
+
+function update_getnodeheights_hybrid!(
+    rootdistance::Vector{Float64},
+    i::Int,
+    parinds::Vector{Int},
+    paredges::Vector{Edge},
+    missing_e::Vector{Tuple{Edge,Float64}},
+    isconsistent::Ref{Bool},
+    inconsistencyhandler::Function,
+)
+    keepgoing = true
+    candidate_nodeheight = Float64[]
+    missingparent_height = Float64[]
+    missingparent_j = Int[]
+    nonmissingparent_j = Int[]
+    for (pj,pj_ind) in enumerate(parinds)
+        if paredges[pj].length == -1 # missing parent edge length
+            push!(missingparent_j, pj)
+            push!(missingparent_height, rootdistance[pj_ind])
+        else
+            push!(nonmissingparent_j, pj)
+            push!(candidate_nodeheight, rootdistance[pj_ind] + paredges[pj].length)
+        end
+    end
+    if isempty(candidate_nodeheight) # all edge lengths are missing: then we can
+        # set them in a time-consistent way, zipped up: hybrid as close to the root as possible
+        nodehght = maximum(missingparent_height)
+    else # ≥1 length: check & handle time-consistency as desired (e.g. take average)
+        keepgoing, nodehght = inconsistencyhandler(
+            candidate_nodeheight, missingparent_height,
+            isconsistent, paredges, nonmissingparent_j)
+    end
+    rootdistance[i] = nodehght
+    for (pj, ph) in zip(missingparent_j, missingparent_height)
+        push!(missing_e, (paredges[pj], nodehght - ph))
+    end
+    return keepgoing # stops the traversal early is not time-consistent
+end
+
+"""
+    timeinconsistency_error(
+        candidate_nodeheights,
+        missingparent_heights,
+        args...;
+        atol::Real=1e-8, rtol::Real=√eps(Float64))
+    timeinconsistency_check
+
+Check that all candidate node heights are approximately equal to one another,
+and that this shared value `nodeheight` is higher (farther from the root) than the
+height of parents connected by edge of missing length `missingparent_heights`
+to ensure that these edge lengths would be assigned non-negative values.
+
+If any of these conditions is not met, `timeinconsistency_error` throws an error.
+Otherwise, it returns `(true, nodeheight)` where `true` means that
+the network is (or could be) time-consistent at the node being considered.
+`timeinconsistency_check` returns `(is_timeconsistent, nodeheight)` but does
+*not* throw an error the `is_timeconsistent` if false (for either reason).
+
+Assumption: `candidate_nodeheight` is not empty, that is, the node has at least
+one parent edge with a non-missing length.
+
+See also [`_getnodeheights`](@ref PhyloNetworks._getnodeheights)
+"""
+function timeinconsistency_error(
+    candidate_nodeheight::AbstractVector{T},
+    missingparent_height::AbstractVector{T},
+    args...;
+    atol::Real=1e-8, # more lenient than default 0 in isapprox
+    rtol::Real=√eps(T),
+) where T<:Real
+    min_nh, max_nh = extrema(candidate_nodeheight)
+    length(candidate_nodeheight) == 1 ||
+        isapprox(min_nh, max_nh; atol=atol, rtol=rtol) ||
+        error("the network is not time consistent. paths of different lengths: $candidate_nodeheight")
+    if any(missingparent_height .> max_nh) # may be empty vector
+        error("""a missing edge length would be need to be set to a negative value
+        to make the network time-consistent""")
+    end
+    return (true, max_nh)
+end
+
+@doc (@doc timeinconsistency_error) timeinconsistency_check
+function timeinconsistency_check(
+    candidate_nodeheight::AbstractVector{T},
+    missingparent_height::AbstractVector{T},
+    isconsistent::Ref{Bool},
+    args...;
+    atol::Real=1e-8, # more lenient than default 0 in isapprox
+    rtol::Real=√eps(T),
+) where T<:Real
+    min_nh, max_nh = extrema(candidate_nodeheight)
+    timecons = length(candidate_nodeheight) == 1 ||
+        isapprox(min_nh, max_nh; atol=atol, rtol=rtol)
+    if any(missingparent_height .> max_nh) # may be empty vector
+        timecons = false
+    end
+    isconsistent[] &= timecons
+    return (timecons, max_nh) # stop the traversal if not time consistent
+end
+
+"""
+    timeinconsistency_average(
+        candidate_nodeheights,
+        missingparent_heights,
+        isconsistent::Ref{Bool},
+        parent_edges,
+        nonmissingparent_j;
+        atol::Real=1e-8, rtol::Real=√eps(Float64))
+
+Calculate the γ-weighted average node height of a given hybrid node `h`, based
+on the candidate node heights from its parents with non-missing edge lengths.
+- If some of these parent edges have a missing γ, then equal weights are used
+  and a warning is issued.
+- If the hybrid node's average height (calculate from non-missing lengths)
+  turns out to be lower than one of the parent's height with a missing length
+  (such that this parent edge would need to be assigned a negative value)
+  then a warning is issued.
+
+Outcome:
+- update `isconsistent` to false if the candidate node heights are not all equal
+  or if some missing edge length would have to be assigned a negative value
+  to make the network time-consistent
+- returns `(true, nodeheight)`
+
+Assumption: `candidate_nodeheight` is not empty, that is, the node has at least
+one parent edge with a non-missing length.
+
+See also [`_getnodeheights`](@ref) and [`getnodeheights_average`](@ref)
+"""
+function timeinconsistency_average(
+    candidate_nodeheight::AbstractVector{T},
+    missingparent_height::AbstractVector{T},
+    isconsistent::Ref{Bool},
+    paredges::Vector{Edge},
+    nm_ind::AbstractVector;
+    atol::Real=1e-8, # more lenient than default 0
+    rtol::Real=√eps(T),
+) where T<:Real
+    min_nh, max_nh = extrema(candidate_nodeheight)
+    timecons = length(candidate_nodeheight) == 1 ||
+        isapprox(min_nh, max_nh; atol=atol, rtol=rtol)
+    if timecons # if time-consistent: don't calculate the weighted average
+        nh = max_nh
+    else # weighted average, with equal weights if some γ's are missing
+        if any(j -> paredges[j].gamma == -1, nm_ind) # ≥ 1 missing γ
+            @warn "missing γ: will use equal weights"
+            nh = sum(candidate_nodeheight) / length(candidate_nodeheight)
+        else
+            nh = zero(T); gamma_sum = zero(T)
+            for (cnh, pj) in zip(candidate_nodeheight, nm_ind)
+                nh += cnh * paredges[pj].gamma
+                gamma_sum += paredges[pj].gamma
+            end
+            nh /= gamma_sum
+        end
+    end
+    if any(missingparent_height .> nh) # may be empty vector
+        @warn """a missing edge length would be need to be set to a negative value
+        for these average node heights"""
+        timecons = false
+    end
+    isconsistent[] &= timecons
+    return (true, nh) # keep going, even if the network is inconsistent
+end
+
+"""
+    timeinconsistency_majortree(
+        candidate_nodeheights,
+        missingparent_heights,
+        isconsistent::Ref{Bool},
+        parent_edges,
+        nonmissingparent_j;
+        atol::Real=1e-8, rtol::Real=√eps(Float64))
+
+Calculate node height of a given hybrid node `h`, based on the its major parent
+node height, if its major parent edge has a non-missing length. If missing, then
+the non-missing edge length with the largest γ is used and a warning is issued.
+If all parent edges have missing γ values then an error is thrown.
+
+Outcome:
+- update `isconsistent` to false if the candidate node heights are not all equal
+  or if some missing edge length would have to be assigned a negative value
+  to make the network time-consistent
+- returns `(true, nodeheight)`
+
+Assumption: `candidate_nodeheight` is not empty, that is, the node has at least
+one parent edge with a non-missing length.
+
+See also [`_getnodeheights`](@ref) and [`getnodeheights_average`](@ref)
+"""
+function timeinconsistency_majortree(
+    candidate_nodeheight::AbstractVector{T},
+    missingparent_height::AbstractVector{T},
+    isconsistent::Ref{Bool},
+    paredges::Vector{Edge},
+    nm_ind::AbstractVector;
+    atol::Real=1e-8, # more lenient than default 0
+    rtol::Real=√eps(T),
+) where T<:Real
+    min_nh, max_nh = extrema(candidate_nodeheight)
+    timecons = length(candidate_nodeheight) == 1 ||
+        isapprox(min_nh, max_nh; atol=atol, rtol=rtol)
+    maj_cantidate = findfirst(x->x.ismajor, paredges[nm_ind])
+    if !isnothing(maj_cantidate) #  the major edge is among candidates
+        nh = candidate_nodeheight[maj_cantidate]
+    else # find candidate with largest γ
+        @warn "major hybrid edge missing a length. Using non-missing minor edge with largest γ"
+        gammas = (x-> x.gamma).(paredges[nm_ind])
+        max_gamma = maximum(gammas)
+        max_gamma == -1 && error("major edge lacks a length and all non-missing edges lack a γ")
+        cantidate_ind = findall(gammas .== max_gamma)
+        length(cantidate_ind) > 1 && error("major edge lacks a length and two alternative edges have the same γ")
+        nh = candidate_nodeheight[cantidate_ind[1]]
+    end
+    if any(missingparent_height .> nh) # may be empty vector
+        @warn """a missing edge length would be need to be set to a negative value
+        to use the cantidate node height of the major edge"""
+        timecons = false
+    end
+    isconsistent[] &= timecons
+    return (true, nh) # keep going, even if the network is inconsistent
 end
 
 
 function numTreeEdges(net::HybridNetwork)
-    2*net.numTaxa - 3 + net.numHybrids
+    2*net.numtaxa - 3 + net.numhybrids
 end
 
 function numIntTreeEdges(net::HybridNetwork)
-    2*net.numTaxa - 3 + net.numHybrids - net.numTaxa
+    2*net.numtaxa - 3 + net.numhybrids - net.numtaxa
 end
 
 
@@ -1070,7 +1462,7 @@ end
 # cycle: is the number to look for partition on that cycle only
 function whichPartition(net::HybridNetwork,edge::Edge,cycle::Integer)
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
-    edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
+    edge.inte1 == -1 || error("edge $(edge.number) is in cycle $(edge.inte1) so it cannot be in any partition")
     @debug "search partition for edge $(edge.number) in cycle $(cycle)"
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
     for i in 1:length(net.partition)
@@ -1093,7 +1485,7 @@ end
 # to use splice and delete it from net.partition later on
 function whichPartition(net::HybridNetwork,edge::Edge)
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
-    edge.inCycle == -1 || error("edge $(edge.number) is in cycle $(edge.inCycle) so it cannot be in any partition")
+    edge.inte1 == -1 || error("edge $(edge.number) is in cycle $(edge.inte1) so it cannot be in any partition")
     @debug "search partition for edge $(edge.number) without knowing its cycle"
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
     for i in 1:length(net.partition)
@@ -1125,171 +1517,6 @@ function isPartitionInNet(net::HybridNetwork,desc::Vector{Edge},cycle::Vector{In
         end
     end
     return false
-end
-
-# function to check that everything matches in a network
-# in particular, cycles, partitions and containRoot
-# fixit: need to add check on identification of bad diamonds, triangles
-# and correct computation of gammaz
-# light=true: it will not collapse with nodes with 2 edges, will return a flag of true
-# returns true if found egde with BL -1.0 (only when light=true, ow error)
-# added checkPartition for undirectedOtherNetworks that do not need correct hybrid node number
-function checkNet(net::HybridNetwork, light::Bool; checkPartition=true::Bool)
-    @debug "checking net"
-    net.numHybrids == length(net.hybrid) || error("discrepant number on net.numHybrids (net.numHybrids) and net.hybrid length $(length(net.hybrid))")
-    net.numTaxa == length(net.leaf) || error("discrepant number on net.numTaxa (net.numTaxa) and net.leaf length $(length(net.leaf))")
-    net.numNodes == length(net.node) || error("discrepant number on net.numNodes (net.numNodes) and net.node length $(length(net.node))")
-    net.numEdges == length(net.edge) || error("discrepant number on net.numEdges (net.numEdges) and net.edge length $(length(net.edge))")
-    if(isTree(net))
-        all(x->x.containRoot,net.edge) || error("net is a tree, but not all edges can contain root")
-        all(x->x.isMajor,net.edge) || error("net is a tree, but not all edges are major")
-        all(x->!(x.hybrid),net.edge) || error("net is a tree, but not all edges are tree")
-        all(x->!(x.hybrid),net.node) || error("net is a tree, but not all nodes are tree")
-        all(x->!(x.hasHybEdge),net.node) || error("net is a tree, but not all nodes hasHybEdge=false")
-        all(x->(x.gamma == 1.0 ? true : false),net.edge) || error("net is a tree, but not all edges have gamma 1.0")
-    end
-    for h in net.hybrid
-        if(isBadTriangle(h))
-            @debug "hybrid $(h.number) is very bad triangle"
-            net.hasVeryBadTriangle || error("hybrid node $(h.number) is very bad triangle, but net.hasVeryBadTriangle is $(net.hasVeryBadTriangle)")
-            h.isVeryBadTriangle || h.isExtBadTriangle || error("hybrid node $(h.number) is very bad triangle but it does not know it")
-        end
-        nocycle,edges,nodes = identifyInCycle(net,h)
-        for e in edges
-            e.inCycle == h.number || error("edge $(e.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(e.inCycle)")
-            if(e.length == -1.0)
-                if(light)
-                    return true
-                else
-                    error("found edge with BL -1.0")
-                end
-            end
-            if(e.hybrid)
-                !e.containRoot || error("hybrid edge $(e.number) should not contain root") # fixit: disagree
-                o = getOtherNode(e,h)
-                o.hasHybEdge || error("found node $(o.number) attached to hybrid edge but hasHybEdge=$(o.hasHybEdge)")
-            end
-        end
-        for n in nodes
-            n.inCycle == h.number || error("node $(n.number) is in cycle of hybrid node $(h.number) but its inCycle attribute is $(n.inCycle)")
-            e1,e2,e3 = hybridEdges(n)
-            i = 0
-            for e in [e1,e2,e3]
-                if(isa(e,Nothing) && h.k != 2)
-                    error("edge found that is Nothing, and hybrid node $(h.number) k is $(h.k). edge as nothing can only happen when k=2")
-                elseif(!isa(e,Nothing))
-                    if(e.inCycle == -1)
-                        i += 1
-                        desc = [e]
-                        cycleNum = [h.number]
-                        getDescendants!(getOtherNode(e,n),e,desc,cycleNum)
-                        if(checkPartition && !isPartitionInNet(net,desc,cycleNum))
-                            printPartitions(net)
-                            error("partition with cycle $(cycleNum) and edges $([e.number for e in desc]) not found in net.partition")
-                        end
-                    end
-                end
-            end
-            i == 1 || error("strange node $(n.number) incycle $(h.number) but with $(i) edges not in cycle, should be only one")
-            edgesRoot = identifyContainRoot(net,h)
-            for edge in edgesRoot
-                if edge.containRoot
-                    @debug begin printEverything(net); "printed everything" end
-                    error("edge $(edge.number) should not contain root")
-                end
-            end
-        end
-    end
-    for n in net.node
-        if(n.leaf)
-            length(n.edge) == 1 || error("leaf $(n.number) with $(length(n.edge)) edges instead of 1")
-        else
-            if(light)
-                if(length(n.edge) != 3)
-                    @debug "warning: node $(n.number) with $(length(n.edge)) edges instead of 3"
-                    return true
-                end
-            else
-                length(n.edge) == 3 || error("node $(n.number) with $(length(n.edge)) edges instead of 3")
-            end
-        end
-    end
-    for e in net.edge
-        if(e.length == -1.0)
-            if(light)
-                return true
-            else
-                error("edge found with BL -1.0")
-            end
-        end
-    end
-    @debug "no errors in checking net"
-    return false
-end
-
-checkNet(net::HybridNetwork) = checkNet(net, false)
-
-# function to print everything for a given net
-# this is used a lot inside snaq to debug, so need to use level1 attributes
-# and not change the network: with writeTopologyLevel1
-function printEverything(net::HybridNetwork)
-    printEdges(net)
-    printNodes(net)
-    printPartitions(net)
-    println("$(writeTopologyLevel1(net))")
-end
-
-# function to check if a node is very or ext bad triangle
-function isBadTriangle(node::Node)
-    node.hybrid || error("cannot check if node $(node.number) is very bad triangle because it is not hybrid")
-    if(node.k == 3)
-        edgemaj, edgemin, treeedge = hybridEdges(node)
-        othermaj = getOtherNode(edgemaj,node)
-        othermin = getOtherNode(edgemin,node)
-        treenode = getOtherNode(treeedge,node)
-        edges1 = hybridEdges(othermaj)
-        o1 = getOtherNode(edges1[3],othermaj)
-        edges2 = hybridEdges(othermin)
-        o2 = getOtherNode(edges2[3],othermin)
-        leaves = sum([n.leaf ? 1 : 0 for n in [treenode,o1,o2]])
-        if(leaves == 1 || leaves == 2)
-            return true
-        else
-            return false
-        end
-    else
-        return false
-    end
-end
-
-
-# function to check if a partition is already in net.partition
-# used in updatePartition
-function isPartitionInNet(net::HybridNetwork,partition::Partition)
-    if(isempty(net.partition))
-        return false
-    end
-    for p in net.partition
-        cycle = isempty(setdiff(p.cycle,partition.cycle)) && isempty(setdiff(partition.cycle,p.cycle))
-        edges = isempty(setdiff([n.number for n in p.edges],[n.number for n in partition.edges])) && isempty(setdiff([n.number for n in partition.edges],[n.number for n in p.edges]))
-        if(cycle && edges)
-            return true
-        end
-    end
-    return false
-end
-
-
-# function to switch a hybrid node in a network to another node in the cycle
-function switchHybridNode!(net::HybridNetwork, hybrid::Node, newHybrid::Node)
-    hybrid.hybrid || error("node $(hybrid.number) has to be hybrid to switch to a different hybrid")
-    newHybrid.inCycle == hybrid.number || error("new hybrid needs to be in the cycle of old hybrid: $(hybrid.number)")
-    !newHybrid.hybrid || error("strange hybrid node $(newHybrid.number) in cycle of another hybrid $(hybrid.number)")
-    newHybrid.hybrid = true
-    newHybrid.hasHybEdge = true
-    newHybrid.name = hybrid.name
-    pushHybrid!(net,newHybrid)
-    makeNodeTree!(net,hybrid)
 end
 
 """
@@ -1349,179 +1576,33 @@ function assignhybridnames!(net::HybridNetwork)
     end
 end
 
+
 """
-    sorttaxa!(DataFrame, columns)
+    setlength!(edge::Edge, new_length)
 
-Reorder the 4 taxa and reorders the observed concordance factors accordingly, on each row of
-the data frame. If `columns` is ommitted, taxon names are assumed to be in columns 1-4 and
-CFs are assumed to be in columns 5-6 with quartets in this order: `12_34`, `13_24`, `14_23`.
-Does **not** reorder credibility interval values, if present.
-
-    sorttaxa!(DataCF)
-    sorttaxa!(Quartet, permutation_tax, permutation_cf)
-
-Reorder the 4 taxa in each element of the DataCF `quartet`. For a given Quartet,
-reorder the 4 taxa in its fields `taxon` and `qnet.quartetTaxon` (if non-empty)
-and reorder the 3 concordance values accordingly, in `obsCF` and `qnet.expCF`.
-
-`permutation_tax` and `permutation_cf` should be vectors of short integers (Int8) of length 4 and 3
-respectively, whose memory allocation gets reused. Their length is *not checked*.
-
-`qnet.names` is unchanged: the order of taxon names here relates to the order of nodes in the network
-(???)
+Assign new length to `edge`. `new_length` should be non-negative,
+or `missing` (or -1, interpreted as missing).
 """
-function sorttaxa!(dat::DataCF)
-    ptax = Array{Int8}(undef, 4) # to hold the sort permutations
-    pCF  = Array{Int8}(undef, 3)
-    for q in dat.quartet
-        sorttaxa!(q, ptax, pCF)
+@inline function setlength!(edge::Edge, new_length)
+    if ismissing(new_length) || new_length == -1
+        edge.length = -1
+    else
+        new_length >= 0.0 || error("edge length must be non negative: $(new_length)")
+        edge.length = new_length
     end
-end
-
-function sorttaxa!(df::DataFrame, co=Int[]::Vector{Int})
-    if length(co)==0
-        co = collect(1:7)
-    end
-    length(co) > 6 || error("column vector must be of length 7 or more")
-    ptax = Array{Int8}(undef, 4)
-    pCF  = Array{Int8}(undef, 3)
-    taxnam = Array{eltype(df[!,co[1]])}(undef, 4)
-    for i in 1:size(df,1)
-        for j=1:4 taxnam[j] = df[i,co[j]]; end
-        sortperm!(ptax, taxnam)
-        sorttaxaCFperm!(pCF, ptax) # update permutation pCF according to taxon permutation
-        df[i,co[1]], df[i,co[2]], df[i,co[3]], df[i,co[4]] = taxnam[ptax[1]], taxnam[ptax[2]], taxnam[ptax[3]], taxnam[ptax[4]]
-        df[i,co[5]], df[i,co[6]], df[i,co[7]] = df[i,co[pCF[1]+4]], df[i,co[pCF[2]+4]], df[i,co[pCF[3]+4]]
-    end
-    return df
-end
-
-function sorttaxa!(qua::Quartet, ptax::Vector{Int8}, pCF::Vector{Int8})
-    qt = qua.taxon
-    if length(qt)==4
-        sortperm!(ptax, qt)
-        sorttaxaCFperm!(pCF, ptax) # update permutation pCF accordingly
-        qt[1], qt[2], qt[3], qt[4] = qt[ptax[1]], qt[ptax[2]], qt[ptax[3]], qt[ptax[4]]
-        qua.obsCF[1], qua.obsCF[2], qua.obsCF[3] = qua.obsCF[pCF[1]], qua.obsCF[pCF[2]], qua.obsCF[pCF[3]]
-        # do *NOT* modify qua.qnet.quartetTaxon: it points to the same array as qua.taxon
-        eCF = qua.qnet.expCF
-        if length(eCF)==3
-            eCF[1], eCF[2], eCF[3] = eCF[pCF[1]], eCF[pCF[2]], eCF[pCF[3]]
-        end
-    elseif length(qt)!=0
-        error("Quartet with $(length(qt)) taxa")
-    end
-    return qua
-end
-
-# find permutation pCF of the 3 CF values: 12_34, 13_24, 14_23. 3!=6 possible permutations
-# ptax = one of 4!=24 possible permutations on the 4 taxon names
-# kernel: pCF = identity if ptax = 1234, 2143, 3412 or 4321
-# very long code, but to minimize equality checks at run time
-function sorttaxaCFperm!(pcf::Vector{Int8}, ptax::Vector{Int8})
-    if ptax[1]==1
-        if     ptax[2]==2
-            pcf[1]=1
-            if  ptax[3]==3 # ptax = 1,2,3,4
-                pcf[2]=2; pcf[3]=3
-            else           # ptax = 1,2,4,3
-                pcf[2]=3; pcf[3]=2
-            end
-        elseif ptax[2]==3
-            pcf[1]=2
-            if  ptax[3]==2 # ptax = 1,3,2,4
-                pcf[2]=1; pcf[3]=3
-            else           # ptax = 1,3,4,2
-                pcf[2]=3; pcf[3]=1
-            end
-        else # ptax[2]==4
-            pcf[1]=3
-            if  ptax[3]==2 # ptax = 1,4,2,3
-                pcf[2]=1; pcf[3]=2
-            else           # ptax = 1,4,3,2
-                pcf[2]=2; pcf[3]=1
-            end
-        end
-    elseif ptax[1]==2
-        if     ptax[2]==1
-            pcf[1]=1
-            if  ptax[3]==4 # ptax = 2,1,4,3
-                pcf[2]=2; pcf[3]=3
-            else           # ptax = 2,1,3,4
-                pcf[2]=3; pcf[3]=2
-            end
-        elseif ptax[2]==4
-            pcf[1]=2
-            if  ptax[3]==1 # ptax = 2,4,1,3
-                pcf[2]=1; pcf[3]=3
-            else           # ptax = 2,4,3,1
-                pcf[2]=3; pcf[3]=1
-            end
-        else # ptax[2]==3
-            pcf[1]=3
-            if  ptax[3]==1 # ptax = 2,3,1,4
-                pcf[2]=1; pcf[3]=2
-            else           # ptax = 2,3,4,1
-                pcf[2]=2; pcf[3]=1
-            end
-        end
-    elseif ptax[1]==3
-        if     ptax[2]==4
-            pcf[1]=1
-            if  ptax[3]==1 # ptax = 3,4,1,2
-                pcf[2]=2; pcf[3]=3
-            else           # ptax = 3,4,2,1
-                pcf[2]=3; pcf[3]=2
-            end
-        elseif ptax[2]==1
-            pcf[1]=2
-            if  ptax[3]==4 # ptax = 3,1,4,2
-                pcf[2]=1; pcf[3]=3
-            else           # ptax = 3,1,2,4
-                pcf[2]=3; pcf[3]=1
-            end
-        else # ptax[2]==2
-            pcf[1]=3
-            if  ptax[3]==4 # ptax = 3,2,4,1
-                pcf[2]=1; pcf[3]=2
-            else           # ptax = 3,2,1,4
-                pcf[2]=2; pcf[3]=1
-            end
-        end
-    else # ptax[1]==4
-        if     ptax[2]==3
-            pcf[1]=1
-            if  ptax[3]==2 # ptax = 4,3,2,1
-                pcf[2]=2; pcf[3]=3
-            else           # ptax = 4,3,1,2
-                pcf[2]=3; pcf[3]=2
-            end
-        elseif ptax[2]==2
-            pcf[1]=2
-            if  ptax[3]==3 # ptax = 4,2,3,1
-                pcf[2]=1; pcf[3]=3
-            else           # ptax = 4,2,1,3
-                pcf[2]=3; pcf[3]=1
-            end
-        else # ptax[2]==1
-            pcf[1]=3
-            if  ptax[3]==3 # ptax = 4,1,3,2
-                pcf[2]=1; pcf[3]=2
-            else           # ptax = 4,1,2,3
-                pcf[2]=2; pcf[3]=1
-            end
-        end
-    end
+    return nothing
 end
 
 """
-    setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+    setlengths!(edges::Vector{Edge}, lengths::AbstractVector)
 
 Assign new lengths to a vector of `edges`.
+Checks that the new edge lengths are non-negative or `missing` (or -1 to be
+interpreted as missing).
 """
-@inline function setlengths!(edges::Vector{Edge}, lengths::Vector{Float64})
+@inline function setlengths!(edges::Vector{Edge}, lengths::AbstractVector)
     for (e,l) in zip(edges, lengths)
-        e.length = l
+        setlength!(e, l)
     end
 end
 
@@ -1553,11 +1634,11 @@ end
     shrinkedge!(net::HybridNetwork, edge::Edge)
 
 Delete `edge` from net, provided that it is a non-external tree edge.
-Specifically: delete its child node (as determined by `isChild1`) and connect
+Specifically: delete its child node (as determined by `ischild1`) and connect
 all edges formerly incident to this child node to the parent node of `edge`,
 thus creating a new polytomy, unless the child was of degree 2.
 
-Warning: it's best for `isChild1` to be in sync with the root for this. If not,
+Warning: it's best for `ischild1` to be in sync with the root for this. If not,
 the shrinking may fail (if `edge` is a tree edge but its "child" is a hybrid)
 or the root may change arbitrarily (if the child of `edge` is the root).
 
@@ -1568,7 +1649,7 @@ created, or the new polytomy is below a tree node)
 function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
     edge2shrink.hybrid && error("cannot shrink hybrid edge number $(edge2shrink.number)")
     cn = getchild(edge2shrink)
-    cn.hybrid && error("cannot shrink tree edge number $(edge2shrink.number): its child node is a hybrid. run directEdges! ?")
+    cn.hybrid && error("cannot shrink tree edge number $(edge2shrink.number): its child node is a hybrid. run directedges! ?")
     pn = getparent(edge2shrink)
     isexternal(edge2shrink) &&  # (isleaf(cn) || isleaf(pn)) &&
       error("won't shrink edge number $(edge2shrink.number): it is incident to a leaf")
@@ -1577,15 +1658,15 @@ function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
     for ee in cn.edge
         ee !== edge2shrink || continue
         cn_index = findfirst(x -> x === cn, ee.node)
-        ee.node[cn_index] = pn # ee.isChild1 remains synchronized
+        ee.node[cn_index] = pn # ee.ischild1 remains synchronized
         push!(pn.edge, ee)
     end
-    pn.hasHybEdge = any(e -> e.hybrid, pn.edge)
+    pn.booln1 = any(e -> e.hybrid, pn.edge)
     empty!(cn.edge) # should help to garbage-collect cn
     deleteEdge!(net, edge2shrink; part=false)
     deleteNode!(net, cn)
     badpolytomy = false
-    if pn.hybrid # count the number of pn's children, without relying on isChild1 of tree edges
+    if pn.hybrid # count the number of pn's children, without relying on ischild1 of tree edges
         nc = sum((!e.hybrid || getchild(e) !== pn) for e in pn.edge)
         badpolytomy = (nc > 1)
     end
@@ -1593,7 +1674,7 @@ function shrinkedge!(net::HybridNetwork, edge2shrink::Edge)
 end
 
 @doc raw"""
-    shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
+    shrink2cycles!(net::HybridNetwork, unroot::Bool=false)
 
 If `net` contains a 2-cycle, collapse the cycle into one edge of length
 tA + γt1+(1-γ)t2 + tB (see below), and return true.
@@ -1620,7 +1701,7 @@ is has degree 2 or more. If `unroot` is true and the root is up for deletion, it
 will be kept only if it has degree 3 or more. A root node with degree 1 will be
 deleted in both cases.
 """
-function shrink2cycles!(net::HybridNetwork, unroot=false::Bool)
+function shrink2cycles!(net::HybridNetwork, unroot::Bool=false)
     foundcycle = false
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end
@@ -1664,7 +1745,7 @@ function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge,
 end
 
 """
-    shrink3cycles!(net::HybridNetwork, unroot=false::Bool)
+    shrink3cycles!(net::HybridNetwork, unroot::Bool=false)
 
 Remove all 2- and 3-cycles from a network.
 
@@ -1680,7 +1761,7 @@ deleted in both cases.
 See [`shrink3cycleat!`](@ref) for details on branch lengths and
 inheritance values.
 """
-function shrink3cycles!(net::HybridNetwork, unroot=false::Bool)
+function shrink3cycles!(net::HybridNetwork, unroot::Bool=false)
     foundcycle = false
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end
@@ -1793,8 +1874,8 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
         if g1tilde != -1.0 # else one of the γ is missing: do nothing with γs and ts
             edge1.gamma = g1tilde
             edge2.gamma = 1.0-g1tilde
-            edge1.isMajor = g1tilde >= 0.5
-            edge2.isMajor = !edge1.isMajor
+            edge1.ismajor = g1tilde >= 0.5
+            edge2.ismajor = !edge1.ismajor
             if edge1.length != -1.0 && edge2.length != -1.0 && edge3.length != -1.0
                 edge1.length = (edge1.length *g1 + (edge3.length + edge2.length)*g2g3)/g1tilde
             end

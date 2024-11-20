@@ -25,7 +25,7 @@ using PhyloNetworks
 mkpath("../assets/figures")
 using RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)"
-# net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","swadesh.out"))
+# net1 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","swadesh.out"))
 # we would get net1 from analyzing the complete data, but not available with the package
 ```
 
@@ -46,7 +46,7 @@ converted to a list of vectors, with one vector for each species.
 An internal function is provided for this:
 
 ```@repl parsimony
-species, traits = PhyloNetworks.readCSVtoArray(dat);
+species, traits = PhyloNetworks.readcsvtoarray(dat);
 species
 traits
 ```
@@ -54,7 +54,7 @@ traits
 Then, we read the network as usual:
 
 ```@repl parsimony
-net = readTopology("(Spanish,((English)#H1,(Norwegian,(German,#H1))));");
+net = readnewick("(Spanish,((English)#H1,(Norwegian,(German,#H1))));");
 ```
 
 ```@example parsimony
@@ -70,32 +70,38 @@ nothing # hide
 There are different types of parsimony scores on networks.
 Currently, we have implemented the **softwired** criterion only,
 with two different functions:
-[`parsimonySoftwired`](@ref) and
+[`parsimonysoftwired`](@ref) and
 [`parsimonyGF`](@ref).
 
-The function `parsimonySoftwired` uses a faster algorithm than
+The function `parsimonysoftwired` uses a faster algorithm than
 `parsimonyGF`, but can solve the softwired criterion only.
 
 ```@repl parsimony
-score = parsimonySoftwired(net, species, traits)
+score = parsimonysoftwired(net, species, traits)
 score = parsimonyGF(net,species,traits,:softwired)
 ```
 
 
 ## Finding the most parsimonious network
 
-The function [`maxParsimonyNet`](@ref) searches for the most parsimonious
-level-1 network. It uses the `parsimonyGF` function, with softwired criterion
-as default, which will be extended to other criteria later.
+!!! warning "feature to be re-implemented"
+    The search for the most parsimonious network is no longer available.
+    It will be re-implemented, and without the level-1 restriction.
+    Please use version 0.16 of PhyloNetworks to access this older functionality,
+    until a better one is made available.
 
-Just like [`snaq!`](@ref), [`maxParsimonyNet`](@ref) requires a
-starting topology, which can be a tree or a level-1 network,
-and returns a level-1 network.
+The function [`maxParsimonyNet`](@ref PhyloNetworks.maxParsimonyNet) searches
+for the most parsimonious level-1 network.
+It uses the `parsimonyGF` function, with softwired criterion
+as default, which may be extended to other criteria later.
+
+`maxParsimonyNet` requires a starting topology, which can be a tree or a
+level-1 network, and returns a level-1 network.
 Taxa present in the data but absent from the starting topology
 will be ignored during the search.
 
 ```julia
-starttree = readTopology("(((English,German),Norwegian),Spanish);");
+starttree = readnewick("(((English,German),Norwegian),Spanish);");
 net1 = maxParsimonyNet(starttree, dat, hmax=1, outgroup="Spanish", rootname="swadesh")
 ```
 

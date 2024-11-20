@@ -4,7 +4,7 @@ module PhyloNetworks
 
     # stdlib (standard libraries)
     using Dates
-    using Distributed
+    using Distributed # used for parsimony search, currently broken
     using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, rmul!,
             Diagonal, cholesky, qr, BLAS
     # alternative: drop support for julia v1.4, because LinearAlgebra.rotate! requires julia v1.5
@@ -24,57 +24,40 @@ module PhyloNetworks
     using Distributions #for RateVariationAcrossSites
     using FASTX
     using Functors: fmap
-    using GLM # for the lm function
     using NLopt # for branch lengths optimization
-    using StaticArrays
-    using StatsBase # sample, coef etc.
-    using StatsFuns # logsumexp, logaddexp, log2π, various cdf
-    using StatsModels # re-exported by GLM. for ModelFrame ModelMatrix Formula etc
+    using StatsBase # cov2cor! for vcv
 
     import Base: show
-    import GLM: ftest
-    import StatsModels: coefnames
 
     const DEBUGC = false # even more debug messages
     global CHECKNET = false # for debugging only
 
-    export ftest
     export
         ## Network Definition
         HybridNetwork,
-        DataCF,
-        Quartet,
-        readTopology,
-        readTopologyLevel1,
-        tipLabels,
-        writeTopology,
-        writeSubTree!,
+        readnewick,
+        readmultinewick,
+        writenewick,
+        writesubtree!,
+        writemultinewick,
         hybridlambdaformat,
         deleteleaf!,
         deleteaboveLSA!,
         removedegree2nodes!,
         shrink2cycles!,
         shrink3cycles!,
-        printEdges,
-        printNodes,
-        sorttaxa!,
-        ## SNAQ
-        readTrees2CF,
-        countquartetsintrees,
-        readTableCF,
-        readTableCF!,
-        writeTableCF,
-        mapAllelesCFtable,
-        readInputTrees,
+        printedges,
+        printnodes,
         readnexus_treeblock,
-        summarizeDataCF,
-        snaq!,
-        readSnaqNetwork,
-        topologyMaxQPseudolik!,
-        topologyQPseudolik!,
+
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
+        istimeconsistent,
+        getnodeheights,
+        getnodeheights!,
+        getnodeheights_average,
+        getnodeheights_majortree,
         isrootof,
         isleaf,
         isexternal,
@@ -90,126 +73,76 @@ module PhyloNetworks
         getparentedge,
         getparentedgeminor,
         getpartneredge,
+        tiplabels,
         ## Network Manipulation
+        nameinternalnodes!,
         rootatnode!,
         rootonedge!,
-        directEdges!,
+        directedges!,
         preorder!,
         cladewiseorder!,
-        fittedQuartetCF,
         rotate!,
-        setLength!,
-        setGamma!,
-        deleteHybridThreshold!,
-        displayedTrees,
-        majorTree,
-        minorTreeAt,
-        displayedNetworkAt!,
-        hardwiredClusters,
-        hardwiredCluster,
-        hardwiredCluster!,
-        hardwiredClusterDistance,
-        biconnectedComponents,
-        blobDecomposition!,
-        blobDecomposition,
+        setlength!,
+        setlengths!,
+        setgamma!,
+        deletehybridthreshold!,
+        displayedtrees,
+        majortree,
+        minortreeat,
+        displayednetworkat!,
+        hardwiredclusters,
+        hardwiredcluster,
+        hardwiredcluster!,
+        hardwiredclusterdistance,
+        biconnectedcomponents,
+        blobdecomposition!,
+        blobdecomposition,
         nni!,
         checkroot!,
         treeedgecomponents,
-        ## Network Bootstrap
-        treeEdgesBootstrap,
-        hybridDetection,
-        summarizeHFdf,
-        hybridBootstrapSupport,
-        bootsnaq,
-        readBootstrapTrees,
-        writeMultiTopology,
-        readMultiTopologyLevel1,
-        readMultiTopology,
-        hybridatnode!,
-        undirectedOtherNetworks,
+        ## Network support
+        treeedges_support,
+        hybridclades_support,
+        readmultinewick_files,
         ## Network Calibration
-        getNodeAges,
-        pairwiseTaxonDistanceMatrix,
-        calibrateFromPairwiseDistances!,
-        ## Network PCM
-        phylolm,
-        PhyloNetworkLinearModel,
-        simulate,
-        TraitSimulation,
-        ParamsBM,
-        ParamsMultiBM,
-        ShiftNet,
-        shiftHybrid,
-        getShiftEdgeNumber,
-        getShiftValue,
-        sharedPathMatrix,
-        descendenceMatrix,
-        regressorShift,
-        regressorHybrid,
-        ancestralStateReconstruction,
-        ReconstructedStates,
-        sigma2_phylo,
-        sigma2_within,
-        mu_phylo,
-        lambda_estim,
-        expectations,
-        expectationsPlot,
-        predint,
-        predintPlot,
+        getnodeages,
+        pairwisetaxondistancematrix,
+        calibratefrompairwisedistances!,
+        # recursion
+        sharedpathmatrix,
+        descendencematrix,
         vcv,
-        ## Discrete Trait PCM
-        parsimonySoftwired,
+        ## parsimony
+        parsimonysoftwired,
         parsimonyGF,
-        maxParsimonyNet,
-        TraitSubstitutionModel,
-        EqualRatesSubstitutionModel,
-        BinaryTraitSubstitutionModel,
-        TwoBinaryTraitSubstitutionModel,
-        JC69, HKY85,
-        nstates,
-        Q,
-        getlabels,
-        nparams,
-        RateVariationAcrossSites,
-        randomTrait,
-        randomTrait!,
-        fitdiscrete,
+        #maxParsimonyNet # broken after v0.17 refactoring: fix network search
         readfastatodna,
-        stationary,
-        empiricalDNAfrequencies,
-        # phyLiNC,
         # neighbor joining
         nj
 
+    ##Constants
+    const fAbsBL = 1e-10
+    const fRelBL = 1e-12
+    const xAbsBL = 1e-10
+    const xRelBL = 1e-10
+
     include("types.jl")
-    include("nloptsummary.jl")
     include("auxiliary.jl")
     include("generate_topology.jl")
-    include("update.jl")
-    include("undo.jl")
-    include("addHybrid_snaq.jl")
-    include("addHybrid.jl")
-    include("deleteHybrid.jl")
-    include("moves_snaq.jl")
     include("moves_semidirected.jl")
+    include("addHybrid.jl")
     include("readwrite.jl")
-    include("readData.jl")
-    include("snaq_optimization.jl")
-    include("pseudolik.jl")
     include("descriptive.jl")
     include("manipulateNet.jl")
     include("bootstrap.jl")
-    include("multipleAlleles.jl")
     include("compareNetworks.jl")
-    include("traits.jl")
+    include("recursion_routines.jl")
+    include("recursion_matrices.jl")
     include("parsimony.jl")
     include("pairwiseDistanceLS.jl")
     include("interop.jl")
-    include("substitutionModels.jl")
     include("graph_components.jl")
-    include("traitsLikDiscrete.jl")
     include("deprecated.jl")
     include("nj.jl")
-    include("phyLiNCoptimization.jl")
 
 end #module

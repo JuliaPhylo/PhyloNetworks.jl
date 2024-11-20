@@ -1,13 +1,12 @@
 # continuous trait evolution
 @testset "traits: shared path, vcv, descendence matrix" begin
-global tree_str, net, ind
 
 tree_str= "(A:0.5,((B:1,#H1:1::0.1):1,(C:1,(D:1)#H1:1::0.9):1):0.5);"
-net = readTopology(tree_str)
+net = readnewick(tree_str)
 preorder!(net)
 
 ## V matrix
-V1 = sharedPathMatrix(net)
+V1 = sharedpathmatrix(net)
 @test_logs show(devnull, V1)
 
 ## By hand V matrix
@@ -56,7 +55,7 @@ end
 
 ## Test names with tree
 tree_str = "(((t2:0.1491947961,t4:0.3305515735):0.5953111246,t3:0.9685578963):0.1415281736,(t5:0.7093406462,t1:0.1888024569):0.9098094522);"
-C = vcv(readTopology(tree_str))
+C = vcv(readnewick(tree_str))
 # C_R = R"ape::vcv(ape::read.tree(text = $tree_str))"
 # names_R = rcopy(R"colnames($C_R)")
 names_R = ["t2", "t4", "t3", "t5", "t1"]
@@ -67,10 +66,10 @@ names_R = ["t2", "t4", "t3", "t5", "t1"]
 ## Descendence Matrix Test
 ########################
 tree_str= "(A:0.5,((B:1,#H1:1::0.4):1,(C:1,(D:1)#H1:1::0.6):1):0.5);"
-net = readTopology(tree_str)
+net = readnewick(tree_str)
 preorder!(net)
 
-T = descendenceMatrix(net)
+T = descendencematrix(net)
 
 T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
        1.0  1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
@@ -88,18 +87,18 @@ T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
 ## New formula
 #################
 
-net = readTopology("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);")
+net = readnewick("(((Ag:5,(#H1:1::0.056,((Ak:2,(E:1,#H2:1::0.004):1):1,(M:2)#H2:1::0.996):1):1):1,(((((Az:1,Ag2:1):1,As:2):1)#H1:1::0.944,Ap:4):1,Ar:5):1):1,(P:4,20:4):3,165:7);")
 preorder!(net)
-V1 = sharedPathMatrix(net)
+V1 = sharedpathmatrix(net)
 
 hyb = net.hybrid[2]
 
 ## Find child edge
 hyb_edges = [e.hybrid for e in hyb.edge]
 child_edge = hyb.edge[.!hyb_edges][1]
-child = child_edge.isChild1 ? child_edge.node[1] : child_edge[17].node[2]
+child = child_edge.ischild1 ? child_edge.node[1] : child_edge[17].node[2]
 ## Find number of child edge
-nodeNumbersTopOrder = [n.number for n in net.nodes_changed]
+nodeNumbersTopOrder = [n.number for n in net.vec_node]
 p = indexin([child.number], nodeNumbersTopOrder)
 ## Find parents edges and node numbers
 par_edge_1 = hyb.edge[hyb_edges][1]
@@ -115,16 +114,16 @@ gam = par_edge_1.gamma
 ## Two extreme networks
 par_edge_1.gamma = 1.
 par_edge_2.gamma = 0.
-V_t_1 = sharedPathMatrix(net)
+V_t_1 = sharedpathmatrix(net)
 
 par_edge_1.gamma = 0.
 par_edge_2.gamma = 1.
-V_t_2 = sharedPathMatrix(net)
+V_t_2 = sharedpathmatrix(net)
 
 ## Descendant indicatrice matrix
 des = PhyloNetworks.descendants(par_edge_1, true) # true to get internal nodes also
 mask = indexin(des, V_t_1.nodeNumbersTopOrder)
-D = zeros(net.numNodes, net.numNodes)
+D = zeros(net.numnodes, net.numnodes)
 D[mask, mask] .= 1.0
 
 ## Formula

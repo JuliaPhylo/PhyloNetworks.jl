@@ -1,53 +1,133 @@
+```@setup network_getters
+using PhyloNetworks
+```
+
 # Network manipulation
 
-The package contains a good number of utilities to manipulate phylogenetic
-networks. Functions that are not exported are more likely to experience
+The package contains many utilities to extract information about phylogenetic networks, and to modify networks.
+Functions that are not exported are more likely to experience
 breaking changes in future versions, but can be used by prefixing their
-name with `PhyloNetworks.`.
+name with `PhyloNetworks.` .
 
-Here is a list of the most useful functions that can handle networks of any level.
+Below is a list of the most useful functions.
 They typically assume a bicombining network, that is, a network in which
 each hybrid node has exactly 2 parents (never more).
 
-To traverse or learn something about a network, node or edge, see for example:
-- [`tipLabels`](@ref),
-  [`PhyloNetworks.descendants`](@ref) for the clade ("hardwired cluster") below an edge,
-  [`PhyloNetworks.isdescendant`](@ref),
-  [`PhyloNetworks.isconnected`](@ref)
-- [`displayedTrees`](@ref), [`majorTree`](@ref),
-  [`biconnectedComponents`](@ref), [`PhyloNetworks.blobInfo`](@ref)
-- [`hardwiredCluster`](@ref), [`hardwiredClusters`](@ref)
-- [`getroot`](@ref), [`isrootof`](@ref),
-  [`isleaf`](@ref PhyloNetworks.isrootof), [`isexternal`](@ref PhyloNetworks.isrootof),
-  [`isparentof`](@ref), [`ischildof`](@ref PhyloNetworks.isparentof),
-  [`hassinglechild`](@ref),
-- [`getchild`](@ref), [`getchildren`](@ref PhyloNetworks.getchild),
-  [`getchildedge`](@ref PhyloNetworks.getchild)
-  [`getparent`](@ref), [`getparents`](@ref PhyloNetworks.getparent),
-  [`getparentminor`](@ref PhyloNetworks.getparent),
-  [`getparentedge`](@ref PhyloNetworks.getparent),
-  [`getparentedgeminor`](@ref PhyloNetworks.getparent),
-  [`getpartneredge`](@ref)
+## Getting information on a network
 
-To modify a network, for example:
+### overall network information
+
+- [`tiplabels`](@ref) for taxon labels
+- [`getroot`](@ref) gives the root node
+- [`pairwisetaxondistancematrix`](@ref) for *average* distances
+- [`vcv`](@ref) for the variance-covariance matrix between taxa under a
+  Brownian Motion model along the network, and [`sharedpathmatrix`](@ref)
+  for the variance-covariance between all nodes (not just leaves)
+- [`istimeconsistent`](@ref): `true` or `false`, to know if for all nodes,
+  the various paths from the root to that node have the same length
+  (as expected if length was proportional to time)
+- [`getnodeages`](@ref) assuming the network is time-consistent and ultrametric
+- [`displayedtrees`](@ref) or [`majortree`](@ref) to get the displayed trees
+  or major tree, respectively
+- [`hardwiredclusters`](@ref) to get all clusters of taxa on a network
+- [`biconnectedcomponents`](@ref) and [`PhyloNetworks.blobinfo`](@ref)
+  give information about the blobs found within a network;
+  also
+  [`PhyloNetworks.biconnectedcomponent_entrynodes`](@ref),
+  [`PhyloNetworks.biconnectedcomponent_exitnodes`](@ref),
+  and [`blobdecomposition`](@ref)
+- [`treeedgecomponents`](@ref) are the components after removing hybrid edges
+- [`checkroot!`](@ref) to check that the graph is a valid semidirected
+  network with a root node in a admissible rooting position
+
+The following functions all compute distances from the root to each node.
+Their differ in how they handle time inconsistency: when the distance from
+the root to a node varies across multiple paths from the root to that node.
+- [`getnodeheights`](@ref)
+- [`getnodeheights_average`](@ref)
+- [`getnodeheights_majortree`](@ref)
+
+### node information
+
+To learn about nodes and how some might be related or connected, one can use:
+
+- [`PhyloNetworks.isdescendant`](@ref) and [`PhyloNetworks.isconnected`](@ref) 
+  can be used to learn about the relationship between two nodes
+- [`hassinglechild`](@ref)
+- [`getparent`](@ref) or [`getparents`](@ref PhyloNetworks.getparent) if the
+  node is a hybrid
+- [`getparentminor`](@ref PhyloNetworks.getparent)
+- [`getchild`](@ref) or [`getchildren`](@ref PhyloNetworks.getchild) if the
+  node has more than one child
+- [`isrootof`](@ref)
+
+To learn about the edges connected to a given node, one can use:
+- [`getchildedge`](@ref PhyloNetworks.getchild)
+- [`PhyloNetworks.getconnectingedge`](@ref)
+- [`getparentedge`](@ref PhyloNetworks.getparent)
+- [`getparentedgeminor`](@ref PhyloNetworks.getparent) for a hybrid node
+
+### edge information
+
+To learn about the nodes related connected to a given edge, one can use the following functions: 
+
+- [`PhyloNetworks.descendants`](@ref) for the clade ("hardwired cluster") below an edge
+- [`getparent`](@ref)
+- [`getchild`](@ref)
+- [`getpartneredge`](@ref) gives the hybrid partner of an edge,
+  if it is the parent edge of a hybrid node.
+- [`isparentof`](@ref), [`ischildof`](@ref PhyloNetworks.isparentof) can
+  inform whether an edge and node are connected
+- [`hardwiredcluster`](@ref) to get the cluster of taxa below a particular edge
+
+## Modifying a network
+
+To modify some of the core components of a network:
+
 - [`rootonedge!`](@ref), [`rootatnode!`](@ref):
   very useful to root with an outgroup, and [`rotate!`](@ref) to improve plots
-- [`deleteleaf!`](@ref),
-  [`deleteaboveLSA!`](@ref) (the "least stable ancestor" may be different from the root)
-- [`deleteHybridThreshold!`](@ref) to simplify a network by deleting edges with small γ's
-- [`removedegree2nodes!`](@ref), [`shrink3cycles!`](@ref), [`shrink2cycles!`](@ref),
-  [`PhyloNetworks.shrinkedge!`](@ref)
-- [`PhyloNetworks.addleaf!`](@ref),
-  [`PhyloNetworks.deletehybridedge!`](@ref),
-  [`PhyloNetworks.addhybridedge!`](@ref)
-- [`nni!`](@ref) (nearest neighbor interchange),
-  [`PhyloNetworks.fliphybrid!`](@ref) to flip the direction of a hybrid edge
+- [`nni!`](@ref) to perform a semidirected nearest neighbor interchange
+- [`PhyloNetworks.fliphybrid!`](@ref) to flip the direction of a hybrid edge
 - [`PhyloNetworks.unzip_canonical!`](@ref) to "unzip" (or zip down) all
   reticulations, or [`PhyloNetworks.rezip_canonical!`](@ref) to undo.
+- [`setlength!`](@ref) and [`setlengths!`](@ref) to change the length of one
+  or more edges,
+  and [`setgamma!`](@ref) to change a hybrid edge inheritance γ
 
-To compare networks or compare nodes in a network, for example:
-- [`hardwiredClusterDistance`](@ref): extends the Robinson-Foulds distance,
-  it's a dissimilarity measure on networks
-- [`pairwiseTaxonDistanceMatrix`](@ref) for *average* distances,
-  [`getNodeAges`](@ref) if ultrametric network,
-  [`PhyloNetworks.getHeights`](@ref), [`vcv`](@ref)
+To remove components from a network:
+
+- [`deleteleaf!`](@ref)
+- [`deleteaboveLSA!`](@ref): the "least stable ancestor" may be different
+  from the root
+- [`deletehybridthreshold!`](@ref) to simplify a network by deleting edges with small γ's
+- [`PhyloNetworks.shrinkedge!`](@ref) to contract an edge
+- [`removedegree2nodes!`](@ref) to suppress degree-2 nodes
+- [`shrink3cycles!`](@ref) and [`shrink2cycles!`](@ref) to contract "cycles"
+  of 2 or 3 edges, which deletes 1 reticulation
+- [`PhyloNetworks.deletehybridedge!`](@ref) to remove one hybrid edge.
+
+To add components to a network:
+
+- [`PhyloNetworks.addleaf!`](@ref)
+- [`PhyloNetworks.addhybridedge!`](@ref)
+
+To modify some internal attributes, that don't affect the network topology
+or edge parameters:
+
+- [`nameinternalnodes!`](@ref)
+- [`PhyloNetworks.resetnodenumbers!`](@ref) and
+  [`PhyloNetworks.resetedgenumbers!`](@ref)
+
+To calibrate a network (modify its edge lengths):
+
+- [`calibratefrompairwisedistances!`](@ref). This documentation has little
+  about calibration so far, but see this
+  [tutorial](https://cecileane.github.io/networkPCM-workshop/topic1-netcalibration.html)
+
+## Comparing two networks
+
+- [`hardwiredclusterdistance`](@ref): extends the Robinson-Foulds distance.
+  It's a dissimilarity measure on networks: a dissimilarity of 0 does not
+  guarantee that the 2 networks have the same topology in general.
+  But it does if the networks are in some classes (e.g. trees, level-1,
+  tree-child, and others).

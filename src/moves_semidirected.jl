@@ -65,7 +65,7 @@ from coming into or going out of a species group.
 # examples
 
 ```jldoctest
-julia> net = readTopology("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
+julia> net = readnewick("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
 
 julia> c_species1 = PhyloNetworks.TopologyConstraint(0x01, ["1a","1b","1c"], net)
 Species constraint, on tips: 1a, 1b, 1c
@@ -107,22 +107,22 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
         push!(taxonnums, net.leaf[index].number) # note: not ordered as in taxonnames
     end
     # get interior ancestor edges in major tree (no hybrids)
-    matrix = hardwiredClusters(majorTree(net), vcat(taxonnames, outsideclade))
+    matrix = hardwiredclusters(majortree(net), vcat(taxonnames, outsideclade))
     # look for row with ones in relevant columns, zeros everywhere else (or zeros there and ones everywhere else)
     edgenum = 0 # 0 until we find the stem edge
     comparator = zeros(Int8, size(matrix)[2]-2)
     comparator[1:ntax_clade] = ones(Int8, ntax_clade)
     # go through matrix row by row to find match with comparator. Return number
-    for i in 1:size(matrix, 1)
-        if matrix[i,2:size(matrix)[2]-1] == comparator # found the mrca!
+    for i in axes(matrix, 1)
+        if matrix[i,2:size(matrix,2)-1] == comparator # found the mrca!
             edgenum = matrix[i, 1]
             break
         end
     end
     if edgenum == 0
         comparator .= 1 .- comparator
-        for i in 1:size(matrix)[1]
-            if matrix[i,2:size(matrix)[2]-1] == comparator
+        for i in axes(matrix,1)
+            if matrix[i,2:size(matrix,2)-1] == comparator
                 error("""The clade given is not rooted correctly, making it a grade instead of a clade.
                 You can re-try after modifying the root of your network.""")
             end
@@ -130,7 +130,7 @@ function TopologyConstraint(type::UInt8, taxonnames::Vector{String}, net::Hybrid
         error("The taxa given do not form a clade in the network")
     end
     edgei = findfirst(e -> e.number == edgenum, net.edge)
-    edgei !== nothing || error("hmm. hardwiredClusters on the major tree got an edge number not in the network")
+    edgei !== nothing || error("hmm. hardwiredclusters on the major tree got an edge number not in the network")
     stemedge = net.edge[edgei]
     mrcanode = getchild(stemedge)
     TopologyConstraint(type, taxonnames, taxonnums, stemedge, mrcanode)
@@ -149,14 +149,15 @@ end
 True if `network` violates one (or more) of the constraints of type 1
 (individuals in a species group) or type 2 (must be clades in the major tree).
 Warning: constraints of type 3 are not implemented.
+See [`TopologyConstraint`](@ref) for constraint types.
 """
 function constraintviolated(net::HybridNetwork, constraints::Vector{TopologyConstraint})
-    # fixit next PR: add option to give a vector of constraint types to check,
+    # would be nice: option to give a vector of constraint types to check,
     #                then only check these constraint types
     if isempty(constraints)
         return false
     end # avoids extracting major tree when no constraint
-    tree = majorTree(net)
+    tree = majortree(net)
     for con in constraints # checks directionality of stem edge hasn't changed
         if con.type in [0x01, 0x02]
             getchild(con.edge) === con.node || return true
@@ -177,13 +178,13 @@ end
 Update the set `taxonnum` in each constraint, assuming that the stem edge and
 the crown node are still correct, and that their descendants are still correct.
 May be needed if the node and edge numbers were modified by
-[`resetNodeNumbers!`](@ref) or [`resetEdgeNumbers!`](@ref).
+[`resetnodenumbers!`](@ref) or [`resetedgenumbers!`](@ref).
 
 Warning: does *not* check that the names of leaves with numbers in `taxonnum`
 are `taxonnames`.
 
 ```jldoctest
-julia> net = readTopology("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
+julia> net = readnewick("(((2a,2b),(((((1a,1b,1c),4),(5)#H1),(#H1,(6,7))))#H2),(#H2,10));");
 
 julia> c_species1 = PhyloNetworks.TopologyConstraint(0x01, ["1a","1b","1c"], net)
 Species constraint, on tips: 1a, 1b, 1c
@@ -201,7 +202,7 @@ Clade constraint, on tips: 1a, 1b, 1c, 4, 5
  stem edge number 12
  crown node number -7
 
-julia> PhyloNetworks.resetNodeNumbers!(net)
+julia> PhyloNetworks.resetnodenumbers!(net)
 
 julia> net.node[4].number = 111;
 
@@ -223,7 +224,7 @@ function updateconstraints!(constraints::Vector{TopologyConstraint}, net::Hybrid
     if isempty(constraints)
         return nothing
     end # avoids extracting major tree when no constraint
-    tree = majorTree(net)
+    tree = majortree(net)
     for con in constraints
       if con.type in [0x01, 0x02]
         getchild(con.edge) === con.node ||
@@ -269,8 +270,13 @@ nice to add: option to modify branch lengths during NNI
 =#
 
 """
-    nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::Bool=true,
-         constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    nni!([rng::AbstractRNG,]
+         net::HybridNetwork,
+         e::Edge,
+         nohybridladder::Bool=true,
+         no3cycle::Bool=true,
+         constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+    )
 
 Attempt to perform a nearest neighbor interchange (NNI) around edge `e`,
 randomly chosen among all possible NNIs (e.g 3, sometimes more depending on `e`)
@@ -282,15 +288,15 @@ The option `no3cycle` forbids moves that would create a 3-cycle in the network.
 When `no3cycle` = false, 2-cycle and 3-cycles may be generated.
 
 Note that the defaults values are for positional (not keyword) arguments, so
-two or more arguments can be used, but in a specific order: nni!(net, e) or
-nni!(net, e, nohybridladder),
-nni!(net, e, nohybridladder, no3cycle),
-nni!(net, e, nohybridladder, no3cycle, contraints).
+two or more arguments can be used, but in a specific order: `nni!(net, e)` or
+`nni!(net, e, nohybridladder)`,
+`nni!(net, e, nohybridladder, no3cycle)`,
+`nni!(net, e, nohybridladder, no3cycle, contraints)`.
 
 Assumptions:
 - The starting network does not have 3-cycles, if `no3cycle=true`.
   No check for the presence of 2- and 3-cycles in the input network.
-- The edges' field `isChild1` is correct in the input network. (This field
+- The edges' field `ischild1` is correct in the input network. (This field
   will be correct in the output network.)
 
 Output:
@@ -301,23 +307,48 @@ information indicating how to undo the move or `nothing` if all NNIs failed.
 ```jldoctest
 julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
 
-julia> net = readTopology(str_network);
+julia> net = readnewick(str_network);
 
-julia> using Random; Random.seed!(3);
+julia> # using Random; Random.seed!(3); ## commented out for doctest reproducibility across julia versions, but users can use this line to set the seed in their analyses.
 
 julia> undoinfo = nni!(net, net.edge[3], true, true); # true's to avoid hybrid ladders and 3-cycles
+```
 
-julia> writeTopology(net)
-"(((S8,(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),S9),(#H2,S10));"
+In the next example, we use a stable RNG to make the example reproducible
+across julia versions. However, this particular RNG is *not* recommended.
+The RNG used by default is better (e.g. much more efficient).
+
+```jldoctest nni
+julia> str_network = "(((S8,S9),(((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));";
+
+julia> net = readnewick(str_network);
+
+julia> # using Pkg; Pkg.add("StableRNGs") # to install StableRNGs if not done earlier
+
+julia> using StableRNGs
+
+julia> rng = StableRNG(791);
+
+julia> undoinfo = nni!(rng, net, net.edge[3], true, true); # true's to avoid hybrid ladders and 3-cycles
+
+julia> writenewick(net)
+"((S9,((((((S1,S2,S3),S4),(S5)#H1),(#H1,(S6,S7))))#H2,S8)),(#H2,S10));"
 
 julia> nni!(undoinfo...);
 
-julia> writeTopology(net) == str_network # net back to original topology: the NNI was "undone"
+julia> writenewick(net) == str_network # net back to original topology: the NNI was "undone"
 true
 ```
 """
-function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::Bool=true,
-              constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+nni!(net::HybridNetwork, args...) = nni!(Random.default_rng(), net, args...)
+function nni!(
+    rng::Random.AbstractRNG,
+    net::HybridNetwork,
+    e::Edge,
+    nohybridladder::Bool=true,
+    no3cycle::Bool=true,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+)
     for con in constraints
         # reject NNI if the focus edge is the stem of a constraint.
         # sufficient to maintain star species constraints
@@ -327,13 +358,13 @@ function nni!(net::HybridNetwork, e::Edge, nohybridladder::Bool=true, no3cycle::
         end
     end
     nnirange = 0x01:nnimax(e) # 0x01 = 1 but UInt8 instead of Int
-    nnis = Random.shuffle(nnirange)
+    nnis = Random.shuffle(rng, nnirange)
     for nummove in nnis # iterate through all possible NNIs, but in random order
-        moveinfo = nni!(net, e, nummove, nohybridladder, no3cycle)
+        moveinfo = nni!(e, nummove, nohybridladder, no3cycle)
         !isnothing(moveinfo) || continue # to next possible NNI
         # if constraintviolated(net, constraints)
         #     # fixit for next PR: not needed for species constraints,
-        #     # not sufficient for clades if γ / isMajor modified later, or if
+        #     # not sufficient for clades if γ / ismajor modified later, or if
         #     # constraints met after NNI but stem / crows need to be moved
         #     nni!(moveinfo...) # undo the previous NNI
         #     continue          # try again
@@ -361,20 +392,19 @@ function nnimax(e::Edge)
     # e not hybrid, hyb parent:   RB case, 4 NNIs
     # e not hybrid, tree parent:  BB case, 2 NNIs if directed, 8 if undirected
     hybparent = getparent(e).hybrid
-    n = (e.hybrid ? (hybparent ? 0x02 : (e.containRoot ? 0x06 : 0x03)) : # RR & BR
-                    (hybparent ? 0x04 : (e.containRoot ? 0x08 : 0x02)))  # RB & BB
+    n = (e.hybrid ? (hybparent ? 0x02 : (e.containroot ? 0x06 : 0x03)) : # RR & BR
+                    (hybparent ? 0x04 : (e.containroot ? 0x08 : 0x02)))  # RB & BB
     return n
 end
 
 """
-    nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
-         nohybridladder::Bool, no3cycle::Bool)
+    nni!(uv::Edge, nummove::UInt8, nohybridladder::Bool, no3cycle::Bool)
 
-Modify `net` with a nearest neighbor interchange (NNI) around edge `uv`.
+Modify a network with a nearest neighbor interchange (NNI) around its edge `uv`.
 Return the information necessary to undo the NNI, or `nothing` if the move
-was not successful (such as if the resulting graph was not acyclic (not a DAG) or if
-the focus edge is adjacent to a polytomy). If the move fails, the network is not
-modified.
+was not successful (such as if the resulting graph was not acyclic (not a DAG)
+or if the focus edge is adjacent to a polytomy).
+If the move fails, the network is not modified.
 `nummove` specifies which of the available NNIs is performed.
 
 rooted-NNI options according to Gambette et al. (2017), fig. 8:
@@ -395,10 +425,15 @@ that the input network does not have any 2- or 3-cycles.
 If `no3cycle` is false, 3-cycles can be generated, but NNIs generating
 2-cycles are prevented.
 
-The edge field `isChild1` is assumed to be correct according to the `net.root`.
+The edge field `ischild1` is assumed to be correct in the overall network
+(that is, in sync with the network's field `.rooti`).
 """
-function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
-              nohybridladder::Bool, no3cycle::Bool)
+function nni!(
+    uv::Edge,
+    nummove::UInt8,
+    nohybridladder::Bool,
+    no3cycle::Bool
+)
     nmovemax = nnimax(uv)
     if nmovemax == 0x00 # uv not internal, or polytomy e.g. species represented by polytomy with >2 indiv
         return nothing
@@ -450,7 +485,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
     end
     ## TASK 2: semi-directed network swaps:
     ## swap u <-> v, α <-> β if undirected and according to move number
-    if !u.hybrid && uv.containRoot # case BB or BR, with uv that may contain the root
+    if !u.hybrid && uv.containroot # case BB or BR, with uv that may contain the root
         nmoves = 0x03 # number of moves in the rooted (directed) case
         if !v.hybrid # BB, uv and all adjacent edges are undirected: 8 moves
             if nummove > 0x04  # switch u & v with prob 1/2
@@ -545,7 +580,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
                     elseif α === γ || β === δ return nothing
                     end
                     # we could check nohybridladder && β.hybrid but no need because
-                    # we only get here if uv.containRoot so β cannot be hybrid
+                    # we only get here if uv.containroot so β cannot be hybrid
                     res = nni!(vγ, v, uv, u, βu)
                 # case when u is root already excluded (not DAG)
                 end
@@ -556,7 +591,7 @@ function nni!(net::HybridNetwork, uv::Edge, nummove::UInt8,
 end
 
 """
-    nni!(αu, u, uv::Edge, v, vδ)
+    nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge)
     nni!(αu,u,uv,v,vδ, flip::Bool, inner::Bool, indices)
 
 Transform a network locally around the focus edge `uv` with
@@ -591,7 +626,7 @@ These are interpreted as:
   * u not hybrid & v hybrid
   * u hybrid, v not hybrid, α -> u <- v -> δ
 - Because of this, `nni(αu,u,uv,v,vδ, ...)` should not be used directly;
-  use instead `nni!(net, uv, move_number)`.
+  use instead `nni!(uv, move_number)`.
 - nni!(undoinfo...) restores the topology, but edges below hybrid nodes
   will have length 0.0 even if they didn't before.
 
@@ -635,34 +670,34 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
         (v, vδ, αu, u)
     ## TASK 2: update edges' directions
     if flip
-        uv.isChild1 = !uv.isChild1
+        uv.ischild1 = !uv.ischild1
     end
     ## TASK 3: update hybrid status of nodes (#? is it ever nodes?)
-             # & edges, and edges containRoot field
+             # & edges, and edges containroot field
     if u.hybrid && !v.hybrid
         if flip # RB, BR 1 or BR 2': flip hybrid status of uv and (αu or vδ)
             if uv.hybrid # BR 1 or BR 2'
                 vδ.hybrid = true
                 vδ.gamma = uv.gamma
-                vδ.isMajor = uv.isMajor
+                vδ.ismajor = uv.ismajor
                 # length switches: for keeping the network unzipped. could be option later
                 αu.length = uv.length
                 uv.length = 0.0
                 uv.hybrid = false
                 uv.gamma = 1.0
-                uv.isMajor = true
+                uv.ismajor = true
                 norootbelow!(uv)
             else # RB
                 uv.hybrid = true
                 uv.gamma = αu.gamma
-                uv.isMajor = αu.isMajor
+                uv.ismajor = αu.ismajor
                 # length switches: for keeping the network unzipped. could be option later
                 uv.length = vδ.length
                 vδ.length = 0.0
                 αu.hybrid = false
                 αu.gamma = 1.0
-                αu.isMajor = true
-                if αu.containRoot
+                αu.ismajor = true
+                if αu.containroot
                     allowrootbelow!(v, αu)
                 end
             end
@@ -672,17 +707,17 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
                 # no lengths to switch in these cases
                 vδ.hybrid = true
                 vδ.gamma = αu.gamma
-                vδ.isMajor = αu.isMajor
+                vδ.ismajor = αu.ismajor
                 αu.hybrid = false
                 αu.gamma = 1.0
-                αu.isMajor = true
-                # containRoot: nothing to update
+                αu.ismajor = true
+                # containroot: nothing to update
             else # BR 1' or 2: α<-u<-v->δ : hybrid status just fine
                 # length switches: for keeping the network unzipped. could be option later
                 αu.length = vδ.length
                 vδ.length = 0.0
                 norootbelow!(vδ)
-                if uv.containRoot
+                if uv.containroot
                     allowrootbelow!(αu)
                 end
             end
@@ -691,7 +726,7 @@ function nni!(αu::Edge, u::Node, uv::Edge, v::Node, vδ::Edge,
         # we could have -αu-> -uv-> -vδ-> or <-αu- <-uv- <-vδ-
         hyb = ( getchild(αu) == v ? αu : vδ ) # uv's hybrid parent edge: either αu or vδ
         (uv.gamma,   hyb.gamma)   = (hyb.gamma,   uv.gamma)
-        (uv.isMajor, hyb.isMajor) = (hyb.isMajor, uv.isMajor)
+        (uv.ismajor, hyb.ismajor) = (hyb.ismajor, uv.ismajor)
     end
     # throw error if u not hybrid & v hybrid? (does not need to be implemented)
     return vδ, u, uv, v, αu, flip, inner, v_in_vδ, αu_in_u, vδ_in_v, u_in_αu
@@ -753,7 +788,7 @@ Output: individual-level network and vector of species constraint(s).
 # examples
 
 ```jldoctest
-julia> species_net = readTopology("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
+julia> species_net = readnewick("(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));");
 
 julia> filename = joinpath(dirname(Base.find_package("PhyloNetworks")), "..", "examples", "mappingIndividuals.csv");
 
@@ -765,7 +800,7 @@ S1,S1C
 
 julia> individual_net, species_constraints = PhyloNetworks.mapindividuals(species_net, filename);
 
-julia> writeTopology(individual_net, internallabel=true)
+julia> writenewick(individual_net, internallabel=true)
 "(((S8,S9),(((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 
 julia> species_constraints
@@ -807,14 +842,14 @@ Called by [`mapindividuals`](@ref).
 # examples
 
 ```jldoctest
-julia> net = readTopology("(S8,(((S1,S4),(S5)#H1),(#H1,S6)));");
+julia> net = readnewick("(S8,(((S1,S4),(S5)#H1),(#H1,S6)));");
 
 julia> PhyloNetworks.addindividuals!(net, "S1", ["S1A", "S1B", "S1C"])
 Species constraint, on tips: S1A, S1B, S1C
  stem edge number 2
  crown node number 2
 
-julia> writeTopology(net) # 3 new nodes, S1 now internal: not a tip
+julia> writenewick(net) # 3 new nodes, S1 now internal: not a tip
 "(S8,((((S1A,S1B,S1C)S1,S4),(S5)#H1),(#H1,S6)));"
 ```
 """
@@ -857,15 +892,26 @@ end
 
 
 """
-    moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    moveroot!(
+        [rng::AbstractRNG,]
+        net::HybridNetwork,
+        constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+    )
 
 Move the root to a randomly chosen non-leaf node that is different from
 the current root, and not within a constraint clade or species.
 Output: `true` if successul, `nothing` otherwise.
 """
-function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    newrootrandomorder = Random.shuffle(1:length(net.node))
-    oldroot = net.root
+function moveroot!(net::HybridNetwork, args...)
+    moveroot!(Random.default_rng(), net, args...)
+end
+function moveroot!(
+    rng::Random.AbstractRNG,
+    net::HybridNetwork,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+)
+    newrootrandomorder = Random.shuffle(rng, 1:length(net.node))
+    oldroot = net.rooti
     for newrooti in newrootrandomorder
         newrooti != oldroot || continue
         newrootnode = net.node[newrooti]
@@ -881,14 +927,14 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
         newrootfound || continue # to next potential new root
         # Check for no directional conflict
         try
-            net.root = newrooti
-            directEdges!(net)
+            net.rooti = newrooti
+            directedges!(net)
             # warning: assumes that the previous root has degree 3
             # otherwise, need to delete previous root by fusing its 2 adjacent edges
         catch e # RootMismatch error if root placement is below a hybrid
             isa(e, RootMismatch) || rethrow(e)
-            net.root = oldroot
-            directEdges!(net) # revert edges' directions to match original rooting
+            net.rooti = oldroot
+            directedges!(net) # revert edges' directions to match original rooting
             continue # to next potential new root
         end
         # if we get here: newrooti passed all the checks
@@ -899,8 +945,13 @@ function moveroot!(net::HybridNetwork, constraints=TopologyConstraint[]::Vector{
 end
 
 """
-    fliphybrid!(net::HybridNetwork, minor=true::Bool, nohybridladder=false::Bool,
-                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    fliphybrid!(
+        [rng::AbstractRNG,]
+        net::HybridNetwork,
+        minor::Bool,
+        nohybridladder::Bool=false,
+        constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+    )
 
 Cycle through hybrid nodes in random order until an admissible flip is found.
 At this hybrid node, flip the indicated hybrid parent edge (minor or major).
@@ -910,7 +961,7 @@ Otherwise, return nothing.
 
 The flip can be undone with
 `fliphybrid!(net, newhybridnode, minor, constraints)`, or
-`fliphybrid!(net, newhybridnode, !flippededge.isMajor, constraints)`
+`fliphybrid!(net, newhybridnode, !flippededge.ismajor, constraints)`
 more generally, such as if the flipped edge had its γ modified after the
 original flip.
 
@@ -920,10 +971,17 @@ original flip.
 - undoing the flip may not recover the original root in case
   the root position was modified during the original flip.
 """
-function fliphybrid!(net::HybridNetwork, minor=true::Bool,
-                     nohybridladder=false::Bool,
-                     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
-    hybridindex = Random.shuffle(1:length(net.hybrid)) # indices in net.hybrid
+function fliphybrid!(net::HybridNetwork, minor::Bool, args...)
+    fliphybrid!(Random.default_rng(), net, minor, args...)
+end
+function fliphybrid!(
+    rng::Random.AbstractRNG,
+    net::HybridNetwork,
+    minor::Bool,
+    nohybridladder::Bool=false,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+)
+    hybridindex = Random.shuffle(rng, 1:length(net.hybrid)) # indices in net.hybrid
     while !isempty(hybridindex) # all minor edges
         i = pop!(hybridindex)
         undoinfo = fliphybrid!(net, net.hybrid[i], minor, nohybridladder, constraints)
@@ -935,9 +993,13 @@ function fliphybrid!(net::HybridNetwork, minor=true::Bool,
 end
 
 """
-    fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
-                nohybridladder=false::Bool,
-                constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+    fliphybrid!(
+        net::HybridNetwork,
+        hybridnode::Node,
+        minor::Bool=true,
+        nohybridladder::Bool=false,
+        constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+    )
 
 Flip the direction of a single hybrid edge:
 the minor parent edge of `hybridnode` by default,
@@ -964,7 +1026,7 @@ Output:
 
 The network is unchanged if the flip is not admissible.
 If the flip is admissible, the root position may be modified, and
-the direction of tree edges (via `isChild1`) is modified accordingly. If the
+the direction of tree edges (via `ischild1`) is modified accordingly. If the
 root needs to be modified, then the new root is set to the old hybrid node.
 
 The index of the new hybrid node in `net.hybrid` is equal to that of the
@@ -973,9 +1035,13 @@ old `hybridnode`.
 Warning: Undoing this move may not recover the original root if
 the root position was modified.
 """
-function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
-                     nohybridladder=false::Bool,
-                     constraints=TopologyConstraint[]::Vector{TopologyConstraint})
+function fliphybrid!(
+    net::HybridNetwork,
+    hybridnode::Node,
+    minor::Bool=true,
+    nohybridladder::Bool=false,
+    constraints::Vector{TopologyConstraint}=TopologyConstraint[]
+)
     #= for species constraints, there is nothing to check, because hybrids cannot point into or come out of the group
     for con in constraints
         if con.type == # 0x02/0x03 for types 2 and 3, need to consider more cases
@@ -1047,14 +1113,14 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     edgetokeep.hybrid = false
     newhybridnode.hybrid = true
     newhybridedge.hybrid = true
-    newhybridedge.isMajor = minor
-    edgetokeep.isMajor = true
-    # update node order to keep isChild1 attribute of hybrid edges true
-    edgetoflip.isChild1 = !edgetoflip.isChild1 # just switch
+    newhybridedge.ismajor = minor
+    edgetokeep.ismajor = true
+    # update node order to keep ischild1 attribute of hybrid edges true
+    edgetoflip.ischild1 = !edgetoflip.ischild1 # just switch
     if getchild(newhybridedge) !== newhybridnode # includes the case when the newhybridnode was the root
         # then flip newhybridedge too: make it point towards newhybridnode
-        newhybridedge.isChild1 = !newhybridedge.isChild1
-        net.root = findfirst(n -> n === hybridnode, net.node)
+        newhybridedge.ischild1 = !newhybridedge.ischild1
+        net.rooti = findfirst(n -> n === hybridnode, net.node)
         runDirectEdges = true # many edges are likely to need to have directions flipped here
     end
     # give new hybridnode a name
@@ -1063,12 +1129,12 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
     # update gammas
     newhybridedge.gamma = edgetokeep.gamma
     edgetokeep.gamma = 1.0
-    # update hybrids in network (before directEdges!)
+    # update hybrids in network (before directedges!)
     hybridindex = findfirst(n -> n === hybridnode, net.hybrid)
     net.hybrid[hybridindex] = newhybridnode
     if runDirectEdges # direct edges only if root is moved
-        directEdges!(net)
-    else # if not, only update containRoot attributes
+        directedges!(net)
+    else # if not, only update containroot attributes
         # norootbelow in child edges of newhybridedge
         for ce in newhybridnode.edge
             ce !== newhybridedge || continue # skip e
@@ -1076,7 +1142,7 @@ function fliphybrid!(net::HybridNetwork, hybridnode::Node, minor=true::Bool,
             norootbelow!(ce)
         end
         # allow root for edges below old hybrid node
-        if edgetokeep.containRoot #else, already forbidden below due to hybrid above
+        if edgetokeep.containroot #else, already forbidden below due to hybrid above
             allowrootbelow!(hybridnode, edgetokeep) # old hybrid node
         end
     end

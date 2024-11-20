@@ -1,26 +1,37 @@
 ```@setup dist_reroot
 using PhyloNetworks
 mkpath("../assets/figures")
-raxmltrees = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","raxmltrees.tre")
-raxmlCF = readTableCF(writeTableCF(countquartetsintrees(readMultiTopology(raxmltrees), showprogressbar=false)...))
-astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
-astraltree = readMultiTopology(astralfile)[102] # 102th tree = last tree here
-net0 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
-net1 = readTopology(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
-net0.loglik = 53.53150526187732
-net1.loglik = 28.31506721890958
 ```
 # Comparing and manipulating networks
 
-Examples below follow those in [Getting a Network](@ref).
+Examples below use networks available from the package.
+We can load them as follows.
+`astraltree` is a tree estimated using ASTRAL,
+`net0` is a network estimated using SNaQ under the constraint of 0 reticulation,
+so it's also a tree, and
+`net1` is a network estimated under the constraint of 1 reticulation, so not a tree.
 
-## Comparing networks / trees
+All of them are to be interpreted as *semidirected* networks,
+because their root is not identifiable by the method used to estimate them.
+This affects how we want them.
 
-Is the SNaQ tree (network with h=0) the same as the ASTRAL tree?
-We can calculate their Robinson-Foulds distance:
+```@example dist_reroot
+astralfile = joinpath(dirname(pathof(PhyloNetworks)), "..","examples","astral.tre")
+astraltree = readmultinewick(astralfile)[102] # 102th tree = last tree here
+net0 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net0.out"))
+net1 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
+nothing # hide
+```
+
+## Robinson-Foulds distance for trees
+
+Do the 2 trees `astraltree` and `net0` have the same topology, unrooted?
+We can calculate the Robinson-Foulds distance between them,
+using a function that extends the Robinson-Foulds distance to general networks
+(more on this below).
 
 ```@repl dist_reroot
-hardwiredClusterDistance(astraltree, net0, false)
+hardwiredclusterdistance(astraltree, net0, false)
 ```
 The last option `false` is to consider topologies as unrooted.
 The RF distance is 0, so the two unrooted topologies are the same.
@@ -28,7 +39,7 @@ If we had considered them as rooted, with whatever root they
 currently have in their internal representation,
 we would find a difference:
 ```@repl dist_reroot
-hardwiredClusterDistance(astraltree, net0, true)
+hardwiredclusterdistance(astraltree, net0, true)
 ```
 
 ## Re-rooting trees and networks
@@ -39,21 +50,22 @@ as rooted topologies (and find no difference):
 ```@repl dist_reroot
 rootatnode!(astraltree, "O")
 rootatnode!(net0, "O")
-hardwiredClusterDistance(astraltree, net0, true)
+hardwiredclusterdistance(astraltree, net0, true)
 ```
 ```@example dist_reroot
 using PhyloPlots, RCall
-R"name <- function(x) file.path('..', 'assets', 'figures', x)" 
-R"svg(name('net0_O.svg'), width=4, height=4)" 
+R"name <- function(x) file.path('..', 'assets', 'figures', x)"
+R"svg(name('net0_O.svg'), width=4, height=4)"
 R"par"(mar=[0,0,0,0])
 plot(net0);
-R"dev.off()" 
+R"dev.off()"
 nothing # hide
 ```
 ![net0_O](../assets/figures/net0_O.svg)
 
-Note that, as in previous chapters, we use the possibilities of `RCall`
-to save the plot. We only show this commands once, but they will be run
+Note that we use the possibilities of
+[`RCall`](https://juliainterop.github.io/RCall.jl/stable/gettingstarted/)
+to save the plot. We only show these commands once, but they will be run
 behind the scene each time a plot is called.
 
 After trees/networks are rooted with a correct outgroup,
@@ -61,14 +73,14 @@ their visualization is more meaningful.
 
 Networks can be re-rooted at a given node or along a given edge.
 Get help (type `?`) on the functions `rootatnode!` and `rootonedge!`
-for more info. There are examples in the [Bootstrap](@ref) section.
+for more info. There are examples in the [Network support](@ref) section.
 
 If the network is plotted with crossing edges, you may identify
 ways to rotate the children edges at some nodes to untangle some crossing edges.
 This can be done using the function `rotate!`.
-See an example in the [Bootstrap](@ref) section, or type `?` then `rotate!`.
+See an example in the [Network support](@ref) section, or type `?` then `rotate!`.
 
-## What if the root conflicts with the direction of a reticulation?
+## Does the root conflict with the direction of a reticulation?
 
 With 1 hybridization or more, the direction of hybrid edges
 constrain the position of the root. The root cannot be downstream of hybrid edges.
@@ -81,7 +93,7 @@ network below. We plotted the edge numbers, because we will want to use them
 later to place the root.
 
 ```@example dist_reroot
-net7taxa = readTopology("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(((A1,A2))#H7:::0.804,B):10.0):10.0);")
+net7taxa = readnewick("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(((A1,A2))#H7:::0.804,B):10.0):10.0);")
 R"svg(name('reroot_net7taxa_1.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(net7taxa, showgamma=true, showedgenumber=true, tipoffset=0.2);
@@ -90,7 +102,7 @@ nothing # hide
 ```
 ![reroot net7taxa 1](../assets/figures/reroot_net7taxa_1.svg)
 
-Let's imagine that the A1 and A2 are our outgroups, and we estimated the network above.
+Let's imagine that A1 and A2 are our outgroups, and we estimated the network above.
 According to this network, time must flow from the hybrid node towards A1 and A2.
 So any attempt to reroot the network with A1 as outgroup, or with A2 as outgroup,
 or with the A clade (on edge 11), will fail with a `RootMismatch` error:
@@ -128,7 +140,7 @@ We can display the exact same network differently, by changing
 the γ inheritance values to invert the major/minor consideration of the hybrid edges.
 ```@example dist_reroot
 net7taxa.edge[5] # just to check that it's one of the 2 hybrid edges of interest
-setGamma!(net7taxa.edge[5], 0.501) # switch major/minor edges
+setgamma!(net7taxa.edge[5], 0.501) # switch major/minor edges
 R"svg(name('reroot_net7taxa_3.svg'), width=4, height=4)"; # hide
 R"layout(matrix(1,1,1))"; # hide
 R"par"(mar=[0,0,0,0]); # hide
@@ -151,15 +163,13 @@ It would be the case if A1 was the only outgroup, and if A2 was an ingroup taxon
 In such a case, the outgroup knowledge tells us that our estimated network is wrong.
 One (or more) reticulation in the network must be incorrect.
 Its placement might be correct, but then its direction would be incorrect.
-If the network was estimated via `snaq!`, check tips
-about [Candidate networks compatible with a known outgroup](@ref).
 
 ## Extracting the major tree
 
-We can also compare the networks estimated with h=0 (net0) and h=1 (net1):
+We can also compare the networks estimated with h=0 (`net0`) and h=1 (`net1`):
 ```@repl dist_reroot
 rootatnode!(net1, "O"); # the ; suppresses screen output
-hardwiredClusterDistance(net0, net1, true)
+hardwiredclusterdistance(net0, net1, true)
 ```
 ```@example dist_reroot
 R"svg(name('net1_O.svg'), width=4, height=4)" # hide
@@ -171,35 +181,36 @@ nothing # hide
 ![net1_O](../assets/figures/net1_O.svg)
 
 They differ by 2 clusters: that's because A is of hybrid descent
-in net1, not in net0.
+in `net1` (descendant of each hybrid edge), not in `net0`.
 
 To beyond this hybrid difference,
 we can extract the major tree from the network with 1 hybridization,
 that is, delete the hybrid edge supported by less than 50% of genes.
-Then we can compare this tree with the ASTRAL/SNaQ tree net0.
+Then we can compare this tree with the ASTRAL/SNaQ tree `net0`.
 ```@repl dist_reroot
-tree1 = majorTree(net1); # major tree from net1
-hardwiredClusterDistance(net0, tree1, true)
+tree1 = majortree(net1); # major tree from net1
+hardwiredclusterdistance(net0, tree1, true)
 ```
 They are identical (at distance 0), so here the species network
 with 1 hybrid node is a refinement of the estimated species tree
 (this needs not be the case always).
 
-Is the SNaQ network with 1 hybrid node the same as the true network,
-the one that was initially used to simulate the data?
+## Hardwired-cluster distance
 
-(digression on the data: gene trees were simulated under the coalescent
+Is `net1`, the SNaQ network with 1 hybrid node, the same as the true network,
+the network that was initially used to simulate the data?
+
+(Digression on this example's data: gene trees were simulated under the coalescent
 along some "true" network, then 500 base-pair alignments were simulated
 along each gene tree with the HKY model,
 gene trees were estimated from each alignment with RAxML, and
 these estimated gene trees served as input to both ASTRAL and SNaQ.)
 
-The true network is shown below, correctly rooted at the outgroup O,
+The "true" network is shown below, correctly rooted at the outgroup O,
 and plotted with branch lengths proportional to their
 values in coalescence units:
 ```@repl dist_reroot
-truenet = readTopology("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
-hardwiredClusterDistance(net1, truenet, true)
+truenet = readnewick("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 ```
 ```@example dist_reroot
 R"svg(name('truenet_sim.svg'), width=4, height=4)" # hide
@@ -210,17 +221,40 @@ nothing # hide
 ```
 ![truenet](../assets/figures/truenet_sim.svg)
 
-Our estimated network is not the same as the true network:
+We can compare two networks using the hardwired-cluster dissimilarity.
+- This dissimilarity counts the number of hardwired clusters present in one network
+  but absent in the other.
+- The **hardwired cluster** associated with an edge is the set of *all* tips
+  descendant from that edge, i.e. all tips that inherited
+  at least *some* genetic material from that edge.
+- Each edge is associated with its hardwired cluster of descendants,
+  and also with a "tree" tag or "hybrid" tag depending on the edge type.
+
+!!! info "distance versus dissimilarity"
+    When comparing level-1 networks, or tree-child networks more generally,
+    the hardwired-cluster dissimilarity is a distance:
+    d(N, N') = 0 exactly when N and N' have the same topology.
+    ([Cardona et al. 2009](https://doi.org/10.1109/TCBB.2024.3361390),
+    [Bai et al.](https://doi.org/10.1016/j.mbs.2021.108537)
+    [Maxfield et al. 2024](https://arxiv.org/abs/2405.16035)).
+    Unfortunately, this is not generally true for complex network: there are
+    networks at hardwired-cluster 'distance' 0, that have different topologies.
+    But no dissimilarity measure can both be fast to calculate and
+    be a distance on the full space of phylogenetic networks
+    ([Cardona et al. 2014](https://doi.org/10.1155/2014/254279)).
+
+```@repl dist_reroot
+hardwiredclusterdistance(net1, truenet, true) # true: yes consider these networks as rooted
+```
+Our estimated network is at distance 4 (not 0), so it is *different* from the
+true network (there was estimation error). From the plots, we see that:
 - the underlying tree is correctly estimated
 - the origin of gene flow is correctly estimated: E
 - the target of gene flow is *not* correctly estimated: it was
   the lineage ancestral to (A,B), but it is estimated to be A only.
 
-For networks, the distance here is the hardwired cluster distance:
-the number of hardwired clusters found in one network and not
-in the other. The **hardwired cluster** associated with an edge is the
-set of *all* tips descendant from that edge, i.e. all tips that
-inherited at least *some* genetic material from that edge.
+The 4 cluster differences correspond to the 2 hybrid edges in `net1` (whose
+cluster is A) plus the 2 hybrid edges in `truenet` (whose cluster is AB).
 
 ## Displayed trees and subnetworks
 
@@ -231,15 +265,15 @@ We can choose to pick the "important" hybrid edges only,
 with heritability γ at or above a threshold.
 Below we use a γ threshold of 0, so we get all displayed trees:
 ```@repl dist_reroot
-t = displayedTrees(net1, 0.0) # list of trees displayed in network
-writeTopology(t[1], round=true)
-writeTopology(t[2], round=true)
+t = displayedtrees(net1, 0.0) # list of trees displayed in network
+writenewick(t[1], round=true)
+writenewick(t[2], round=true)
 ```
 If we decide to keep edges with γ>0.2 only, then we are
 left with a single tree in the list (the major tree).
 This is because our example has 1 hybrid node with minor γ=0.196.
 ```@repl dist_reroot
-t = displayedTrees(net1, 0.2)
+t = displayedtrees(net1, 0.2)
 ```
 
 We can also delete all "non-important" reticulations,
@@ -248,13 +282,13 @@ The function below changes our network `net1`,
 as indicated by its name ending with a `!`.
 
 ```@repl dist_reroot
-deleteHybridThreshold!(net1, 0.1)
+deletehybridthreshold!(net1, 0.1)
 ```
 Nothing happened to our network: because its γ is above 0.1.
 But if we set the threshold to 0.3, then our reticulation disappears:
 ```@repl dist_reroot
-deleteHybridThreshold!(net1, 0.3)
+deletehybridthreshold!(net1, 0.3)
 ```
-See also function `displayedNetworkAt!` to get the network with
+See also function `displayednetworkat!` to get the network with
 a single reticulation of interest, and eliminate all other
 reticulations.
