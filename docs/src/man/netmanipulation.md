@@ -111,6 +111,13 @@ To add components to a network:
 - [`PhyloNetworks.addleaf!`](@ref)
 - [`PhyloNetworks.addhybridedge!`](@ref)
 
+To modify some internal attributes, that don't affect the network topology
+or edge parameters:
+
+- [`nameinternalnodes!`](@ref)
+- [`PhyloNetworks.resetnodenumbers!`](@ref) and
+  [`PhyloNetworks.resetedgenumbers!`](@ref)
+
 To calibrate a network (modify its edge lengths):
 
 - [`calibratefrompairwisedistances!`](@ref). This documentation has little

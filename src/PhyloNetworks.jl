@@ -75,6 +75,7 @@ module PhyloNetworks
         getpartneredge,
         tiplabels,
         ## Network Manipulation
+        nameinternalnodes!,
         rootatnode!,
         rootonedge!,
         directedges!,
