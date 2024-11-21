@@ -162,6 +162,38 @@ mutable struct Partition
     cycle::Vector{Int} # hybrid node number for cycle (or cycles)
     edges::Vector{Edge}
 end
+function Base.empty!(p::Partition)
+    empty!(p.cycle)
+    empty!(p.edges)
+    return p
+end
+entrynode_preindex(p::Partition) = p.cycle[1]
+articulationnodes_size(p::Partition) = length(p.cycle)-1
+"""
+    exitnodes_preindex(biconnected component)
+
+Type to define an iterator over internal exit nodes of a biconnected component,
+for a rooted network. The iterator iterates over the blob's exit nodes indices
+in `net.vec_node`.
+
+Note: leaves are not considered because they are not articulation nodes.
+So external (pendent) edges are trivial blobs with 0 (non-internal) exit nodes.
+If the network is rooted at a leaf, there may be some pathological behaviors
+depending on the downstream task
+(e.g. this is checked for by [`leaststableancestor`])(@ref)).
+"""
+struct exitnodes_preindex
+    p::Partition
+end
+function Base.iterate(exn::exitnodes_preindex, state=2)
+    next = iterate(exn.cycle, state)
+    return next
+end
+Base.IteratorSize(::Type{exitnodes_preindex}) = Base.SizeUnknown()
+Base.eltype(::Type{exitnodes_preindex}) = Int
+Base.length(exn::Type{exitnodes_preindex}) = articulationnodes_size(exn.p)
+# see https://docs.julialang.org/en/v1/manual/interfaces/ for interators
+
 
 abstract type Network end
 
