@@ -318,32 +318,53 @@ biconnected component (which partition edges).
 Trivial blocks are formed by one cut-edge and its 2 adjacent nodes.
 They are stored.
 
-fixit: do we want to store trivial blocks? or not?
+The edge field `.inte1` is used to store the biconnected component that
+the edge belongs to, that is, an edge belongs in `net.partition[edge.inte1]`.
+This is an internal coding that could break in the future, though.
+
+# examples
+
+```jldoctest
+julia> net = readnewick("(((D,#H2),((((E)#H2,C),#H1),((B)#H1,A))),((H,#H3),((F)#H3,G)));");
+
+julia> PhyloNetworks.process_biconnectedcomponents!(net);
+```
+fixit: finish example, add tests
 """
-function process_biconnectedcomponents!(net, preorder=true)
+function process_biconnectedcomponents!(net::HybridNetwork, preorder=true)
     if preorder
         directedges!(net)
         preorder!(net)
     end
-    isempty(net.partition) || warn("will erase and re-calculate biconnected components")
+    isempty(net.partition) || @warn("will erase and re-calculate biconnected components")
     empty!.(net.partition)
+    empty!(net.partition)
     bcc = biconnectedcomponents(net, false) # false: don't ignore trivial blobs
     entry = biconnectedcomponent_entrynodes(net, bcc, false)
     entryindex = indexin(entry, net.vec_node)
     exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)
     bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
     # fixithere. todo: store, reset .inte1
-    for ib in bloborder
+    for (ii, ib) in enumerate(bloborder)
         bicomp = bcc[ib]
-        for e in bicomp e.inte1 = ib; end
+        for e in bicomp e.inte1 = ii; end
         node_indices = Int[entryindex[ib]]
-        for n in exitnodes
-            push!(node_indices, indexin(n, net.vec_node))
-        end
+        append!(node_indices, indexin(exitnodes[ib], net.vec_node))
         push!(net.partition, Partition(node_indices, bicomp))
     end
     return net
 end
+
+"""
+    getnetworklevel(net, preprocess::Bool=false)
+"""
+function getnetworklevel(net::HybridNetwork, preprocess::Bool=false)
+    if preprocess || isempty(net.partition)
+        process_biconnectedcomponents!(net, false)
+    end
+    return maximum(getnetworklevel.(net.partition))
+end
+getnetworklevel(p::Partition) = sum(!e.ismajor for e in p.edges)
 
 """
     leaststableancestor(net, preorder=true, preprocess=true)
@@ -367,7 +388,11 @@ via the edges' `.inte1` field --including the trivial blobs (cut edges).
 
 See also: [`deleteaboveLSA!`](@ref)
 """
-function leaststableancestor(net, preorder::Bool=true, preprocess::Bool=true)
+function leaststableancestor(
+    net::HybridNetwork,
+    preorder::Bool=true,
+    preprocess::Bool=true
+)
     getroot(net).leaf && error("The root can't be a leaf to find the LSA.")
     if preorder
         directedges!(net)

@@ -186,7 +186,7 @@ struct exitnodes_preindex
     p::Partition
 end
 function Base.iterate(exn::exitnodes_preindex, state=2)
-    next = iterate(exn.cycle, state)
+    next = iterate(exn.p.cycle, state)
     return next
 end
 Base.IteratorSize(::Type{exitnodes_preindex}) = Base.SizeUnknown()

@@ -97,6 +97,7 @@ module PhyloNetworks
         biconnectedcomponents,
         blobdecomposition!,
         blobdecomposition,
+        getnetworklevel,
         nni!,
         checkroot!,
         treeedgecomponents,
