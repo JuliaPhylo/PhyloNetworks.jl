@@ -356,15 +356,15 @@ function process_biconnectedcomponents!(net::HybridNetwork, preorder=true)
 end
 
 """
-    getnetworklevel(net, preprocess::Bool=false)
+    getlevel(net, preprocess::Bool=false)
 """
-function getnetworklevel(net::HybridNetwork, preprocess::Bool=false)
+function getlevel(net::HybridNetwork, preprocess::Bool=false)
     if preprocess || isempty(net.partition)
         process_biconnectedcomponents!(net, false)
     end
-    return maximum(getnetworklevel.(net.partition))
+    return maximum(getlevel.(net.partition))
 end
-getnetworklevel(p::Partition) = sum(!e.ismajor for e in p.edges)
+getlevel(p::Partition) = sum(!e.ismajor for e in p.edges)
 
 """
     leaststableancestor(net, preorder=true, preprocess=true)

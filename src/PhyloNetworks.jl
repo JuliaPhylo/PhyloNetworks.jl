@@ -74,6 +74,8 @@ module PhyloNetworks
         getparentedgeminor,
         getpartneredge,
         tiplabels,
+        hashybridladder,
+        getlevel,
         ## Network Manipulation
         nameinternalnodes!,
         rootatnode!,
@@ -97,7 +99,6 @@ module PhyloNetworks
         biconnectedcomponents,
         blobdecomposition!,
         blobdecomposition,
-        getnetworklevel,
         nni!,
         checkroot!,
         treeedgecomponents,

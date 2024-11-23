@@ -48,7 +48,8 @@ mutable struct EdgeT{T<:ANode}
     ischild1::Bool # default: true. used to fix the direction of hybrid edges.
     ismajor::Bool  # major edge treated as tree edge for network traversal
                    # true if gamma>.5, or if it is the original tree edge
-    inte1::Int     # default: -1. used in SNaQ for cycle number if level-1
+    inte1::Int     # default: -1. used in SNaQ for cycle number if level-1.
+    # used to store the biconnected component that the edge belongs to: index in `net.partition`
     containroot::Bool # default: true
     boole1::Bool   # default: true
     boole2::Bool   # default: false

@@ -1631,6 +1631,66 @@ function hashybridladder(net::HybridNetwork)
 end
 
 """
+    istreechild(net::HybridNetwork)
+
+Tuple `(b,s)` where `b` is true / false if `net` is / is not tree-child as a
+rooted network; and `s` is a symbol indicating whether `net` is weakly or
+strongly tree-child as a semidirected network (or not tree-child at all).
+
+A rooted network is tree-child if all of its internal nodes have at least one
+child that is a tree node (or equivalently, one child edge that is a tree edge).
+A semidirected network is strongly (resp. weakly) tree-child if all (resp. at
+least one) of its rooted partners are tree-child.
+
+Note that degree-2 nodes are not suppressed: a degree-2 node with a single
+hybrid child causes the network to *not* be tree-child, despite the fact that
+suppressing this node may render the reduced network tree-child.
+
+Assumes that tree edges are directly correctly according to the current root.
+"""
+function istreechild(net::HybridNetwork)
+    getroot(net).leaf && error("istreechild requires a root that is not a leaf.")
+    hybparent_visited = Set{Int}()
+    # not tree-child if 2+ weak nodes, weakly/strongly tree-child if 1/0 weak node
+    hasWatroot = false # did we already find 1 weak node?
+    isTCrooted = true
+    for h in net.hybrid
+        par = getparents(h)
+        for n in par
+            n.number ∈ hybparent_visited && continue
+            push!(hybparent_visited, n.number)
+            if n.hybrid return false; end # hybrid ladder
+            # at this point, n is a tree node
+            ntreechild = 0
+            for e in n.edge
+                if !e.hybrid && getparent(e) == n
+                    ntreechild += 1
+                end
+            end
+            ntreechild > 1 && continue
+            atroot = (getroot(net) == n)
+            ntreechild==1 && !atroot && continue # incident to 2 tree edges
+            if ntreechild == 0
+                isTCrooted = false
+                if atroot || !getparentedge(n).containroot # no parent tree edge
+                    # or parent edge below some other hybrid
+                    return (false, :no)
+                end
+            end
+            # now n is a weak node: parent to hybrid edge(s) + incident 1 root component edge
+            # (0 tree child but parent that may contain the root, or root with 1 tree child)
+            if hasWatroot # another weak node was found before
+                !isTCrooted || error("the network should have already been flagged as not tree-child")
+                return (false, :no)
+            else
+                hasWatroot = true
+            end
+        end
+    end
+    return (true, (hasWatroot ? :weakly : :strongly))
+end
+
+"""
     shrinkedge!(net::HybridNetwork, edge::Edge)
 
 Delete `edge` from net, provided that it is a non-external tree edge.
