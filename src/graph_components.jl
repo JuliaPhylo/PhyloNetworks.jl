@@ -356,9 +356,17 @@ function process_biconnectedcomponents!(net::HybridNetwork, preorder=true)
 end
 
 """
-    getlevel(net, preprocess::Bool=false)
+    getlevel(net, preorder=true, preprocess=false)
 """
-function getlevel(net::HybridNetwork, preprocess::Bool=false)
+function getlevel(
+    net::HybridNetwork,
+    preorder::Bool=true,
+    preprocess::Bool=true
+)
+    if preorder
+        directedges!(net)
+        preorder!(net)
+    end
     if preprocess || isempty(net.partition)
         process_biconnectedcomponents!(net, false)
     end

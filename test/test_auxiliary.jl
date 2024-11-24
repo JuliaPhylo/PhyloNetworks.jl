@@ -82,12 +82,25 @@ PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 @test PhyloNetworks.getlengths([net.edge[1], net.edge[5]]) == [net.edge[1].length, net.edge[5].length]
 end
 
-@testset "hashybridladder" begin
+@testset "hashybridladder, istreechild" begin
 tree = readnewick("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test !PhyloNetworks.hashybridladder(tree)
 PhyloNetworks.addhybridedge!(tree, tree.edge[5], tree.edge[1], true)
 PhyloNetworks.addhybridedge!(tree, tree.edge[2], tree.edge[1], true)
 @test PhyloNetworks.hashybridladder(tree)
+
+# 2 biconnected components at the root,
+# degree-2 node above hybrid in directed part: not tree-child.
+# after suppression: weakly tree-child but not rooted tree-child,
+net = readnewick("(((a1)#H2,(((#H2),a2))#H1),#H1,#H3,((b1)#H3,b2));")
+@test getlevel(net) == 2
+@test istreechild(net) == (false, false, false)
+removedegree2nodes!(net)
+@test istreechild(net) == (false, true, false)
+rootatnode!(net, -3)
+@test istreechild(net) == (true, true, false)
+PhyloNetworks.deletehybridedge!(net, net.edge[8])
+@test istreechild(net) == (true, true, true)
 end # of testing hashybridladder
 
 @testset "shrink edges and cycles" begin
