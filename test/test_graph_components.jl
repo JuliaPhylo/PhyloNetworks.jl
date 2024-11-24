@@ -2,7 +2,7 @@
 # using PhyloPlots
 # using Debugger
 
-@testset "Testing Tarjan's biconnected components" begin
+@testset "Tarjan's biconnected components" begin
 
 net = readnewick("(A,(B,(C,D)));");
 a = biconnectedcomponents(net);
@@ -74,6 +74,24 @@ _, lsaindex = PhyloNetworks.leaststableancestor(net)
 lsa, _ = PhyloNetworks.leaststableancestor(readnewick("(#H2:::0.2,((b)#H2,a));"))
 @test lsa.number == -2
 
+# level, process_biconnectedcomponents!
+net = readnewick("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
+PhyloNetworks.process_biconnectedcomponents!(net)
+@test length(net.partition) == 5
+checkpart(i) = (net.partition[i].cycle, sort!([e.number for e in net.partition[i].edges]))
+@test checkpart(1) == ([1,2], [9])
+@test checkpart(2) == ([2,5], [1,2,3,4,8])
+@test checkpart(3) == ([5,6], [7])
+@test checkpart(4) == ([6], [5])
+@test checkpart(5) == ([6], [6])
+@testset for i in net.numedges
+  @test net.edge[i] ∈ net.partition[net.edge[i].inte1].edges
+end
+@test PhyloNetworks.entrynode_preindex.(net.partition) == [1,2,5,6,6]
+@test collect.(PhyloNetworks.exitnodes_preindex.(net.partition)) == [[2],[5],[6],[],[]]
+@test getlevel(net, false) == 2
+lsa, _ = PhyloNetworks.leaststableancestor(net, false, false)
+@test lsa.number == -8
 end
 
 @testset "tree component" begin

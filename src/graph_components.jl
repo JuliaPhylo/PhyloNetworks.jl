@@ -400,7 +400,7 @@ function leaststableancestor(
     end
     if preprocess
         process_biconnectedcomponents!(net, false)
-    elseif isempty!(net.partition)
+    elseif isempty(net.partition)
         error("no biconnected components stored in the network: re-run with preprocessing")
     end
     bcc = net.partition
@@ -408,7 +408,7 @@ function leaststableancestor(
     function atlsa(blob) # is blob below the LSA? given that previous blobs are not
         # above LSA if 1 exit and 1 entry that's not an entry to another blob
         # (0 exits: trivial blob (cut-edge) to a leaf)
-        return (length(articulationnodes_size(blob)) != 1 ||
+        return (articulationnodes_size(blob) != 1 ||
                 sum(isequal(entrynode_preindex(blob)), entryindices) > 1)
     end
     lsablob_i = findfirst(atlsa, bcc) # pre-order important here

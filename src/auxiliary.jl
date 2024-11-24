@@ -1633,9 +1633,11 @@ end
 """
     istreechild(net::HybridNetwork)
 
-Tuple `(b,s)` where `b` is true / false if `net` is / is not tree-child as a
-rooted network; and `s` is a symbol indicating whether `net` is weakly or
-strongly tree-child as a semidirected network (or not tree-child at all).
+Tuple `(rooted, semi_weakly, semi_strongly)` in which each element is true
+or false, to indicate if `net` is / is not
+- tree-child as a rooted network
+- weakly tree-child as a semidirected network
+- strongly tree-child as a semidirected network
 
 A rooted network is tree-child if all of its internal nodes have at least one
 child that is a tree node (or equivalently, one child edge that is a tree edge).
@@ -1659,7 +1661,7 @@ function istreechild(net::HybridNetwork)
         for n in par
             n.number ∈ hybparent_visited && continue
             push!(hybparent_visited, n.number)
-            if n.hybrid return false; end # hybrid ladder
+            if n.hybrid return (false, false, false); end # hybrid ladder
             # at this point, n is a tree node
             ntreechild = 0
             for e in n.edge
@@ -1674,20 +1676,20 @@ function istreechild(net::HybridNetwork)
                 isTCrooted = false
                 if atroot || !getparentedge(n).containroot # no parent tree edge
                     # or parent edge below some other hybrid
-                    return (false, :no)
+                    return (false, false, false)
                 end
             end
             # now n is a weak node: parent to hybrid edge(s) + incident 1 root component edge
             # (0 tree child but parent that may contain the root, or root with 1 tree child)
             if hasWatroot # another weak node was found before
                 !isTCrooted || error("the network should have already been flagged as not tree-child")
-                return (false, :no)
+                return (false, false, false)
             else
                 hasWatroot = true
             end
         end
     end
-    return (true, (hasWatroot ? :weakly : :strongly))
+    return (isTCrooted, true, !hasWatroot) # weakly tree-child
 end
 
 """

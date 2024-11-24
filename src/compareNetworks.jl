@@ -361,11 +361,13 @@ tuple of 2 vectors (node) of vector (clade) of vectors (taxon in clade):
 for the right child of the node (unless the node is of degree 2 or is a polytomy).
 `above[n]` contains the grade of clades above node number `n`.
 
-WARNING: assumes that
-1. node numbers and edge numbers can be used as indices, that is,
-   be all distinct, positive, covering exactly 1:#nodes and 1:#edges.
-2. edges are corrected directed (`ischild1` is up-to-date) and
-   nodes have been pre-ordered already (field `vec_node` up-to-date).
+Warning: assumes that
+- the network is a tree (this is checked)
+- node numbers and edge numbers can be used as indices, that is,
+  be all distinct, positive, covering exactly 1:#nodes and 1:#edges
+  (this is checked for nodes).
+- edges are corrected directed (`ischild1` is up-to-date) and
+  nodes have been pre-ordered already (field `vec_node` up-to-date).
 
 # examples
 ```jldoctest
