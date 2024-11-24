@@ -1661,21 +1661,26 @@ function istreechild(net::HybridNetwork)
         for n in par
             n.number ∈ hybparent_visited && continue
             push!(hybparent_visited, n.number)
-            if n.hybrid return (false, false, false); end # hybrid ladder
-            # at this point, n is a tree node
             ntreechild = 0
             for e in n.edge
                 if !e.hybrid && getparent(e) == n
                     ntreechild += 1
                 end
             end
-            ntreechild > 1 && continue
+            # a hybrid ladder could be okay if polytomy: tree child + hybrid child(ren)
+            if ntreechild > 1 || (n.hybrid && ntreechild > 0)
+                continue
+            end
+            if n.hybrid # hybrid ladder with no tree child
+                return (false, false, false)
+            end
+            # at this point, n is a tree node
             atroot = (getroot(net) == n)
             ntreechild==1 && !atroot && continue # incident to 2 tree edges
             if ntreechild == 0
                 isTCrooted = false
-                if atroot || !getparentedge(n).containroot # no parent tree edge
-                    # or parent edge below some other hybrid
+                # check if no parent tree edge could be a child under another rooting
+                if atroot || !getparentedge(n).containroot
                     return (false, false, false)
                 end
             end

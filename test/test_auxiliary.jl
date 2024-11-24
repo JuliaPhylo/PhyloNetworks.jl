@@ -93,7 +93,8 @@ PhyloNetworks.addhybridedge!(tree, tree.edge[2], tree.edge[1], true)
 # degree-2 node above hybrid in directed part: not tree-child.
 # after suppression: weakly tree-child but not rooted tree-child,
 net = readnewick("(((a1)#H2,(((#H2),a2))#H1),#H1,#H3,((b1)#H3,b2));")
-@test getlevel(net) == 2
+@test_throws "no biconnected components stored" getlevel(net, true, false)
+@test getlevel(net, false, true) == 2
 @test istreechild(net) == (false, false, false)
 removedegree2nodes!(net)
 @test istreechild(net) == (false, true, false)

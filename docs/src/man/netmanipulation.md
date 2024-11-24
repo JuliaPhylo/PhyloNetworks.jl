@@ -30,15 +30,22 @@ each hybrid node has exactly 2 parents (never more).
 - [`displayedtrees`](@ref) or [`majortree`](@ref) to get the displayed trees
   or major tree, respectively
 - [`hardwiredclusters`](@ref) to get all clusters of taxa on a network
-- [`biconnectedcomponents`](@ref) and [`PhyloNetworks.blobinfo`](@ref)
-  give information about the blobs found within a network;
+- [`checkroot!`](@ref) to check that the graph is a valid semidirected
+  network with a root node in a admissible rooting position
+
+on the network complexity:
+- [`istreechild`](@ref)
+- [`hashybridladder`](@ref) -- a hybrid ladder is also called a "stack":
+  one hybrid parent of another
+- [`getlevel`](@ref)
+- [`biconnectedcomponents`](@ref) and
+  [`PhyloNetworks.process_biconnectedcomponents!`](@ref)
+  to calculate (and store) the blobs in a network;
   also
   [`PhyloNetworks.biconnectedcomponent_entrynodes`](@ref),
   [`PhyloNetworks.biconnectedcomponent_exitnodes`](@ref),
   and [`blobdecomposition`](@ref)
 - [`treeedgecomponents`](@ref) are the components after removing hybrid edges
-- [`checkroot!`](@ref) to check that the graph is a valid semidirected
-  network with a root node in a admissible rooting position
 
 The following functions all compute distances from the root to each node.
 Their differ in how they handle time inconsistency: when the distance from

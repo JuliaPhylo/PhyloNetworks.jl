@@ -89,7 +89,9 @@ checkpart(i) = (net.partition[i].cycle, sort!([e.number for e in net.partition[i
 end
 @test PhyloNetworks.entrynode_preindex.(net.partition) == [1,2,5,6,6]
 @test collect.(PhyloNetworks.exitnodes_preindex.(net.partition)) == [[2],[5],[6],[],[]]
-@test getlevel(net, false) == 2
+@test getlevel(net,false,false) == 2
+@test PhyloNetworks.istrivial.(net.partition[[1,2,4]]) == [true, false,true]
+@test PhyloNetworks.ispendent.(net.partition[[1,2,4]]) == [false,false,true]
 lsa, _ = PhyloNetworks.leaststableancestor(net, false, false)
 @test lsa.number == -8
 end

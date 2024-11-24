@@ -320,16 +320,74 @@ They are stored.
 
 The edge field `.inte1` is used to store the biconnected component that
 the edge belongs to, that is, an edge belongs in `net.partition[edge.inte1]`.
-This is an internal coding that could break in the future, though.
+This is an internal coding that could break in the future, and that could
+be modified by other functions.
+
+!!! warning
+    This preprocessing and `net.partition` become obsolete and incorrect if the
+    network's topology is later modified, such as after a semidirected NNI,
+    the deletion/addition of a hybrid edge / a leaf. Functions that modified
+    the network are **not** required to update the blob decomposition (to save
+    time for analyses that don't need the blob decomposition).
+
+    After a re-rooting with `rootatnode!`, the blobs remain the same with the
+    same set of edges, but their entry & exit nodes may become incorrect.
+    After `rootonedge!`, the number of blobs remains correct but one edge was
+    subdivided into 2 edges (and the old root node might have been suppressed),
+    so the edge list in some blobs become obsolete.
 
 # examples
+
+The network below is binary, so each blocks and blobs are the same.
+It has 2 non-trivial blobs: one with 1 hybrid and the other with 2 hybrids.
+We first get the blobs, then look at the 2-hybrid blob in more detail.
 
 ```jldoctest
 julia> net = readnewick("(((D,#H2),((((E)#H2,C),#H1),((B)#H1,A))),((H,#H3),((F)#H3,G)));");
 
+julia> # using PhyloPlots; plot(net, showedgenumber=true, shownodenumber=true);
+
 julia> PhyloNetworks.process_biconnectedcomponents!(net);
+
+julia> length(net.partition) # number of biconnected components
+12
+
+julia> findall(!PhyloNetworks.istrivial(blob) for blob in net.partition)
+2-element Vector{Int64}:
+ 3
+ 7
+
+julia> blob = net.partition[7]; getlevel(blob)
+2
+
+julia> [e.number for e in blob.edges]
+9-element Vector{Int64}:
+ 14
+  9
+ 13
+ 11
+  8
+  7
+  5
+  2
+  3
+
+julia> i = PhyloNetworks.entrynode_preindex(blob); net.vec_node[i]
+PhyloNetworks.Node:
+ number:-3
+ attached to 3 edges, numbered: 3 14 15
+
+julia> PhyloNetworks.number_exitnodes(blob)
+5
+
+julia> [net.vec_node[i].number for i in PhyloNetworks.exitnodes_preindex(blob)]
+5-element Vector{Int64}:
+ -9
+  5
+ -7
+  2
+ -4
 ```
-fixit: finish example, add tests
 """
 function process_biconnectedcomponents!(net::HybridNetwork, preorder=true)
     if preorder
@@ -357,6 +415,17 @@ end
 
 """
     getlevel(net, preorder=true, preprocess=false)
+
+Level of `net`: maximum number of edges to delete within a biconnected component
+to make it a tree. If the network is bicombining (each hybrid has 2 parents),
+then the level is the maximum number of hybrid nodes within a biconnected
+component.
+Arguments:
+- `preorder` to direct edges according to the root and store a pre-ordering of
+  nodes in `net.vec_node`, if not done earlier on the network (e.g. after
+  a topology modification)
+- `preprocess` to recalculate & store the biconnected components with
+  [`process_biconnectedcomponents!`](@ref), assuming the preordering was done
 """
 function getlevel(
     net::HybridNetwork,
@@ -367,8 +436,10 @@ function getlevel(
         directedges!(net)
         preorder!(net)
     end
-    if preprocess || isempty(net.partition)
+    if preprocess
         process_biconnectedcomponents!(net, false)
+    elseif isempty(net.partition)
+        error("no biconnected components stored in the network: re-run with preprocessing")
     end
     return maximum(getlevel.(net.partition))
 end
@@ -377,7 +448,7 @@ getlevel(p::Partition) = sum(!e.ismajor for e in p.edges)
 """
     leaststableancestor(net, preorder=true, preprocess=true)
 
-Return `(lsa, lsa_index)` where `lsa` is the least stable ancestor node (LSA)
+Tuple `(lsa, lsa_index)` where `lsa` is the least stable ancestor (LSA) node
 in `net`, and `lsa_index` is the index of `lsa` in `net.vec_node`.
 The LSA the lowest node `n` with the following property: *any* path
 between *any* leaf and the root must go through `n`. All such nodes with this
@@ -387,10 +458,17 @@ lower or equal to `lsa_index`).
 Exception: if the network has a single leaf, the output `lsa` is the
 leaf's parent node, to maintain one external edge between the root and the leaf.
 
+Arguments:
+- `preorder` to direct edges according to the root and store a pre-ordering of
+  nodes in `net.vec_node`, if not done earlier on the network (e.g. after
+  a topology modification)
+- `preprocess` to recalculate & store the biconnected components with
+  [`process_biconnectedcomponents!`](@ref), assuming the preordering was done
+
 *Warning*:
 uses [`biconnectedcomponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
-therefore share the same caveats regarding the use of
-fields `.inte1` and `.intn1` (for edges and nodes), `.intn2` (for nodes) etc.
+therefore share the same caveats regarding the use of field
+`.intn1` and `.intn2` for nodes; `boole2` and `.inte1` for edges.
 As a positivie side effect, the biconnected components can be recovered
 via the edges' `.inte1` field --including the trivial blobs (cut edges).
 
@@ -416,7 +494,7 @@ function leaststableancestor(
     function atlsa(blob) # is blob below the LSA? given that previous blobs are not
         # above LSA if 1 exit and 1 entry that's not an entry to another blob
         # (0 exits: trivial blob (cut-edge) to a leaf)
-        return (articulationnodes_size(blob) != 1 ||
+        return (number_exitnodes(blob) != 1 ||
                 sum(isequal(entrynode_preindex(blob)), entryindices) > 1)
     end
     lsablob_i = findfirst(atlsa, bcc) # pre-order important here
