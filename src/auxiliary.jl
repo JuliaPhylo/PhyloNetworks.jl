@@ -1698,6 +1698,74 @@ function istreechild(net::HybridNetwork)
 end
 
 """
+    isgalled(net::HybridNetwork, checkpreorder::Bool=true)
+
+`true` (resp. `false`) if `net` is (resp. is not) a galled network, assuming
+that `net` is bicombining (every hybrid has exactly 2 parents).
+A network is galled if every hybrid node is contained in a cycle that has its
+2 hybrid parent edges and otherwise tree edges only. See for example
+[Huson, Rupp & Scornavacca (2010)](https://doi.org/10.1017/CBO9780511974076) and
+[Gunawan, DasGupta & Zhang (2017)](https://doi.org/10.1016/j.ic.2016.11.001).
+Equivalently, a bicombinig network is galled if, for any hybrid node `n`,
+both of its parent edges originate from the same tree component.
+We get the tree components by deleting all hybrid edges from the network:
+we are left with a forest of trees.
+
+The network is traversed in preorder (from the root to the leaves).
+Turn `checkpreorder` to `false` if the pre-ordering was run and is known to be
+up-to-date.
+Assumption: tree edges are directly correctly according to the current root.
+"""
+function isgalled(net::HybridNetwork, checkpreorder::Bool=true)
+    checkpreorder && preorder!(net)
+    isG = trues(1) # mutable
+    # uses a vector node preorder index => integer unique to each tree component
+    # a tree component ID = number of its node
+    traversal_preorder(
+        net.vec_node,
+        init_isgalled, # initialize vector node index => tree component ID
+        traversalupdate_default!, # do nothing at the root
+        updatetree_isgalled,
+        updatehybrid_isgalled,
+        isG
+    )
+    @show isG
+    return isG[1]
+end
+function init_isgalled(nodes::Vector{Node}, isG)
+    V = zeros(Int,length(nodes))
+    V[1] = nodes[1].number # root = 1st in preorder
+    return V
+end
+function updatetree_isgalled(V::Vector, i::Int, pari::Int, ::Edge, isG)
+    @info "tree node i=$i"
+    V[i] = V[pari] # node i is same tree component as its parent
+    return true
+end
+function updatehybrid_isgalled(
+    V::Vector,
+    i::Int,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
+    isG
+)
+    # check bicombining, and both parents from same TC
+    @info "hybrid node i=$i"
+    @show parindx
+    @show [e.number for e in paredge]
+    @show isG
+    @show V
+    length(parindx) == 2 || error("the network is not bicombining")
+    if V[parindx[1]] != V[parindx[2]]
+        isG[1] = false
+        return false # stop the traversal
+    else
+        V[i] = getchild(paredge[1]).number # start new tree component
+    end
+    return true
+end
+
+"""
     shrinkedge!(net::HybridNetwork, edge::Edge)
 
 Delete `edge` from net, provided that it is a non-external tree edge.

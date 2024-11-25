@@ -37,6 +37,7 @@ on the network complexity:
 - [`istreechild`](@ref)
 - [`hashybridladder`](@ref) -- a hybrid ladder is also called a "stack":
   one hybrid parent of another
+- [`isgalled`](@ref) in the sense of a galled *network*
 - [`getlevel`](@ref)
 - [`biconnectedcomponents`](@ref) and
   [`PhyloNetworks.process_biconnectedcomponents!`](@ref)

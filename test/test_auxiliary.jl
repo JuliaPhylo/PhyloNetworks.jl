@@ -82,7 +82,7 @@ PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 @test PhyloNetworks.getlengths([net.edge[1], net.edge[5]]) == [net.edge[1].length, net.edge[5].length]
 end
 
-@testset "hashybridladder, istreechild" begin
+@testset "hashybridladder, istreechild, isgalled" begin
 tree = readnewick("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test !PhyloNetworks.hashybridladder(tree)
 PhyloNetworks.addhybridedge!(tree, tree.edge[5], tree.edge[1], true)
@@ -96,12 +96,33 @@ net = readnewick("(((a1)#H2,(((#H2),a2))#H1),#H1,#H3,((b1)#H3,b2));")
 @test_throws "no biconnected components stored" getlevel(net, true, false)
 @test getlevel(net, false, true) == 2
 @test istreechild(net) == (false, false, false)
+@test !isgalled(net, false)
+# @test_skip isorchard(net, false)
 removedegree2nodes!(net)
 @test istreechild(net) == (false, true, false)
+@test !isgalled(net)
+# @test_skip isorchard(net, false)
 rootatnode!(net, -3)
 @test istreechild(net) == (true, true, false)
 PhyloNetworks.deletehybridedge!(net, net.edge[8])
 @test istreechild(net) == (true, true, true)
+@test isgalled(net)
+
+# crown with 2 weak nodes
+net = readnewick("(((a1)#H1,#H2),(#H1,(a2)#H2));")
+@test istreechild(net) == (false, false, false)
+@test isgalled(net)
+# @test_skip !isorchard(net, false)
+removedegree2nodes!(net) # suppress the root
+@test istreechild(net) == (false, false, false)
+@test isgalled(net)
+# @test_skip !isorchard(net, false)
+
+# w-structure but not maximal: no w-fence
+net = readnewick("((b1,(a1)#H1),(#H1,#H2),((a2)#H2,b2));")
+@test isgalled(net)
+# @test_skip isorchard(net, false)
+
 end # of testing hashybridladder
 
 @testset "shrink edges and cycles" begin

@@ -76,6 +76,7 @@ module PhyloNetworks
         tiplabels,
         hashybridladder,
         istreechild,
+        isgalled,
         getlevel,
         ## Network Manipulation
         nameinternalnodes!,
