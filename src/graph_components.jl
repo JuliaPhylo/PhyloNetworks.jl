@@ -326,15 +326,15 @@ be modified by other functions.
 !!! warning
     This preprocessing and `net.partition` become obsolete and incorrect if the
     network's topology is later modified, such as after a semidirected NNI,
-    the deletion/addition of a hybrid edge / a leaf. Functions that modified
-    the network are **not** required to update the blob decomposition (to save
+    the deletion/addition of a hybrid edge / a leaf. Functions that modify
+    a network are **not** required to update the blob decomposition (to save
     time for analyses that don't need the blob decomposition).
 
     After a re-rooting with `rootatnode!`, the blobs remain the same with the
     same set of edges, but their entry & exit nodes may become incorrect.
     After `rootonedge!`, the number of blobs remains correct but one edge was
     subdivided into 2 edges (and the old root node might have been suppressed),
-    so the edge list in some blobs become obsolete.
+    so the edge list in some blobs becomes obsolete.
 
 # examples
 
@@ -372,12 +372,12 @@ julia> [e.number for e in blob.edges]
   2
   3
 
-julia> i = PhyloNetworks.entrynode_preindex(blob); net.vec_node[i]
+julia> i = PhyloNetworks.entrynode_preindex(blob); net.vec_node[i] # entry to the blob
 PhyloNetworks.Node:
  number:-3
  attached to 3 edges, numbered: 3 14 15
 
-julia> PhyloNetworks.number_exitnodes(blob)
+julia> PhyloNetworks.number_exitnodes(blob) # 5 exit nodes connecting to other blobs below
 5
 
 julia> [net.vec_node[i].number for i in PhyloNetworks.exitnodes_preindex(blob)]
