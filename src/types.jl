@@ -78,7 +78,7 @@ function EdgeT{T}(
 ) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
     y = exp(-length)
-    Edge{T}(number,length,hybrid,y,1.0-y,
+    EdgeT{T}(number,length,hybrid,y,1.0-y,
         hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
         -1,!hybrid,true,false)
 end
@@ -95,7 +95,7 @@ function EdgeT{T}(
 ) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
     y = exp(-length)
-    Edge{T}(number,length,hybrid,y,1.0-y,
+    EdgeT{T}(number,length,hybrid,y,1.0-y,
         hybrid ? gamma : 1., node, ischild1, !hybrid || gamma>0.5,
         inte1, containroot, boole1, false)
 end
@@ -222,9 +222,9 @@ function Base.iterate(exn::exitnodes_preindex, state=2)
     next = iterate(exn.p.cycle, state)
     return next
 end
-Base.IteratorSize(::Type{exitnodes_preindex}) = Base.SizeUnknown()
+Base.IteratorSize(::Type{exitnodes_preindex}) = Base.HasLength()
 Base.eltype(::Type{exitnodes_preindex}) = Int
-Base.length(exn::Type{exitnodes_preindex}) = number_exitnodes(exn.p)
+Base.length(exn::exitnodes_preindex) = number_exitnodes(exn.p)
 # see https://docs.julialang.org/en/v1/manual/interfaces/ for interators
 
 

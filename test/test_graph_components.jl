@@ -76,6 +76,7 @@ lsa, _ = PhyloNetworks.leaststableancestor(readnewick("(#H2:::0.2,((b)#H2,a));")
 
 # level, process_biconnectedcomponents!
 net = readnewick("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
+@test_throws "no biconnected components stored" PhyloNetworks.leaststableancestor(net, false, false)
 PhyloNetworks.process_biconnectedcomponents!(net)
 @test length(net.partition) == 5
 checkpart(i) = (net.partition[i].cycle, sort!([e.number for e in net.partition[i].edges]))
@@ -89,11 +90,13 @@ checkpart(i) = (net.partition[i].cycle, sort!([e.number for e in net.partition[i
 end
 @test PhyloNetworks.entrynode_preindex.(net.partition) == [1,2,5,6,6]
 @test collect.(PhyloNetworks.exitnodes_preindex.(net.partition)) == [[2],[5],[6],[],[]]
+@test length(PhyloNetworks.exitnodes_preindex(net.partition[5])) == 0
 @test getlevel(net,false,false) == 2
 @test PhyloNetworks.istrivial.(net.partition[[1,2,4]]) == [true, false,true]
 @test PhyloNetworks.ispendent.(net.partition[[1,2,4]]) == [false,false,true]
 lsa, _ = PhyloNetworks.leaststableancestor(net, false, false)
 @test lsa.number == -8
+PhyloNetworks.empty!.(net.partition)
 end
 
 @testset "tree component" begin

@@ -13,6 +13,11 @@ redirect_stdout(devnull) # requires julia v1.6
 @test_nowarn PhyloNetworks.citation()
 redirect_stdout(originalstdout)
 
+# basic types: various constructors
+n1 = PhyloNetworks.Node()
+@test_logs PhyloNetworks.Edge(1,0.0,true,0.6,[n1,n1])
+@test_logs PhyloNetworks.Edge(1,0.0,false,0.6,[n1,n1],false,2,false,false)
+
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net = readnewick(str_level1_s)
 net0 = readnewick(str_level1_s)
