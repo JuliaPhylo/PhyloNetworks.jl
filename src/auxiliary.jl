@@ -1706,7 +1706,7 @@ A network is galled if every hybrid node is contained in a cycle that has its
 2 hybrid parent edges and otherwise tree edges only. See for example
 [Huson, Rupp & Scornavacca (2010)](https://doi.org/10.1017/CBO9780511974076) and
 [Gunawan, DasGupta & Zhang (2017)](https://doi.org/10.1016/j.ic.2016.11.001).
-Equivalently, a bicombinig network is galled if, for any hybrid node `n`,
+Equivalently, a bicombining network is galled if, for any hybrid node `n`,
 both of its parent edges originate from the same tree component.
 We get the tree components by deleting all hybrid edges from the network:
 we are left with a forest of trees.
