@@ -88,6 +88,7 @@ PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 end
 
 @testset "hashybridladder, istreechild, isgalled" begin
+
 tree = readnewick("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test !PhyloNetworks.hashybridladder(tree)
 PhyloNetworks.addhybridedge!(tree, tree.edge[5], tree.edge[1], true)
@@ -127,6 +128,26 @@ removedegree2nodes!(net) # suppress the root
 net = readnewick("((b1,(a1)#H1),(#H1,#H2),((a2)#H2,b2));")
 @test isgalled(net)
 # @test_skip isorchard(net, false)
+
+# Level 3, not galled
+net = readnewick("(((a,#H1)1,(((b)#H2)#H1,#H3)5)2,((#H2)#H3,c)4)3;)")
+@test getlevel(net, true, true) == 3
+@test !isgalled(net)
+
+# Level 1, galled tree
+net = readnewick("(((x1,#H1),((x2)#H1,x3)),((x4,#H2),(x3)#H2));")
+@test getlevel(net, true, true) == 1
+@test isgalled(net)
+
+# Level 2, galled network
+net = readnewick("((x1,#H1),((((x2)#H1,x3),#H2),((x4)#H2,x5)));")
+@test getlevel(net) == 2
+@test isgalled(net)
+
+# Level 4, not galled
+net = readnewick("((((x1,#H1),(((x2)#H1,x3))#H2),(#H2)#H3),((#H3,#H4),((x4)#H4,x5)));")
+@test getlevel(net) == 4
+@test !isgalled(net)
 
 end # of testing hashybridladder
 
