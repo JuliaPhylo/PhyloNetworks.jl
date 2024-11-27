@@ -4,6 +4,7 @@
 docs/build/
 docs/site/
 docs/*.toml
+Manifest.toml
 
 # benchmark tuning parameters #
 benchmark/params.json
