@@ -129,10 +129,11 @@ net = readnewick("((b1,(a1)#H1),(#H1,#H2),((a2)#H2,b2));")
 @test isgalled(net)
 # @test_skip isorchard(net, false)
 
-# Level 3, not galled
+# Level 3, not galled, funnel of 2 hybrid ladders (w-fence of 2 edges)
 net = readnewick("(((a,#H1)1,(((b)#H2)#H1,#H3)5)2,((#H2)#H3,c)4)3;)")
 @test getlevel(net, true, true) == 3
 @test !isgalled(net)
+@test istreechild(net) == (false,false,false) # reaches hybrid ladder first
 
 # Level 1, galled tree
 net = readnewick("(((x1,#H1),((x2)#H1,x3)),((x4,#H2),(x3)#H2));")
