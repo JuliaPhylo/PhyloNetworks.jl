@@ -1729,7 +1729,6 @@ function isgalled(net::HybridNetwork, checkpreorder::Bool=true)
         updatehybrid_isgalled,
         isG
     )
-    @show isG
     return isG[1]
 end
 function init_isgalled(nodes::Vector{Node}, isG)
@@ -1738,7 +1737,6 @@ function init_isgalled(nodes::Vector{Node}, isG)
     return V
 end
 function updatetree_isgalled(V::Vector, i::Int, pari::Int, ::Edge, isG)
-    @info "tree node i=$i"
     V[i] = V[pari] # node i is same tree component as its parent
     return true
 end
@@ -1750,11 +1748,6 @@ function updatehybrid_isgalled(
     isG
 )
     # check bicombining, and both parents from same TC
-    @info "hybrid node i=$i"
-    @show parindx
-    @show [e.number for e in paredge]
-    @show isG
-    @show V
     length(parindx) == 2 || error("the network is not bicombining")
     if V[parindx[1]] != V[parindx[2]]
         isG[1] = false
