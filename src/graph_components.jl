@@ -13,7 +13,7 @@ If `ignoreTrivial` is true, trivial components (of a single edge)
 are not returned.
 The network is assumed to be connected.
 
-*Warnings*: for nodes, fields `k` and `intn1`
+*Warnings*: for nodes, fields `intn2` and `intn1`
 are modified during the algorithm. They are used to store the
 node's "index" (time of visitation), "lowpoint", and the node's
 "parent", as defined by the order in which nodes are visited.
@@ -35,14 +35,14 @@ References:
 function biconnectedcomponents(net, ignoreTrivial::Bool=false)
     for n in net.node
         n.intn1 = -1 # intn1 = lowpoint. -1 for missing, until the node is visited
-        n.intn2 = -1 # k = index, order of visit during depth-first search
+        n.intn2 = -1 # intn2 = index, order of visit during depth-first search
     end
     for e in net.edge
         e.boole2 = false # true after edge is visited, during depth-first search
     end
     S = Edge[] # temporary stack
     blobs = Vector{Edge}[] # will contain the blobs
-    biconnectedcomponents(net.node[net.rooti], [0], S, blobs, ignoreTrivial)
+    biconnectedcomponents(getroot(net), [0], S, blobs, ignoreTrivial)
     # if stack not empty: create last connected component
     length(S) == 0 || @error("stack of edges not empty at the end: $S")
     return blobs
@@ -61,7 +61,7 @@ function biconnectedcomponents(node, index, S, blobs, ignoreTrivial)
     # set depth index for v to the smallest unused index
     node.intn2 = index[1] # index / disc
     node.intn1 = index[1] # lowpoint / lowlink
-    #println(" for node $(node.number): k=$(node.intn2), low=$(node.intn1)")
+    #println(" for node $(node.number): index=$(node.intn2), low=$(node.intn1)")
     index[1] += 1
     #print(" stack: "); @show [e.number for e in S]
 
@@ -306,9 +306,149 @@ function blobdecomposition!(net)
 end
 
 """
-    leaststableancestor(net, preorder=true)
+    process_biconnectedcomponents!(net, preorder=true)
 
-Return `(lsa, lsa_index)` where `lsa` is the least stable ancestor node (LSA)
+Calculate biconnected components (aka "blobs" in binary networks,
+"blocks" more generally) and save them in `net` for re-use later.
+The field `net.partition` is reset to store the biconnected components,
+by storing them in preorder (a block comes before any of its descendents).
+Each one is stored as a `Partition` object, which stores a list of edges in the
+biconnected component (which partition edges).
+
+Trivial blocks are formed by one cut-edge and its 2 adjacent nodes.
+They are stored.
+
+The edge field `.inte1` is used to store the biconnected component that
+the edge belongs to, that is, an edge belongs in `net.partition[edge.inte1]`.
+This is an internal coding that could break in the future, and that could
+be modified by other functions.
+
+!!! warning
+    This preprocessing and `net.partition` become obsolete and incorrect if the
+    network's topology is later modified, such as after a semidirected NNI,
+    the deletion/addition of a hybrid edge / a leaf. Functions that modify
+    a network are **not** required to update the blob decomposition (to save
+    time for analyses that don't need the blob decomposition).
+
+    After a re-rooting with `rootatnode!`, the blobs remain the same with the
+    same set of edges, but their entry & exit nodes may become incorrect.
+    After `rootonedge!`, the number of blobs remains correct but one edge was
+    subdivided into 2 edges (and the old root node might have been suppressed),
+    so the edge list in some blobs becomes obsolete.
+
+# examples
+
+The network below is binary, so each blocks and blobs are the same.
+It has 2 non-trivial blobs: one with 1 hybrid and the other with 2 hybrids.
+We first get the blobs, then look at the 2-hybrid blob in more detail.
+
+```jldoctest
+julia> net = readnewick("(((D,#H2),((((E)#H2,C),#H1),((B)#H1,A))),((H,#H3),((F)#H3,G)));");
+
+julia> # using PhyloPlots; plot(net, showedgenumber=true, shownodenumber=true);
+
+julia> PhyloNetworks.process_biconnectedcomponents!(net);
+
+julia> length(net.partition) # number of biconnected components
+12
+
+julia> findall(!PhyloNetworks.istrivial(blob) for blob in net.partition)
+2-element Vector{Int64}:
+ 3
+ 7
+
+julia> blob = net.partition[7]; getlevel(blob)
+2
+
+julia> [e.number for e in blob.edges]
+9-element Vector{Int64}:
+ 14
+  9
+ 13
+ 11
+  8
+  7
+  5
+  2
+  3
+
+julia> i = PhyloNetworks.entrynode_preindex(blob); net.vec_node[i] # entry to the blob
+PhyloNetworks.Node:
+ number:-3
+ attached to 3 edges, numbered: 3 14 15
+
+julia> PhyloNetworks.number_exitnodes(blob) # 5 exit nodes connecting to other blobs below
+5
+
+julia> [net.vec_node[i].number for i in PhyloNetworks.exitnodes_preindex(blob)]
+5-element Vector{Int64}:
+ -9
+  5
+ -7
+  2
+ -4
+```
+"""
+function process_biconnectedcomponents!(net::HybridNetwork, preorder=true)
+    if preorder
+        directedges!(net)
+        preorder!(net)
+    end
+    isempty(net.partition) || @warn("will erase and re-calculate biconnected components")
+    empty!.(net.partition)
+    empty!(net.partition)
+    bcc = biconnectedcomponents(net, false) # false: don't ignore trivial blobs
+    entry = biconnectedcomponent_entrynodes(net, bcc, false)
+    entryindex = indexin(entry, net.vec_node)
+    exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)
+    bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
+    # fixithere. todo: store, reset .inte1
+    for (ii, ib) in enumerate(bloborder)
+        bicomp = bcc[ib]
+        for e in bicomp e.inte1 = ii; end
+        node_indices = Int[entryindex[ib]]
+        append!(node_indices, indexin(exitnodes[ib], net.vec_node))
+        push!(net.partition, Partition(node_indices, bicomp))
+    end
+    return net
+end
+
+"""
+    getlevel(net, preorder=true, preprocess=false)
+
+Level of `net`: maximum number of edges to delete within a biconnected component
+to make it a tree. If the network is bicombining (each hybrid has 2 parents),
+then the level is the maximum number of hybrid nodes within a biconnected
+component.
+Arguments:
+- `preorder` to direct edges according to the root and store a pre-ordering of
+  nodes in `net.vec_node`, if not done earlier on the network (e.g. after
+  a topology modification)
+- `preprocess` to recalculate & store the biconnected components with
+  [`process_biconnectedcomponents!`](@ref), assuming the preordering was done
+"""
+function getlevel(
+    net::HybridNetwork,
+    preorder::Bool=true,
+    preprocess::Bool=true
+)
+    if preorder
+        directedges!(net)
+        preorder!(net)
+    end
+    if preprocess
+        process_biconnectedcomponents!(net, false)
+    elseif isempty(net.partition)
+        error("no biconnected components stored in the network: re-run with preprocessing")
+    end
+    return maximum(getlevel.(net.partition))
+end
+getlevel(p::Partition) = sum(!e.ismajor for e in p.edges)
+
+"""
+    leaststableancestor(net, preorder=true, preprocess=true)
+
+Tuple `(lsa, lsa_index)` where `lsa` is the least stable ancestor (LSA) node
 in `net`, and `lsa_index` is the index of `lsa` in `net.vec_node`.
 The LSA the lowest node `n` with the following property: *any* path
 between *any* leaf and the root must go through `n`. All such nodes with this
@@ -318,35 +458,49 @@ lower or equal to `lsa_index`).
 Exception: if the network has a single leaf, the output `lsa` is the
 leaf's parent node, to maintain one external edge between the root and the leaf.
 
+Arguments:
+- `preorder` to direct edges according to the root and store a pre-ordering of
+  nodes in `net.vec_node`, if not done earlier on the network (e.g. after
+  a topology modification)
+- `preprocess` to recalculate & store the biconnected components with
+  [`process_biconnectedcomponents!`](@ref), assuming the preordering was done
+
 *Warning*:
 uses [`biconnectedcomponents`](@ref) and [`biconnectedcomponent_exitnodes`](@ref),
-therefore share the same caveats regarding the use of
-fields `.inte1` and `.intn1` (for edges and nodes), `.intn2` (for nodes) etc.
+therefore share the same caveats regarding the use of field
+`.intn1` and `.intn2` for nodes; `boole2` and `.inte1` for edges.
 As a positivie side effect, the biconnected components can be recovered
 via the edges' `.inte1` field --including the trivial blobs (cut edges).
 
 See also: [`deleteaboveLSA!`](@ref)
 """
-function leaststableancestor(net, preorder::Bool=true)
-    net.node[net.rooti].leaf && error("The root can't be a leaf to find the LSA.")
+function leaststableancestor(
+    net::HybridNetwork,
+    preorder::Bool=true,
+    preprocess::Bool=true
+)
+    getroot(net).leaf && error("The root can't be a leaf to find the LSA.")
     if preorder
         directedges!(net)
         preorder!(net)
     end
-    bcc = biconnectedcomponents(net, false)
-    entry = biconnectedcomponent_entrynodes(net, bcc, false)
-    entryindex = indexin(entry, net.vec_node)
-    exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)
-    bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
-    function atlsa(ib) # is bcc[ib] below the LSA?
+    if preprocess
+        process_biconnectedcomponents!(net, false)
+    elseif isempty(net.partition)
+        error("no biconnected components stored in the network: re-run with preprocessing")
+    end
+    bcc = net.partition
+    entryindices = entrynode_preindex.(bcc)
+    function atlsa(blob) # is blob below the LSA? given that previous blobs are not
         # above LSA if 1 exit and 1 entry that's not an entry to another blob
         # (0 exits: trivial blob (cut-edge) to a leaf)
-        length(exitnodes[ib]) != 1 || sum(isequal(entryindex[ib]), entryindex) > 1
+        return (number_exitnodes(blob) != 1 ||
+                sum(isequal(entrynode_preindex(blob)), entryindices) > 1)
     end
-    lsaindex_j = findfirst(atlsa, bloborder)
-    isnothing(lsaindex_j) && error("strange: couldn't find the LSA...")
-    ib = bloborder[lsaindex_j]
-    return entry[ib], entryindex[ib]
+    lsablob_i = findfirst(atlsa, bcc) # pre-order important here
+    isnothing(lsablob_i) && error("strange: couldn't find the LSA...")
+    lsa_index = entrynode_preindex(bcc[lsablob_i])
+    return net.vec_node[lsa_index], lsa_index
 end
 
 """

@@ -1631,6 +1631,134 @@ function hashybridladder(net::HybridNetwork)
 end
 
 """
+    istreechild(net::HybridNetwork)
+
+Tuple `(rooted, semi_weakly, semi_strongly)` in which each element is true
+or false, to indicate if `net` is / is not
+- tree-child as a rooted network
+- weakly tree-child as a semidirected network
+- strongly tree-child as a semidirected network
+
+A rooted network is tree-child if all of its internal nodes have at least one
+child that is a tree node (or equivalently, one child edge that is a tree edge).
+A semidirected network is strongly (resp. weakly) tree-child if all (resp. at
+least one) of its rooted partners are tree-child.
+
+Note that degree-2 nodes are not suppressed: a degree-2 node with a single
+hybrid child causes the network to *not* be tree-child, despite the fact that
+suppressing this node may render the reduced network tree-child.
+
+Assumes that tree edges are directly correctly according to the current root.
+"""
+function istreechild(net::HybridNetwork)
+    getroot(net).leaf && error("istreechild requires a root that is not a leaf.")
+    hybparent_visited = Set{Int}()
+    # not tree-child if 2+ weak nodes, weakly/strongly tree-child if 1/0 weak node
+    hasWatroot = false # did we already find 1 weak node?
+    isTCrooted = true
+    for h in net.hybrid
+        par = getparents(h)
+        for n in par
+            n.number ∈ hybparent_visited && continue
+            push!(hybparent_visited, n.number)
+            ntreechild = 0
+            for e in n.edge
+                if !e.hybrid && getparent(e) == n
+                    ntreechild += 1
+                end
+            end
+            # a hybrid ladder could be okay if polytomy: tree child + hybrid child(ren)
+            if ntreechild > 1 || (n.hybrid && ntreechild > 0)
+                continue
+            end
+            if n.hybrid # hybrid ladder with no tree child
+                return (false, false, false)
+            end
+            # at this point, n is a tree node
+            atroot = (getroot(net) == n)
+            ntreechild==1 && !atroot && continue # incident to 2 tree edges
+            if ntreechild == 0
+                isTCrooted = false
+                # check if no parent tree edge could be a child under another rooting
+                if atroot || !getparentedge(n).containroot
+                    return (false, false, false)
+                end
+            end
+            # now n is a weak node: parent to hybrid edge(s) + incident 1 root component edge
+            # (0 tree child but parent that may contain the root, or root with 1 tree child)
+            if hasWatroot # another weak node was found before
+                !isTCrooted || error("the network should have already been flagged as not tree-child")
+                return (false, false, false)
+            else
+                hasWatroot = true
+            end
+        end
+    end
+    return (isTCrooted, true, !hasWatroot) # weakly tree-child
+end
+
+"""
+    isgalled(net::HybridNetwork, checkpreorder::Bool=true)
+
+`true` (resp. `false`) if `net` is (resp. is not) a galled network, assuming
+that `net` is bicombining (every hybrid has exactly 2 parents).
+A network is galled if every hybrid node is contained in a cycle that has its
+2 hybrid parent edges and otherwise tree edges only. See for example
+[Huson, Rupp & Scornavacca (2010)](https://doi.org/10.1017/CBO9780511974076) and
+[Gunawan, DasGupta & Zhang (2017)](https://doi.org/10.1016/j.ic.2016.11.001).
+Equivalently, a bicombining network is galled if, for any hybrid node `n`,
+both of its parent edges originate from the same tree component.
+We get the tree components by deleting all hybrid edges from the network:
+we are left with a forest of trees.
+
+The network is traversed in preorder (from the root to the leaves).
+Turn `checkpreorder` to `false` if the pre-ordering was run and is known to be
+up-to-date.
+Assumption: tree edges are directly correctly according to the current root.
+"""
+function isgalled(net::HybridNetwork, checkpreorder::Bool=true)
+    checkpreorder && preorder!(net)
+    isG = trues(1) # mutable
+    # uses a vector node preorder index => integer unique to each tree component
+    # a tree component ID = number of its node
+    traversal_preorder(
+        net.vec_node,
+        init_isgalled, # initialize vector node index => tree component ID
+        traversalupdate_default!, # do nothing at the root
+        updatetree_isgalled,
+        updatehybrid_isgalled,
+        isG
+    )
+    return isG[1]
+end
+function init_isgalled(nodes::Vector{Node}, isG)
+    V = zeros(Int,length(nodes))
+    V[1] = nodes[1].number # root = 1st in preorder
+    return V
+end
+function updatetree_isgalled(V::Vector, i::Int, pari::Int, ::Edge, isG)
+    V[i] = V[pari] # node i is same tree component as its parent
+    return true
+end
+function updatehybrid_isgalled(
+    V::Vector,
+    i::Int,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
+    isG
+)
+    # check bicombining, and both parents from same TC
+    length(parindx) == 2 || error("the network is not bicombining")
+    if V[parindx[1]] != V[parindx[2]]
+        isG[1] = false
+        return false # stop the traversal
+    else
+        V[i] = getchild(paredge[1]).number # start new tree component
+    end
+    return true
+end
+
+"""
     shrinkedge!(net::HybridNetwork, edge::Edge)
 
 Delete `edge` from net, provided that it is a non-external tree edge.

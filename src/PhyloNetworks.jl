@@ -74,6 +74,10 @@ module PhyloNetworks
         getparentedgeminor,
         getpartneredge,
         tiplabels,
+        hashybridladder,
+        istreechild,
+        isgalled,
+        getlevel,
         ## Network Manipulation
         nameinternalnodes!,
         rootatnode!,

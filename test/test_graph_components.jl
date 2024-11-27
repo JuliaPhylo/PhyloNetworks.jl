@@ -2,78 +2,101 @@
 # using PhyloPlots
 # using Debugger
 
-@testset "Testing Tarjan's biconnected components" begin
+@testset "Tarjan's biconnected components" begin
 
-net = readnewick("(A,(B,(C,D)));");
-a = biconnectedcomponents(net);
-@test [[e.number for e in b] for b in a] == [[1],[2],[3],[4],[5],[6],]
-net = readnewick("(((A,(((C,(D)#H2),(E,#H2)))#H1),(B,#H1)),F);");
-a = biconnectedcomponents(net);
-@test [[e.number for e in b] for b in a] == [[1],[2],[3],[6],
-  [8, 7, 4, 5],[9],[12],[14, 13, 10, 11],[15],[16]]
-net = readnewick("(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));");
-a = biconnectedcomponents(net);
-@test [[e.number for e in b] for b in a] == [[1],
-  [2],[5],[6],[12],[10, 14, 13, 7, 8, 9, 3, 4, 11]]
-net = readnewick("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
-a = biconnectedcomponents(net);
-@test [[e.number for e in b] for b in a] == [[1],[2],[5],[6],[12],
-  [10, 14, 13, 7, 8, 9, 3, 4, 11],[15],[16],[20],[18],
-  [22, 21, 17, 19],[23]]
-a = biconnectedcomponents(net, true);
-@test [[e.number for e in b] for b in a] == [[10, 14, 13, 7, 8, 9, 3, 4, 11],
-  [22, 21, 17, 19]]
-# net with hybrid ladder; 3 degree-2 nodes; root edge above LSA
-net = readnewick("((((((((((((Ae_caudata))#H1,#H2),(Ae_umbellulata,#H1)),Ae_comosa),((((Ae_searsii)#H2,#H3),#H4)))),(((Ae_speltoides_Tr223,Ae_speltoides_Tr251))#H3,(Ae_mutica)#H4))),S_vavilovii)));")
-a = biconnectedcomponents(net, false);
-a = [sort!([e.number for e in b]) for b in a]
-@test length(a) == 14
-@test a[14] == [31] # root edge
-@test a[10] == [3,4,5, 7,8,9, 11, 13,14,15,16,17,18,19,20, 24, 26,27]
+    net = readnewick("(A,(B,(C,D)));");
+    a = biconnectedcomponents(net);
+    @test [[e.number for e in b] for b in a] == [[1],[2],[3],[4],[5],[6],]
+    net = readnewick("(((A,(((C,(D)#H2),(E,#H2)))#H1),(B,#H1)),F);");
+    a = biconnectedcomponents(net);
+    @test [[e.number for e in b] for b in a] == [[1],[2],[3],[6],
+        [8, 7, 4, 5],[9],[12],[14, 13, 10, 11],[15],[16]]
+    net = readnewick("(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));");
+    a = biconnectedcomponents(net);
+    @test [[e.number for e in b] for b in a] == [[1],
+        [2],[5],[6],[12],[10, 14, 13, 7, 8, 9, 3, 4, 11]]
+    net = readnewick("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
+    a = biconnectedcomponents(net);
+    @test [[e.number for e in b] for b in a] == [[1],[2],[5],[6],[12],
+        [10, 14, 13, 7, 8, 9, 3, 4, 11],[15],[16],[20],[18],
+        [22, 21, 17, 19],[23]]
+    a = biconnectedcomponents(net, true);
+    @test [[e.number for e in b] for b in a] == [[10, 14, 13, 7, 8, 9, 3, 4, 11],
+        [22, 21, 17, 19]]
+    # net with hybrid ladder; 3 degree-2 nodes; root edge above LSA
+    net = readnewick("((((((((((((Ae_caudata))#H1,#H2),(Ae_umbellulata,#H1)),Ae_comosa),((((Ae_searsii)#H2,#H3),#H4)))),(((Ae_speltoides_Tr223,Ae_speltoides_Tr251))#H3,(Ae_mutica)#H4))),S_vavilovii)));")
+    a = biconnectedcomponents(net, false);
+    a = [sort!([e.number for e in b]) for b in a]
+    @test length(a) == 14
+    @test a[14] == [31] # root edge
+    @test a[10] == [3,4,5, 7,8,9, 11, 13,14,15,16,17,18,19,20, 24, 26,27]
 
-net = readnewick("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
-r,major,minor = PhyloNetworks.blobinfo(net, false);
-@test [n.number for n in r] == [-5, 3, -8, 6, -10, -3, -2, 9, -14, -12, -11, -2]
-r,major,minor = PhyloNetworks.blobinfo(net);
-@test [n.number for n in r] == [-3,-11,-2]
-@test [[e.number for e in h] for h in major] == [[7, 3],[17],[]]
-@test [[e.number for e in h] for h in minor] == [[13,9],[21],[]]
-forest, blobs = blobdecomposition(net);
-@test length(blobs)==3
-@test writenewick(forest) == "(dummy -3,dummy -11);"
-s = IOBuffer()
-writesubtree!(s, blobs[1], nothing, false, true)
-@test String(take!(s)) == "(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));"
-writesubtree!(s, blobs[2], nothing, false, true)
-@test String(take!(s)) == "(((F)#H3,G),(H,#H3));"
-writesubtree!(s, blobs[3], nothing, false, true)
-@test String(take!(s)) == "(dummy -3,dummy -11);"
+    net = readnewick("((((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2)),(((F)#H3,G),(H,#H3)));");
+    r,major,minor = PhyloNetworks.blobinfo(net, false);
+    @test [n.number for n in r] == [-5, 3, -8, 6, -10, -3, -2, 9, -14, -12, -11, -2]
+    r,major,minor = PhyloNetworks.blobinfo(net);
+    @test [n.number for n in r] == [-3,-11,-2]
+    @test [[e.number for e in h] for h in major] == [[7, 3],[17],[]]
+    @test [[e.number for e in h] for h in minor] == [[13,9],[21],[]]
+    forest, blobs = blobdecomposition(net);
+    @test length(blobs)==3
+    @test writenewick(forest) == "(dummy -3,dummy -11);"
+    s = IOBuffer()
+    writesubtree!(s, blobs[1], nothing, false, true)
+    @test String(take!(s)) == "(((A,(B)#H1),((C,(E)#H2),#H1)),(D,#H2));"
+    writesubtree!(s, blobs[2], nothing, false, true)
+    @test String(take!(s)) == "(((F)#H3,G),(H,#H3));"
+    writesubtree!(s, blobs[3], nothing, false, true)
+    @test String(take!(s)) == "(dummy -3,dummy -11);"
 
-# h=2, 2 non-trivial blobs above the LSA, LSA = the single tip
-net = readnewick("((((t1)#H22:::0.8,#H22))#H10:::0.7,#H10);")
-a = biconnectedcomponents(net,true);
-@test [[e.number for e in b] for b in a] == [[3,2], [6,5]]
-lsa, lsaind = PhyloNetworks.leaststableancestor(net)
-@test (lsa.number,lsaind) == (2,4)
+    # h=2, 2 non-trivial blobs above the LSA, LSA = the single tip
+    net = readnewick("((((t1)#H22:::0.8,#H22))#H10:::0.7,#H10);")
+    a = biconnectedcomponents(net,true);
+    @test [[e.number for e in b] for b in a] == [[3,2], [6,5]]
+    lsa, lsaind = PhyloNetworks.leaststableancestor(net)
+    @test (lsa.number,lsaind) == (2,4)
 
-# h=3, one level-1 blob above the LSA, one level-2 blob below including a 2-cycle
-net = readnewick("((((((t2,#H25:::0.3))#H22:::0.8,#H22),(t1)#H25:::0.7))#H10:::0.6,#H10);")
-a = biconnectedcomponents(net,true);
-[[e.number for e in b] for b in a] == [ [5,8,2,3,4,6], [11,10]]
+    # h=3, one level-1 blob above the LSA, one level-2 blob below including a 2-cycle
+    net = readnewick("((((((t2,#H25:::0.3))#H22:::0.8,#H22),(t1)#H25:::0.7))#H10:::0.6,#H10);")
+    a = biconnectedcomponents(net,true);
+    [[e.number for e in b] for b in a] == [ [5,8,2,3,4,6], [11,10]]
 
-aentry = PhyloNetworks.biconnectedcomponent_entrynodes(net, a)
-@test [n.number for n in aentry] == [-4,-2]
-aexit = PhyloNetworks.biconnectedcomponent_exitnodes(net, a)
-@test [[n.number for n in ae] for ae in aexit] == [[2,-7],[5]]
+    aentry = PhyloNetworks.biconnectedcomponent_entrynodes(net, a)
+    @test [n.number for n in aentry] == [-4,-2]
+    aexit = PhyloNetworks.biconnectedcomponent_exitnodes(net, a)
+    @test [[n.number for n in ae] for ae in aexit] == [[2,-7],[5]]
 
-# balanced tree + extra root edge
-net = readnewick("((((t1,t2),(t3,t4))));")
-_, lsaindex = PhyloNetworks.leaststableancestor(net)
-@test net.vec_node[lsaindex].number == -4
-# LSA = root & entry to non-trivial blob
-lsa, _ = PhyloNetworks.leaststableancestor(readnewick("(#H2:::0.2,((b)#H2,a));"))
-@test lsa.number == -2
+    # balanced tree + extra root edge
+    net = readnewick("((((t1,t2),(t3,t4))));")
+    _, lsaindex = PhyloNetworks.leaststableancestor(net)
+    @test net.vec_node[lsaindex].number == -4
+    # LSA = root & entry to non-trivial blob
+    lsa, _ = PhyloNetworks.leaststableancestor(readnewick("(#H2:::0.2,((b)#H2,a));"))
+    @test lsa.number == -2
 
+    # level, process_biconnectedcomponents!
+    net = readnewick("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
+    @test_throws "no biconnected components stored" PhyloNetworks.leaststableancestor(net, false, false)
+    PhyloNetworks.process_biconnectedcomponents!(net)
+    @test length(net.partition) == 5
+    checkpart(i) = (net.partition[i].cycle, sort!([e.number for e in net.partition[i].edges]))
+    @test checkpart(1) == ([1,2], [9])
+    @test checkpart(2) == ([2,5], [1,2,3,4,8])
+    @test checkpart(3) == ([5,6], [7])
+    @test checkpart(4) == ([6], [5])
+    @test checkpart(5) == ([6], [6])
+    @testset for i in net.numedges
+        @test net.edge[i] ∈ net.partition[net.edge[i].inte1].edges
+    end
+    @test PhyloNetworks.entrynode_preindex.(net.partition) == [1,2,5,6,6]
+    @test collect.(PhyloNetworks.exitnodes_preindex.(net.partition)) == [[2],[5],[6],[],[]]
+    @test length(PhyloNetworks.exitnodes_preindex(net.partition[5])) == 0
+    @test getlevel(net,false,false) == 2
+    @test PhyloNetworks.istrivial.(net.partition[[1,2,4]]) == [true, false,true]
+    @test PhyloNetworks.ispendent.(net.partition[[1,2,4]]) == [false,false,true]
+    lsa, _ = PhyloNetworks.leaststableancestor(net, false, false)
+    @test lsa.number == -8
+    PhyloNetworks.empty!.(net.partition)
 end
 
 @testset "tree component" begin

@@ -48,7 +48,8 @@ mutable struct EdgeT{T<:ANode}
     ischild1::Bool # default: true. used to fix the direction of hybrid edges.
     ismajor::Bool  # major edge treated as tree edge for network traversal
                    # true if gamma>.5, or if it is the original tree edge
-    inte1::Int     # default: -1. used in SNaQ for cycle number if level-1
+    inte1::Int     # default: -1. used in SNaQ for cycle number if level-1.
+    # used to store the biconnected component that the edge belongs to: index in `net.partition`
     containroot::Bool # default: true
     boole1::Bool   # default: true
     boole2::Bool   # default: false
@@ -77,7 +78,7 @@ function EdgeT{T}(
 ) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
     y = exp(-length)
-    Edge{T}(number,length,hybrid,y,1.0-y,
+    EdgeT{T}(number,length,hybrid,y,1.0-y,
         hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
         -1,!hybrid,true,false)
 end
@@ -94,7 +95,7 @@ function EdgeT{T}(
 ) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
     y = exp(-length)
-    Edge{T}(number,length,hybrid,y,1.0-y,
+    EdgeT{T}(number,length,hybrid,y,1.0-y,
         hybrid ? gamma : 1., node, ischild1, !hybrid || gamma>0.5,
         inte1, containroot, boole1, false)
 end
@@ -148,20 +149,84 @@ Node(number::Int, leaf::Bool, hybrid::Bool,fvalue::Float64, edge::Vector{Edge}) 
 """
     Partition
 
-Data structure for a collection of edges. Used in SNaQ for groups of edges
-in the same cycle.
+Data structure for a collection of edges and (node) numbers.
 Fields:
 
 - `cycle`: vector of `Int`
 - `edges`: vector of `Edge`
 
-Todo: use this to store the output of the blob decomposition, because
-biconnected components partition edges.
+[`process_biconnectedcomponents!`](@ref) uses `edges` to store the edges in a
+given biconnected component. (blocks = biconnected components partition edges,
+while blobs = 2-edge connected components partition nodes.
+They are in 1-to-1 correspondence in binary networks.)
+`cycle` is used to store the indices, in `net.vec_node`, of the block's
+articulation nodes (or root), with the first one being the entry node (or root)
+and other being exit articulation nodes.
+Note that a leaf is not an articulation node: it does not connect the pendent
+edge to another block.
+
+!!! warning "`cycle` is a legacy name from SNaQ"
+    For level-1 networks, SNaQ uses 1 partition for each maximum tree of
+    cut-edges. `edges` stores the cut edges in this tree.
+    `cycle` stores an integer for each cycle that the tree is adjacent to.
+    This integer is the number of the unique hybrid node in this cycle.
+
+See also [`entrynode_preindex`](@ref), [`number_exitnodes`](@ref)
 """
 mutable struct Partition
-    cycle::Vector{Int} # hybrid node number for cycle (or cycles)
+    cycle::Vector{Int}
     edges::Vector{Edge}
 end
+function Base.empty!(p::Partition)
+    empty!(p.cycle)
+    empty!(p.edges)
+    return p
+end
+"""
+  entrynode_preindex(biconnected_component::Partition)
+
+Preorder index of the entry node of a biconnected component, considering the
+network rooted. It is an articulation node, except if it is the network's root.
+"""
+entrynode_preindex(p::Partition) = p.cycle[1]
+"""
+    number_exitnodes(biconnected_component::Partition)
+
+Number of articulation exit nodes of a biconnected component, considering the
+network rooted.
+An articulation node is such that if removed, the network is disconnected.
+An articulation exit node is a node in the block that is incident to a different
+block below.
+
+Note that leaves are not considered articulation exit nodes because they are not
+articulation nodes.
+So external (pendent) edges are trivial blobs with 0 (non-internal) exit nodes.
+If the network is rooted at a leaf, there may be some pathological behaviors
+depending on the downstream task
+(e.g. this is checked for by [`leaststableancestor`])(@ref)).
+"""
+number_exitnodes(p::Partition) = length(p.cycle)-1
+ispendent(p::Partition) = (length(p.cycle) == 1)
+istrivial(p::Partition) = (length(p.edges) == 1)
+"""
+    exitnodes_preindex(biconnected_component::Partition)
+
+Iterator over the preorder index of articulation exit nodes of a biconnected
+component, considering the network rooted (see [`number_exitnodes`](@ref)).
+Indices are indices in the network's preordering `.vec_node`.
+"""
+struct exitnodes_preindex
+    p::Partition
+end
+function Base.iterate(exn::exitnodes_preindex, state=2)
+    next = iterate(exn.p.cycle, state)
+    return next
+end
+Base.IteratorSize(::Type{exitnodes_preindex}) = Base.HasLength()
+Base.eltype(::Type{exitnodes_preindex}) = Int
+Base.length(exn::exitnodes_preindex) = number_exitnodes(exn.p)
+# see https://docs.julialang.org/en/v1/manual/interfaces/ for interators
+
 
 abstract type Network end
 

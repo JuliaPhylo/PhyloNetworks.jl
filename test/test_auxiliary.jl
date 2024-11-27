@@ -13,6 +13,11 @@ redirect_stdout(devnull) # requires julia v1.6
 @test_nowarn PhyloNetworks.citation()
 redirect_stdout(originalstdout)
 
+# basic types: various constructors
+n1 = PhyloNetworks.Node()
+@test_logs PhyloNetworks.Edge(1,0.0,true,0.6,[n1,n1])
+@test_logs PhyloNetworks.Edge(1,0.0,false,0.6,[n1,n1],false,2,false,false)
+
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net = readnewick(str_level1_s)
 net0 = readnewick(str_level1_s)
@@ -82,12 +87,69 @@ PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 @test PhyloNetworks.getlengths([net.edge[1], net.edge[5]]) == [net.edge[1].length, net.edge[5].length]
 end
 
-@testset "hashybridladder" begin
+@testset "hashybridladder, istreechild, isgalled" begin
+
 tree = readnewick("(A:3.0,(B:2.0,(C:1.0,D:1.0):1.0):1.0);");
 @test !PhyloNetworks.hashybridladder(tree)
 PhyloNetworks.addhybridedge!(tree, tree.edge[5], tree.edge[1], true)
 PhyloNetworks.addhybridedge!(tree, tree.edge[2], tree.edge[1], true)
 @test PhyloNetworks.hashybridladder(tree)
+
+# 2 biconnected components at the root,
+# degree-2 node above hybrid in directed part: not tree-child.
+# after suppression: weakly tree-child but not rooted tree-child,
+net = readnewick("(((a1)#H2,(((#H2),a2))#H1),#H1,#H3,((b1)#H3,b2));")
+@test_throws "no biconnected components stored" getlevel(net, true, false)
+@test getlevel(net, false, true) == 2
+@test istreechild(net) == (false, false, false)
+@test !isgalled(net, false)
+# @test_skip isorchard(net, false)
+removedegree2nodes!(net)
+@test istreechild(net) == (false, true, false)
+@test !isgalled(net)
+# @test_skip isorchard(net, false)
+rootatnode!(net, -3)
+@test istreechild(net) == (true, true, false)
+PhyloNetworks.deletehybridedge!(net, net.edge[8])
+@test istreechild(net) == (true, true, true)
+@test isgalled(net)
+
+# crown with 2 weak nodes
+net = readnewick("(((a1)#H1,#H2),(#H1,(a2)#H2));")
+@test istreechild(net) == (false, false, false)
+@test isgalled(net)
+# @test_skip !isorchard(net, false)
+removedegree2nodes!(net) # suppress the root
+@test istreechild(net) == (false, false, false)
+@test isgalled(net)
+# @test_skip !isorchard(net, false)
+
+# w-structure but not maximal: no w-fence
+net = readnewick("((b1,(a1)#H1),(#H1,#H2),((a2)#H2,b2));")
+@test isgalled(net)
+# @test_skip isorchard(net, false)
+
+# Level 3, not galled, funnel of 2 hybrid ladders (w-fence of 2 edges)
+net = readnewick("(((a,#H1)1,(((b)#H2)#H1,#H3)5)2,((#H2)#H3,c)4)3;)")
+@test getlevel(net, true, true) == 3
+@test !isgalled(net)
+@test istreechild(net) == (false,false,false) # reaches hybrid ladder first
+
+# Level 1, galled tree
+net = readnewick("(((x1,#H1),((x2)#H1,x3)),((x4,#H2),(x3)#H2));")
+@test getlevel(net, true, true) == 1
+@test isgalled(net)
+
+# Level 2, galled network
+net = readnewick("((x1,#H1),((((x2)#H1,x3),#H2),((x4)#H2,x5)));")
+@test getlevel(net) == 2
+@test isgalled(net)
+
+# Level 4, not galled
+net = readnewick("((((x1,#H1),(((x2)#H1,x3))#H2),(#H2)#H3),((#H3,#H4),((x4)#H4,x5)));")
+@test getlevel(net) == 4
+@test !isgalled(net)
+
 end # of testing hashybridladder
 
 @testset "shrink edges and cycles" begin
