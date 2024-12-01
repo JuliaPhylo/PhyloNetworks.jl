@@ -9,30 +9,30 @@ node `net.vec_node[i]`.
 
 The following functions and extractors can be applied to it:
 [`tiplabels`](@ref),
-`obj[:Tips]`, `obj[:InternalNodes]`, `obj[:TipsNodes]`.
+`obj[:tips]`, `obj[:internalnodes]`, `obj[:tipsnodes]`.
 See documentation for [`getindex(::MatrixTopologicalOrder, ::Symbol)`](@ref)).
 
 A `MatrixTopologicalOrder` object has field
 `V` (the matrix of interest)
 and fields for mapping indices in `V` to node numbers
-`nodeNumbersTopOrder`,
-`internalNodeNumbers`,
-`tipNumbers`,
-`tipNames`,
+`nodenumbers_toporder`,
+`internalnodenumbers`,
+`tipnumbers`,
+`tipnames`,
 `indexation`.
 Type in "?MatrixTopologicalOrder.field" to get documentation on a specific field.
 """
 struct MatrixTopologicalOrder
     "V: the matrix per se. V[i,:] and/or V[:,i] has data for the i-th node in topological order."
     V::Matrix
-    "vector of node numbers, with nodes listed in topological order as in V"
-    nodeNumbersTopOrder::Vector{Int} # for ordering of the matrix
+    "vector of node numbers, with nodes listed in topological order `net.vec_node` as in V"
+    nodenumbers_toporder::Vector{Int} # for ordering of the matrix
     "vector of internal node numbers, as listed in net.node"
-    internalNodeNumbers::Vector{Int}
+    internalnodenumbers::Vector{Int}
     "vector of tip numbers, listed in the same order as in net.node (should be same as in net.leaf...)"
-    tipNumbers::Vector{Int}
+    tipnumbers::Vector{Int}
     "vector of tip names, listed in the same order as in net.node"
-    tipNames::Vector
+    tipnames::Vector
     """
     indexation: a string giving the type of matrix `V`:
     - `:r`: rows only are indexed by the network nodes
@@ -46,7 +46,7 @@ function Base.show(io::IO, obj::MatrixTopologicalOrder)
     println(io, "$(typeof(obj)):\n$(obj.V)")
 end
 
-tiplabels(obj::MatrixTopologicalOrder) = obj.tipNames
+tiplabels(obj::MatrixTopologicalOrder) = obj.tipnames
 
 function MatrixTopologicalOrder(V::Matrix, net::HybridNetwork, indexation)
     length(net.vec_node) == length(net.node) ||
@@ -68,7 +68,7 @@ end
 
 """
     getindex(obj::MatrixTopologicalOrder,
-             d::Symbol,[ indTips, nonmissing])
+             d::Symbol,[ indtips, nonmissing])
 
 Get submatrices of a [`MatrixTopologicalOrder`](@ref) object.
 In `obj.V`, row and/column `i` corresponds to the `i`th node in topological order.
@@ -79,49 +79,50 @@ same order as in the network's original `.node` vector.
 Arguments:
 
 - `obj::MatrixTopologicalOrder`: the matrix from which to extract.
-- `d::Symbol`: a symbol specifying which sub-matrix to extract. Can be:
-  * `:Tips` columns and/or rows corresponding to the tips
-  * `:InternalNodes` columns and/or rows corresponding to the internal nodes
-    Includes tips not listed in `indTips` or missing data according to `nonmissing`.
-  * `:TipsNodes` columns corresponding to internal nodes, and row to tips (works only is indexation="b")
-- `indTips::Vector{Int}`: optional argument precising a specific order for the tips (internal use).
-- `nonmissing::BitArray{1}`: optional argument saying which tips have data (internal use).
+- `d`: symbol specifying which sub-matrix to extract. Can be:
+  * `:tips` columns and/or rows corresponding to the tips
+  * `:internalnodes` columns and/or rows corresponding to the internal nodes
+    Includes tips not listed in `indtips` or missing data according to `nonmissing`.
+  * `:tipsnodes` columns corresponding to internal nodes, and row to tips (works only is indexation="b")
+  * `:all` nodes, listed in topological order
+- `indtips::Vector{Int}`: optional argument precising a specific order for the tips (internal use).
+- `nonmissing::BitVector`: optional argument saying which tips have data (internal use).
    Tips with missing data are treated as internal nodes.
 """
 function Base.getindex(
     obj::MatrixTopologicalOrder,
     d::Symbol,
-    indTips::Vector{Int}=collect(1:length(obj.tipNumbers)),
-    nonmissing::BitArray{1}=trues(length(obj.tipNumbers))
+    indtips::Vector{Int}=collect(1:length(obj.tipnumbers)),
+    nonmissing::BitVector=trues(length(obj.tipnumbers))
 )
-    tipnums = obj.tipNumbers[indTips][nonmissing]
-    maskTips = indexin(tipnums, obj.nodeNumbersTopOrder)
-    if d == :Tips # Extract rows and/or columns corresponding to the tips with data
+    tipnums = obj.tipnumbers[indtips][nonmissing]
+    maskTips = indexin(tipnums, obj.nodenumbers_toporder)
+    if d == :tips # Extract rows and/or columns corresponding to the tips with data
         obj.indexation == :b && return obj.V[maskTips, maskTips] # both columns and rows are indexed by nodes
         obj.indexation == :c && return obj.V[:, maskTips] # Only the columns
         obj.indexation == :r && return obj.V[maskTips, :] # Only the rows
     end
-    intnodenums = [obj.internalNodeNumbers ; setdiff(obj.tipNumbers, tipnums)]
-    maskNodes = indexin(intnodenums, obj.nodeNumbersTopOrder)
-    #= indices in obj.nodeNumbersTopOrder, in this order:
-    1. internal nodes, in the same order as in obj.internalNodeNumbers,
+    intnodenums = [obj.internalnodenumbers ; setdiff(obj.tipnumbers, tipnums)]
+    maskNodes = indexin(intnodenums, obj.nodenumbers_toporder)
+    #= indices in obj.nodenumbers_toporder, in this order:
+    1. internal nodes, in the same order as in obj.internalnodenumbers,
        that is, same order as in net.node (excluding leaves)
-    2. tips absent from indTips or missing data according to nonmissing,
-       in the same order as in obj.tipNumbers.
+    2. tips absent from indtips or missing data according to nonmissing,
+       in the same order as in obj.tipnumbers.
     =#
-    if d == :InternalNodes # Idem, for internal nodes
+    if d == :internalnodes # Idem, for internal nodes
         obj.indexation == :b && return obj.V[maskNodes, maskNodes]
         obj.indexation == :c && return obj.V[:, maskNodes]
         obj.indexation == :r && return obj.V[maskNodes, :]
     end
-    if d == :TipsNodes
+    if d == :tipsnodes
         obj.indexation == :b && return obj.V[maskTips, maskNodes]
         obj.indexation == :c && error("""Both rows and columns must be net
                                        ordered to take the submatrix tips vs internal nodes.""")
         obj.indexation == :r && error("""Both rows and columns must be net
                                        ordered to take the submatrix tips vs internal nodes.""")
     end
-    d == :All && return obj.V
+    d == :all && return obj.V
 end
 
 """
@@ -201,9 +202,9 @@ function vcv(
 )
     @assert (model == "BM") "The 'vcv' function only works for a BM process (for now)."
     V = sharedpathmatrix(net; checkpreorder=checkpreorder)
-    C = V[:Tips]
+    C = V[:tips]
     corr && StatsBase.cov2cor!(C, sqrt.(diag(C)))
-    Cd = DataFrame(C, map(Symbol, V.tipNames))
+    Cd = DataFrame(C, map(Symbol, V.tipnames))
     return(Cd)
 end
 
