@@ -447,7 +447,7 @@ end
 
 
 # extract & sort the union of taxa of list of gene trees
-function unionTaxa(trees::Vector{HybridNetwork})
+function uniontaxa(trees::Vector{HybridNetwork})
     taxa = reduce(union, tiplabels(t) for t in trees)
     return sort_stringasinteger!(taxa)
 end
