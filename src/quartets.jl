@@ -294,7 +294,7 @@ function countquartetsintrees(tree::Vector{HybridNetwork},
                            showprogressbar::Bool=true)
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
-        taxa = unionTaxa(tree)
+        taxa = uniontaxa(tree)
     else
         taxa = sort!(collect(Set(haskey(taxonmap, l.name) ? taxonmap[l.name] : l.name
                                  for t in tree for l in t.leaf)))
