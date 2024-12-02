@@ -22,6 +22,7 @@ module PhyloNetworks
     using DataFrames # innerjoin new in v0.21
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
+    using StaticArrays # for quartets
     using FASTX
     using Functors: fmap
     using NLopt # for branch lengths optimization
@@ -122,7 +123,10 @@ module PhyloNetworks
         #maxParsimonyNet # broken after v0.17 refactoring: fix network search
         readfastatodna,
         # neighbor joining
-        nj
+        nj,
+        # quartets 
+        writeTableCF,
+        countquartetsintrees
 
     ##Constants
     const fAbsBL = 1e-10
@@ -148,5 +152,6 @@ module PhyloNetworks
     include("graph_components.jl")
     include("deprecated.jl")
     include("nj.jl")
+    include("quartets.jl")
 
 end #module

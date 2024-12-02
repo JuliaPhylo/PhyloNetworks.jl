@@ -303,3 +303,53 @@ end
 RootMismatch() = RootMismatch("")
 Base.showerror(io::IO, e::RootMismatch) = print(io, "RootMismatch: ", e.msg);
 
+abstract type AQuartet end
+
+"""
+QuartetT{T}
+
+Generic type for 4-taxon sets. Fields:
+- `number`: rank of the 4-taxon set
+- `taxonnumber`: static vector of 4 integers, assumed to be distinct and sorted
+- `data`: object of type `T`
+
+For easier look-up, a unique mapping is used between the rank (`number`) of a
+4-taxon set and its 4 taxa (see [`quartetrank`](@ref) and [`nchoose1234`](@ref)):
+
+rank-1 = (t1-1) choose 1 + (t2-1) choose 2 + (t3-1) choose 3 + (t4-1) choose 4
+
+# examples
+
+```jldoctest
+julia> nCk = PhyloNetworks.nchoose1234(5)
+6×4 Matrix{Int64}:
+ 0   0   0  0
+ 1   0   0  0
+ 2   1   0  0
+ 3   3   1  0
+ 4   6   4  1
+ 5  10  10  5
+
+julia> PhyloNetworks.QuartetT(1,3,4,6, [.92,.04,.04, 100], nCk)
+4-taxon set number 8; taxon numbers: 1,3,4,6
+data: [0.92, 0.04, 0.04, 100.0]
+```
+"""
+struct QuartetT{T} <: AQuartet where T
+    number::Int
+    taxonnumber::StaticArrays.SVector{4,Int}
+    data::T
+end
+function Base.show(io::IO, obj::QuartetT{T}) where T
+    disp = "4-taxon set number $(obj.number); taxon numbers: "
+    disp *= join(obj.taxonnumber,",")
+    disp *= "\ndata: "
+    print(io, disp)
+    print(io, obj.data)
+end
+function QuartetT(tn1::Int,tn2::Int,tn3::Int,tn4::Int, data::T, nCk::Matrix, checksorted=true::Bool) where T
+    if checksorted
+        (tn1<tn2 && tn2<tn3 && tn3<tn4) || error("taxon numbers must be sorted")
+    end
+    QuartetT{T}(quartetrank(tn1,tn2,tn3,tn4,nCk), SVector(tn1,tn2,tn3,tn4), data)
+end
