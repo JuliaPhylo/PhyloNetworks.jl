@@ -125,7 +125,7 @@ module PhyloNetworks
         # neighbor joining
         nj,
         # quartets 
-        writeTableCF,
+        tablequartetCF,
         countquartetsintrees
 
     ##Constants

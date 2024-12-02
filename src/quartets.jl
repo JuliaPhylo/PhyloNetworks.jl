@@ -63,7 +63,7 @@ end
 
 
 """
-    writeTableCF(quartetlist::Vector{QuartetT} [, taxonnames]; colnames)
+    tablequartetCF(quartetlist::Vector{QuartetT} [, taxonnames]; colnames)
 
 Convert a vector of [`QuartetT`](@ref) objects to a data frame, with 1 row for
 each four-taxon set in the list. Each four-taxon set contains quartet data of
@@ -82,7 +82,7 @@ In the output data frame, the columns are, in this order:
   For the data frame to have non-default column names, provide the desired
   3, 4, or 3×n names as a vector via the optional argument `colnames`.
 """
-function writeTableCF(quartets::Vector{QuartetT{T}},
+function tablequartetCF(quartets::Vector{QuartetT{T}},
             taxa::AbstractVector{<:AbstractString}=Vector{String}();
             colnames=nothing) where
             T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
@@ -122,7 +122,7 @@ If T is a length-4 vector type, the 4th name is "ngenes".
 If T is a 3×n matrix type, the output vector contains 3×n names,
 3 for each of "CF", "V2_", "V3_", ... "Vn_".
 
-Used by [`writeTableCF`](@ref) to build a data frame from a vector of
+Used by [`tablequartetCF`](@ref) to build a data frame from a vector of
 [`QuartetT`](@ref) objects.
 """
 function quartetdata_columnnames(::Type{T}) where T <: StaticArray{Tuple{3},S,1} where S
@@ -174,7 +174,7 @@ end
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should be a dictionary that maps each allele name to it's species name.
-To save to a file, first convert to a data frame using [`writeTableCF`](@ref).
+To save to a file, first convert to a data frame using [`tablequartetCF`](@ref).
 When `which=:all`, quartet CFs are calculated for all 4-taxon sets.
 (Other options are not implemented yet.)
 
@@ -254,7 +254,7 @@ data: [1.0, 0.0, 0.0, 0.5]
 ```
 
 ```jldoctest quartet
-julia> df = writeTableCF(q,t); # to get a DataFrame that can be saved to a file later
+julia> df = tablequartetCF(q,t); # to get a DataFrame that can be saved to a file later
 
 julia> show(df, allcols=true)
 5×9 DataFrame
@@ -276,7 +276,7 @@ Reading in trees, looking at 5 quartets in each...
 0+--+100%
   **
 
-julia> show(writeTableCF(q,t), allcols=true)
+julia> show(tablequartetCF(q,t), allcols=true)
 5×9 DataFrame
  Row │ qind   t1      t2      t3      t4      CF12_34   CF13_24   CF14_23   ngenes  
      │ Int64  String  String  String  String  Float64   Float64   Float64   Float64 
