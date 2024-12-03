@@ -15,7 +15,7 @@ function tiplabels(net::HybridNetwork)
 end
 
 # extract & sort the union of taxa of list of gene trees
-function uniontaxa(trees::Vector{HybridNetwork})
+function tiplabels(trees::Vector{HybridNetwork})
     taxa = reduce(union, tiplabels(t) for t in trees)
     return sort_stringasinteger!(taxa)
 end
