@@ -142,33 +142,6 @@ end
 
 
 
-
-# ---------------- read input gene trees and calculate obsCF ----------------------
-
-
-
-
-
-"""
-    sort_stringasinteger!(taxa)
-
-Sort a vector of strings `taxa`, numerically if
-elements can be parsed as an integer, alphabetically otherwise.
-"""
-function sort_stringasinteger!(taxa)
-    sortby = x->parse(Int,x)
-    try
-        parse.(Int,taxa)
-    catch
-        sortby = identity
-    end
-    sort!(taxa, by=sortby)
-    return taxa
-end
-
-
-
-
 """
     countquartetsintrees(trees [, taxonmap]; which=:all, weight_byallele=true)
 
@@ -442,30 +415,4 @@ function quartetRankResolution(t1::Int, t2::Int, t3::Int, t4::Int, nCk::Matrix)
         end
     end
     return rank, resolution
-end
-
-
-
-# extract & sort the union of taxa of list of gene trees
-function uniontaxa(trees::Vector{HybridNetwork})
-    taxa = reduce(union, tiplabels(t) for t in trees)
-    return sort_stringasinteger!(taxa)
-end
-
-
-"""
-    sort_stringasinteger!(taxa)
-
-Sort a vector of strings `taxa`, numerically if
-elements can be parsed as an integer, alphabetically otherwise.
-"""
-function sort_stringasinteger!(taxa)
-    sortby = x->parse(Int,x)
-    try
-        parse.(Int,taxa)
-    catch
-        sortby = identity
-    end
-    sort!(taxa, by=sortby)
-    return taxa
 end
