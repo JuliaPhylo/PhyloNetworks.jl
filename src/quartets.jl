@@ -65,12 +65,17 @@ end
 """
     tablequartetCF(quartetlist::Vector{QuartetT} [, taxonnames]; colnames)
 
-Convert a vector of [`QuartetT`](@ref) objects to a data frame, with 1 row for
+Convert a vector of [`QuartetT`](@ref) objects to a table with 1 row for
 each four-taxon set in the list. Each four-taxon set contains quartet data of
-some type `T`, which determines the number of columns in the data frame.
+some type `T`, which determines the number of columns in the table.
 This data type `T` should be a vector of length 3 or 4, or a 3×n matrix.
+The output is a `NamedTuple`, to which we can apply common table operations
+as a [`Table.jl`](https://github.com/JuliaData/Tables.jl)-compatible source.
+It can easily be converted to other table formats (e.g. these packages
+[integrate with Tables.jl](https://github.com/JuliaData/Tables.jl/blob/master/INTEGRATIONS.md))
+such as a `DataFrame`.
 
-In the output data frame, the columns are, in this order:
+In the output table, the columns are, in this order:
 - `qind`: contains the quartet's `number`
 - `t1, t2, t3, t4`: contain the quartet's `taxonnumber`s if no `taxonnames`
   are given, or the taxon names otherwise. The name of taxon number `i` is
@@ -79,13 +84,14 @@ In the output data frame, the columns are, in this order:
   The first 3 columns are named `CF12_34, CF13_24, CF14_23`. The next
   columns are named `V2_12_34, V2_13_24, V2_14_23` and contain the data in
   the second column of the quartet's data matrix. And so on.
-  For the data frame to have non-default column names, provide the desired
+  For the table to have non-default column names, provide the desired
   3, 4, or 3×n names as a vector via the optional argument `colnames`.
 """
-function tablequartetCF(quartets::Vector{QuartetT{T}},
-            taxa::AbstractVector{<:AbstractString}=Vector{String}();
-            colnames=nothing) where
-            T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
+function tablequartetCF(
+    quartets::Vector{QuartetT{T}},
+    taxa::AbstractVector{<:AbstractString}=Vector{String}();
+    colnames=nothing
+) where T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
     V = eltype(T)
     colnames_data = quartetdata_columnnames(T)
     if !isnothing(colnames)
@@ -116,13 +122,13 @@ end
 """
     quartetdata_columnnames(T) where T <: StaticArray
 
-Vector of column names to hold the quartet data of type `T` in a data frame.
+Vector of column names to hold the quartet data of type `T` in a table.
 If T is a length-3 vector type, they are "CF12_34","CF13_24","CF14_23".
 If T is a length-4 vector type, the 4th name is "ngenes".
 If T is a 3×n matrix type, the output vector contains 3×n names,
 3 for each of "CF", "V2_", "V3_", ... "Vn_".
 
-Used by [`tablequartetCF`](@ref) to build a data frame from a vector of
+Used by [`tablequartetCF`](@ref) to build a table from a vector of
 [`QuartetT`](@ref) objects.
 """
 function quartetdata_columnnames(::Type{T}) where T <: StaticArray{Tuple{3},S,1} where S
@@ -227,9 +233,11 @@ data: [1.0, 0.0, 0.0, 0.5]
 ```
 
 ```jldoctest quartet
-julia> df = tablequartetCF(q,t); # to get a DataFrame that can be saved to a file later
+julia> nt = tablequartetCF(q,t); # named tuple. can be saved to a file later
 
-julia> show(df, allcols=true)
+julia> df = DataFrame(nt, copycols=false); # convert to a data frame, without copying the column data
+
+julia> show(df, allcols=true) # data frames are displayed much more nicely than named tuples
 5×9 DataFrame
  Row │ qind   t1      t2      t3      t4      CF12_34  CF13_24  CF14_23  ngenes  
      │ Int64  String  String  String  String  Float64  Float64  Float64  Float64 
@@ -240,7 +248,7 @@ julia> show(df, allcols=true)
    4 │     4  A       D       E       O          1.0      0.0       0.0      0.5
    5 │     5  B       D       E       O          0.0      0.0       0.0      0.0
 
-julia> # using CSV; CSV.write(df, "filename.csv");
+julia> # using CSV; CSV.write(nt, "filename.csv"); # CSV.write can write a named tuple or data frame
 
 julia> tree2 = readnewick("((A,(B,D)),E);");
 
@@ -249,7 +257,7 @@ Reading in trees, looking at 5 quartets in each...
 0+--+100%
   **
 
-julia> show(tablequartetCF(q,t), allcols=true)
+julia> show(DataFrame(tablequartetCF(q,t), copycols=false), allcols=true)
 5×9 DataFrame
  Row │ qind   t1      t2      t3      t4      CF12_34   CF13_24   CF14_23   ngenes  
      │ Int64  String  String  String  String  Float64   Float64   Float64   Float64 
