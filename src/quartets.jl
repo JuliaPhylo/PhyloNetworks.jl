@@ -92,6 +92,7 @@ See [`countquartetsintrees`](@ref) for examples.
 function tablequartetCF(
     quartets::Vector{QuartetT{T}},
     taxa::AbstractVector{<:AbstractString}=Vector{String}();
+    removeQwithoutgenes::Bool=true,
     colnames=nothing
 ) where T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
     V = eltype(T)
@@ -117,7 +118,7 @@ function tablequartetCF(
     for _ in eachindex(colnames_data) push!(tuplevecs, V[]); end
     nt = (; zip(tuplenames,tuplevecs)...) # no copy
     indngenes = findfirst(isequal(:ngenes), tupledat)
-    hasngenes = !isnothing(indngenes)
+    hasngenes = removeQwithoutgenes && !isnothing(indngenes)
     for q in quartets
         hasngenes && q.data[indngenes] == 0 && continue # skip quartets with 0 genes
         push!(nt[:qind], q.number)
@@ -247,7 +248,7 @@ data: [1.0, 0.0, 0.0, 0.5]
 ```
 
 ```jldoctest quartet
-julia> nt = tablequartetCF(q,t); # named tuple. can be saved to a file later
+julia> nt = tablequartetCF(q,t; removeQwithoutgenes=false); # named tuple. can be saved to a file later
 
 julia> df = DataFrame(nt, copycols=false); # convert to a data frame, without copying the column data
 
@@ -271,7 +272,7 @@ Reading in trees, looking at 5 quartets in each...
 0+--+100%
   **
 
-julia> show(DataFrame(tablequartetCF(q,t), copycols=false), allcols=true)
+julia> show(DataFrame(tablequartetCF(q,t), copycols=false), allcols=true) # qind=5 excluded: 0 genes
 5×9 DataFrame
  Row │ qind   t1      t2      t3      t4      CF12_34   CF13_24   CF14_23   ngenes  
      │ Int64  String  String  String  String  Float64   Float64   Float64   Float64 
@@ -280,7 +281,6 @@ julia> show(DataFrame(tablequartetCF(q,t), copycols=false), allcols=true)
    2 │     2  A       B       D       O       0.5       0.5       0.0           2.0
    3 │     3  A       B       E       O       1.0       0.0       0.0           1.0
    4 │     4  A       D       E       O       1.0       0.0       0.0           1.0
-   5 │     5  B       D       E       O       0.0       0.0       0.0           0.0
 ```
 """
 function countquartetsintrees(
