@@ -63,7 +63,8 @@ end
 
 
 """
-    tablequartetCF(quartetlist::Vector{QuartetT} [, taxonnames]; colnames)
+    tablequartetCF(quartetlist::Vector{QuartetT} [, taxonnames];
+                   skipQwithoutgenes=true, colnames=nothing)
 
 Convert a vector of [`QuartetT`](@ref) objects to a table with 1 row for
 each four-taxon set in the list. Each four-taxon set contains quartet data of
@@ -80,19 +81,26 @@ In the output table, the columns are, in this order:
 - `t1, t2, t3, t4`: contain the quartet's `taxonnumber`s if no `taxonnames`
   are given, or the taxon names otherwise. The name of taxon number `i` is
   taken to be `taxonnames[i]`.
-- 3 columns for each column in the quartet's `data`.
-  The first 3 columns are named `CF12_34, CF13_24, CF14_23`. The next
-  columns are named `V2_12_34, V2_13_24, V2_14_23` and contain the data in
-  the second column of the quartet's data matrix. And so on.
-  For the table to have non-default column names, provide the desired
-  3, 4, or 3×n names as a vector via the optional argument `colnames`.
+- 3 or more columns for the quartet's `data`: see [`quartetdata_columnnames`](@ref).
+
+In short, the first 3 columns of data are named `CF12_34, CF13_24, CF14_23`.
+If quartets have 4 data entries, then the 4th column is named `ngenes`,
+and a quartet with a value `ngenes` of 0 is skipped (excluded) from the table,
+unless `skipQwithoutgenes=false`.
+If quartets have a data matrix with 3 rows and `d` columns, then the
+columns 4,5,6 in the table are named `V2_12_34, V2_13_24, V2_14_23`
+and contain the data in the second column of the quartet's data matrix.
+And so on.
+
+For the table to have non-default column names, provide the desired
+3, 4, or 3×d names as a vector via the optional argument `colnames`.
 
 See [`countquartetsintrees`](@ref) for examples.
 """
 function tablequartetCF(
     quartets::Vector{QuartetT{T}},
     taxa::AbstractVector{<:AbstractString}=Vector{String}();
-    removeQwithoutgenes::Bool=true,
+    skipQwithoutgenes::Bool=true,
     colnames=nothing
 ) where T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
     V = eltype(T)
@@ -118,7 +126,7 @@ function tablequartetCF(
     for _ in eachindex(colnames_data) push!(tuplevecs, V[]); end
     nt = (; zip(tuplenames,tuplevecs)...) # no copy
     indngenes = findfirst(isequal(:ngenes), tupledat)
-    hasngenes = removeQwithoutgenes && !isnothing(indngenes)
+    hasngenes = skipQwithoutgenes && !isnothing(indngenes)
     for q in quartets
         hasngenes && q.data[indngenes] == 0 && continue # skip quartets with 0 genes
         push!(nt[:qind], q.number)
@@ -248,7 +256,7 @@ data: [1.0, 0.0, 0.0, 0.5]
 ```
 
 ```jldoctest quartet
-julia> nt = tablequartetCF(q,t; removeQwithoutgenes=false); # named tuple. can be saved to a file later
+julia> nt = tablequartetCF(q,t; skipQwithoutgenes=false); # named tuple. can be saved to a file later
 
 julia> df = DataFrame(nt, copycols=false); # convert to a data frame, without copying the column data
 
