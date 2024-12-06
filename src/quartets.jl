@@ -229,7 +229,11 @@ data: [0.0, 0.0, 1.0, 1.0]
 julia> q[11] # tree 1 has ACEO unresolved, and tree 2 is missing O: no data for this quartet
 4-taxon set number 11; taxon numbers: 1,3,5,6
 data: [0.0, 0.0, 0.0, 0.0]
+```
 
+In the next example, each tree has 2 individuals from population A.
+
+```jldoctest quartet
 julia> tree1 = readnewick("(E,(a1,B),(a2,D),O);"); tree2 = readnewick("(((a1,a2),(B,D)),E);");
 
 julia> q,t = countquartetsintrees([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); showprogressbar=false);
@@ -242,10 +246,6 @@ julia> t
  "E"
  "O"
 
-```
-
-
-```jldoctest quartet
 julia> q[1] # tree 1 has discordance: a1B|DE and a2D|BE. tree 2 has AE|BD for both alleles of A
 4-taxon set number 1; taxon numbers: 1,2,3,4
 data: [0.25, 0.25, 0.5, 2.0]
@@ -255,8 +255,16 @@ julia> q[3] # tree 2 is missing O (taxon 5), and a2 is unresolved in tree 1. The
 data: [1.0, 0.0, 0.0, 0.5]
 ```
 
+Next we show how to convert these objects to a table using [`tablequartetCF`](@ref).
+The output is a `NamedTuple`. It can be saved later to a `DataFrame` for example,
+using option `copycols=false` to avoid copying the columns (which can be very
+large if there are many 4-taxon sets). Data frames are easier to visualize,
+filter etc., but performance can be better on named tuples.
+
 ```jldoctest quartet
-julia> nt = tablequartetCF(q,t; skipQwithoutgenes=false); # named tuple. can be saved to a file later
+julia> nt = tablequartetCF(q,t; skipQwithoutgenes=false); # named tuple
+
+julia> using DataFrames
 
 julia> df = DataFrame(nt, copycols=false); # convert to a data frame, without copying the column data
 
@@ -271,8 +279,17 @@ julia> show(df, allcols=true) # data frames are displayed much more nicely than 
    4 │     4  A       D       E       O          1.0      0.0       0.0      0.5
    5 │     5  B       D       E       O          0.0      0.0       0.0      0.0
 
-julia> # using CSV; CSV.write(nt, "filename.csv"); # CSV.write can write a named tuple or data frame
+julia> # using CSV; CSV.write(nt, "filename.csv");
+```
 
+Note that `CSV.write` can take a data frame or a named tuple as input, to write
+the table to a file.
+
+Finally, the example below shows the effect of using `weight_byallele=true` when
+caculating quartet concordance factors from gene trees with multiple alleles per
+population, and the default `skipQwithoutgenes=true` when converting to a table.
+
+```jldoctest quartet
 julia> tree2 = readnewick("((A,(B,D)),E);");
 
 julia> q,t = countquartetsintrees([tree1, tree2], Dict("a1"=>"A", "a2"=>"A"); weight_byallele=true);
@@ -281,7 +298,7 @@ Reading in trees, looking at 5 quartets in each...
   **
 
 julia> show(DataFrame(tablequartetCF(q,t), copycols=false), allcols=true) # qind=5 excluded: 0 genes
-5×9 DataFrame
+4×9 DataFrame
  Row │ qind   t1      t2      t3      t4      CF12_34   CF13_24   CF14_23   ngenes  
      │ Int64  String  String  String  String  Float64   Float64   Float64   Float64 
 ─────┼──────────────────────────────────────────────────────────────────────────────

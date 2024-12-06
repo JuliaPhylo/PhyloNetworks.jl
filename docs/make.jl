@@ -2,7 +2,7 @@ using Documenter
 
 # this installs the dev version of PhyloPlots for compatibility.
 using Pkg
-Pkg.add(PackageSpec(name="PhyloPlots", rev="master"))
+Pkg.add(PackageSpec(name="PhyloPlots", rev="dev")) # change back to master...
 
 
 using PhyloNetworks
