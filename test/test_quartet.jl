@@ -17,25 +17,35 @@ qlist = [
   PN.QuartetT(1, SVector{4}(1,2,3,4), MVector{3,Bool}(0,1,0)),
   PN.QuartetT(2, SVector{4}(1,2,3,5), MVector{3,Bool}(0,0,1)),
 ]
-@test tablequartetCF(qlist) == DataFrame(qind=[1,2],t1=[1,1],t2=[2,2],t3=[3,3],
+@test tablequartetCF(qlist) == (qind=[1,2],t1=[1,1],t2=[2,2],t3=[3,3],
     t4=[4,5],CF12_34=[false,false],CF13_24=[true,false],CF14_23=[false,true])
 # with taxon names
-@test tablequartetCF(qlist, ["a","b","c","d","e"]) == DataFrame(
+@test tablequartetCF(qlist, ["a","b","c","d","e"]) == (
   qind=[1,2],t1=["a","a"],t2=["b","b"],t3=["c","c"],t4=["d","e"],
   CF12_34=[false,false],CF13_24=[true,false],CF14_23=[false,true])
 # 3x2 data, Int8-valued
 qlist = [PN.QuartetT(1, SVector{4}(1,2,3,4), MMatrix{3,2,Int8}(1:6))]
-@test tablequartetCF(qlist) == DataFrame(qind=1,t1=1,t2=2,t3=3,t4=4,
+@test tablequartetCF(qlist) == (qind=[1],t1=[1],t2=[2],t3=[3],t4=[4],
     CF12_34=Int8[1], CF13_24=Int8[2], CF14_23=Int8[3],
     V2_12_34=Int8[4],V2_13_24=Int8[5],V2_14_23=Int8[6])
 # custom column names
 @test_logs (:error, r"^'colnames'") tablequartetCF(qlist, colnames=["v1","v2"])
 @test tablequartetCF(qlist, colnames=["v1","v2","v3","w1","w2","w3"]) ==
-  DataFrame(qind=1,t1=1,t2=2,t3=3,t4=4, v1=Int8[1],v2=Int8[2],v3=Int8[3],
+  (qind=[1],t1=[1],t2=[2],t3=[3],t4=[4], v1=Int8[1],v2=Int8[2],v3=Int8[3],
     w1=Int8[4],w2=Int8[5],w3=Int8[6])
+# quartet data: length-4 vectors, second 4-taxon set with 0 genes
+qlist = [
+  PN.QuartetT(1, SVector{4}(1,2,3,4), MVector{4,Int8}(0,1,0,10)),
+  PN.QuartetT(2, SVector{4}(1,2,3,5), MVector{4,Int8}(0,0,1, 0)),
+  PN.QuartetT(3, SVector{4}(1,2,4,5), MVector{4,Int8}(1,0,0, 5)),
+]
+@test tablequartetCF(qlist) == (qind=[1,3],t1=[1,1],t2=[2,2],t3=[3,4], t4=[4,5],
+  CF12_34=[0,1],CF13_24=[1,0],CF14_23=[0,0], ngenes=[10,5])
 end
 
-if false # was used to time `countquartetsintrees` vs `readTrees2CF`
+if false # was used to time countquartetsintrees vs readTrees2CF under PN ≤ v0.16
+# under PN v1: countquartetsintrees returns a NamedTuple, not a DataFrame,
+#              and readTrees2CF was moved to SNaQ.
 dir = "/Users/ane/Documents/private/concordance/quartetNetwork/multiind/data"
 treefile = joinpath(dir, "raxml_1387_sample_5species4alleles.tre")
 tree = readmultinewick(treefile); # 1387 trees

@@ -86,6 +86,8 @@ In the output table, the columns are, in this order:
   the second column of the quartet's data matrix. And so on.
   For the table to have non-default column names, provide the desired
   3, 4, or 3×n names as a vector via the optional argument `colnames`.
+
+See [`countquartetsintrees`](@ref) for examples.
 """
 function tablequartetCF(
     quartets::Vector{QuartetT{T}},
@@ -108,14 +110,25 @@ function tablequartetCF(
     else
         taxstring = x -> x
     end
-    df = DataFrames.DataFrame(qind=Int[], t1=tnT[],t2=tnT[],t3=tnT[],t4=tnT[])
-    for cn in colnames_data
-        df[:,Symbol(cn)] = V[]
-    end
+    tupletxn = [:t1, :t2, :t3, :t4]   # txn = taxon names
+    tupledat = Symbol.(colnames_data) # dat = data names
+    tuplenames = [:qind, tupletxn..., tupledat...]
+    tuplevecs = [Int[], tnT[], tnT[], tnT[], tnT[]]
+    for _ in eachindex(colnames_data) push!(tuplevecs, V[]); end
+    nt = (; zip(tuplenames,tuplevecs)...) # no copy
+    indngenes = findfirst(isequal(:ngenes), tupledat)
+    hasngenes = !isnothing(indngenes)
     for q in quartets
-      push!(df, (q.number, taxstring.(q.taxonnumber)..., q.data...) )
+        hasngenes && q.data[indngenes] == 0 && continue # skip quartets with 0 genes
+        push!(nt[:qind], q.number)
+        for (i,ti) in enumerate(tupletxn)
+            push!(nt[ti], taxstring(q.taxonnumber[i]))
+        end
+        for (j,dj) in enumerate(tupledat)
+            push!(nt[dj], q.data[j])
+        end
     end
-    return df
+    return nt
 end
 
 
@@ -175,6 +188,7 @@ affect the CF values if the number of alleles varies across genes: genes with
 more alleles will be given more weight.
 
 # examples
+
 ```jldoctest quartet
 julia> tree1 = readnewick("(E,(A,B),(C,D),O);"); tree2 = readnewick("(((A,B),(C,D)),E);");
 
@@ -269,10 +283,12 @@ julia> show(DataFrame(tablequartetCF(q,t), copycols=false), allcols=true)
    5 │     5  B       D       E       O       0.0       0.0       0.0           0.0
 ```
 """
-function countquartetsintrees(tree::Vector{HybridNetwork},
-                           taxonmap::Dict=Dict{String,String}();
-                           whichQ::Symbol=:all, weight_byallele::Bool=false,
-                           showprogressbar::Bool=true)
+function countquartetsintrees(
+    tree::Vector{HybridNetwork},
+    taxonmap::Dict=Dict{String,String}();
+    whichQ::Symbol=:all, weight_byallele::Bool=false,
+    showprogressbar::Bool=true
+)
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
         taxa = tiplabels(tree)
