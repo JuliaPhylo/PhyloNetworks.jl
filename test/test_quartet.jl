@@ -5,10 +5,9 @@ PN = PhyloNetworks
 nCk = PN.nchoose1234(5)
 oneQ = PN.QuartetT(1,3,4,6, [.92,.04,.04, 100], nCk)
 @test string(oneQ) == "4-taxon set number 8; taxon numbers: 1,3,4,6\ndata: [0.92, 0.04, 0.04, 100.0]"
-
 end
 
-@testset "convert QuartetT vector to dataframe" begin
+@testset "convert QuartetT vector to table" begin
 SVector = PN.StaticArrays.SVector
 MVector = PN.StaticArrays.MVector
 MMatrix = PN.StaticArrays.MMatrix
@@ -107,4 +106,34 @@ df12 = innerjoin(df1, df2, on=[:t1,:t2,:t3,:t4], makeunique=true)
 hasdata = map(iszero, df12[!,8]) # sum: 34 four-taxon sets have data for 0 genes
 df12[hasdata,5:12] # countquartetsintrees gives 0s, readTrees2CF gives NaN
 @test all([df12[.!hasdata,4+i] ≈ df12[.!hasdata,8+i] for i in 1:3]) # true. yeah!
+end
+
+@testset "countquartetsintrees" begin
+sixtreestr = ["(E,((A,B),(C,D)),O);","(((A,B),(C,D)),(E,O));","(A,B,((C,D),(E,O)));",
+              "(B,((C,D),(E,O)));","((C,D),(A,(B,E)),O);","((C,D),(A,B,E),O);"]
+sixtrees = readnewick.(sixtreestr)
+nt = tablequartetCF(countquartetsintrees(sixtrees)...)
+@test nt == (qind = 1:15,
+  t1 = ["A","A","A","A","B","A","A","A","B","A","A","B","A","B","C"],
+  t2 = ["B","B","B","C","C","B","B","C","C","B","C","C","D","D","D"],
+  t3 = ["C","C","D","D","D","C","D","D","D","E","E","E","E","E","E"],
+  t4 = ["D","E","E","E","E","O","O","O","O","O","O","O","O","O","O"],
+  CF12_34 = [1,.75,.75, 0, 0, 1, 1, 0, 0,.75,.6,2/3,.6, 2/3, 1],
+  CF13_24 = [0,.25,.25, 0, 0, 0, 0, 0, 0, 0, .4,1/3,.4, 1/3, 0],
+  CF14_23 = [0,  0,  0, 1, 1, 0, 0, 1, 1,.25, 0,  0, 0, 0, 0],
+  ngenes = [5, 4, 4, 5, 6, 5, 5, 5, 6, 4, 5, 6, 5, 6, 6])
+o = [1,2,4,7,11,3,5,8,12,6,9,13,10,14,15]
+q,t = countquartetsintrees(sixtrees, Dict("A"=>"AB", "B"=>"AB"); showprogressbar=false);
+nt = tablequartetCF(q,t)
+@test nt[:CF12_34] ≈ [0,0,2/3,2/3,1]
+@test nt[:CF13_24] ≈ [0,0,1/3,1/3,0]
+@test nt[:CF14_23] ≈ [1.,1,0,0,0]
+@test nt[:ngenes]  ≈ [6.,6,6,6,6]
+# again, but weight each allele
+q,t = countquartetsintrees(sixtrees, Dict("A"=>"AB", "B"=>"AB"); weight_byallele=true, showprogressbar=false);
+nt = tablequartetCF(q,t)
+@test nt[:CF12_34] ≈ [0,0,7/11,7/11,1]
+@test nt[:CF13_24] ≈ [0,0,4/11,4/11,0]
+@test nt[:CF14_23] ≈ [1.,1,0,0,0]
+@test nt[:ngenes]  ≈ [11.,11,11,11,6]
 end

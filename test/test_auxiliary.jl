@@ -201,6 +201,8 @@ ns = (@test_logs (:warn, r"won't erase with") (:warn, r"^skipped phylogeny on li
     joinpath(exdir,"test_reticulatetreeblock.nex")))
 @test length(ns) == 3
 @test tiplabels(ns[2]) == ["tax4","tax3","tax2","tax1"]
+@test tiplabels(ns) == ["tax1", "tax2", "tax3", "tax4", "tax5"]
+@test PhyloNetworks.sort_stringasinteger!(["1","10","2"]) == ["1","2","10"]
 # net with a hybrid leaf
 net = readnewick("((#H1:::0.1,b),c,#H1:::0.9);")
 PhyloNetworks.addChild!(net, net.node[1])
