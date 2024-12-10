@@ -124,7 +124,7 @@ module PhyloNetworks
         readfastatodna,
         # neighbor joining
         nj,
-        # quartets 
+        # quartets
         tablequartetCF,
         countquartetsintrees
 

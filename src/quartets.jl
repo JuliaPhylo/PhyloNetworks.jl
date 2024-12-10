@@ -64,7 +64,7 @@ end
 
 """
     tablequartetCF(quartetlist::Vector{QuartetT} [, taxonnames];
-                   skipQwithoutgenes=true, colnames=nothing)
+                   keepQwithoutgenes=true, colnames=nothing)
 
 Convert a vector of [`QuartetT`](@ref) objects to a table with 1 row for
 each four-taxon set in the list. Each four-taxon set contains quartet data of
@@ -84,9 +84,12 @@ In the output table, the columns are, in this order:
 - 3 or more columns for the quartet's `data`: see [`quartetdata_columnnames`](@ref).
 
 In short, the first 3 columns of data are named `CF12_34, CF13_24, CF14_23`.
+
 If quartets have 4 data entries, then the 4th column is named `ngenes`,
 and a quartet with a value `ngenes` of 0 is skipped (excluded) from the table,
-unless `skipQwithoutgenes=false`.
+unless `keepQwithoutgenes=true` (which is the default: 4-taxon sets are kept
+by default even without any informative genes).
+
 If quartets have a data matrix with 3 rows and `d` columns, then the
 columns 4,5,6 in the table are named `V2_12_34, V2_13_24, V2_14_23`
 and contain the data in the second column of the quartet's data matrix.
@@ -100,8 +103,8 @@ See [`countquartetsintrees`](@ref) for examples.
 function tablequartetCF(
     quartets::Vector{QuartetT{T}},
     taxa::AbstractVector{<:AbstractString}=Vector{String}();
-    skipQwithoutgenes::Bool=true,
-    colnames=nothing
+    keepQwithoutgenes::Bool=true,
+    colnames=nothing,
 ) where T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
     V = eltype(T)
     colnames_data = quartetdata_columnnames(T)
@@ -126,7 +129,7 @@ function tablequartetCF(
     for _ in eachindex(colnames_data) push!(tuplevecs, V[]); end
     nt = (; zip(tuplenames,tuplevecs)...) # no copy
     indngenes = findfirst(isequal(:ngenes), tupledat)
-    hasngenes = skipQwithoutgenes && !isnothing(indngenes)
+    hasngenes = !keepQwithoutgenes && !isnothing(indngenes)
     for q in quartets
         hasngenes && q.data[indngenes] == 0 && continue # skip quartets with 0 genes
         push!(nt[:qind], q.number)
@@ -262,7 +265,7 @@ large if there are many 4-taxon sets). Data frames are easier to visualize,
 filter etc., but performance can be better on named tuples.
 
 ```jldoctest quartet
-julia> nt = tablequartetCF(q,t; skipQwithoutgenes=false); # named tuple
+julia> nt = tablequartetCF(q,t); # named tuple
 
 julia> using DataFrames
 
@@ -287,7 +290,8 @@ the table to a file.
 
 Finally, the example below shows the effect of using `weight_byallele=true` when
 caculating quartet concordance factors from gene trees with multiple alleles per
-population, and the default `skipQwithoutgenes=true` when converting to a table.
+population, and of filtering out 4-taxon sets with no informative genes with
+`keepQwithoutgenes=false` when converting to a table.
 
 ```jldoctest quartet
 julia> tree2 = readnewick("((A,(B,D)),E);");
@@ -297,7 +301,9 @@ Reading in trees, looking at 5 quartets in each...
 0+--+100%
   **
 
-julia> show(DataFrame(tablequartetCF(q,t), copycols=false), allcols=true) # qind=5 excluded: 0 genes
+julia> nt = tablequartetCF(q,t; keepQwithoutgenes=false); # qind=5 excluded: 0 genes
+
+julia> show(DataFrame(nt, copycols=false), allcols=true)
 4×9 DataFrame
  Row │ qind   t1      t2      t3      t4      CF12_34   CF13_24   CF14_23   ngenes  
      │ Int64  String  String  String  String  Float64   Float64   Float64   Float64 

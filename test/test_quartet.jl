@@ -39,7 +39,8 @@ qlist = [
   PN.QuartetT(2, SVector{4}(1,2,3,5), MVector{4,Int8}(0,0,1, 0)),
   PN.QuartetT(3, SVector{4}(1,2,4,5), MVector{4,Int8}(1,0,0, 5)),
 ]
-@test tablequartetCF(qlist) == (qind=[1,3],t1=[1,1],t2=[2,2],t3=[3,4], t4=[4,5],
+@test tablequartetCF(qlist; keepQwithoutgenes=false) ==
+  (qind=[1,3],t1=[1,1],t2=[2,2],t3=[3,4], t4=[4,5],
   CF12_34=[0,1],CF13_24=[1,0],CF14_23=[0,0], ngenes=[10,5])
 end
 
