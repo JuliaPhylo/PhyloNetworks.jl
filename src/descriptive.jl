@@ -14,9 +14,30 @@ function tiplabels(net::HybridNetwork)
     return String[l.name for l in net.leaf] # AbstractString does not work for use by tree2Matrix
 end
 
-# function that we need to overwrite to avoid printing useless scary
-# output for HybridNetworks
-# PROBLEM: writenewick changes the network and thus show changes the network
+# extract & sort the union of taxa of list of gene trees
+function tiplabels(trees::Vector{HybridNetwork})
+    taxa = reduce(union, tiplabels(t) for t in trees)
+    return sort_stringasinteger!(taxa)
+end
+
+"""
+    sort_stringasinteger!(taxa)
+
+Sort a vector of strings `taxa`, numerically if
+elements can be parsed as an integer, alphabetically otherwise.
+"""
+function sort_stringasinteger!(taxa)
+    sortby = x->parse(Int,x)
+    try
+        parse.(Int,taxa)
+    catch
+        sortby = identity
+    end
+    sort!(taxa, by=sortby)
+    return taxa
+end
+
+# 'show' should not (and does not) modify the object
 function Base.show(io::IO, obj::HybridNetwork)
     disp = "$(typeof(obj)), "
     if obj.isrooted
@@ -39,7 +60,10 @@ function Base.show(io::IO, obj::HybridNetwork)
     end
     par = ""
     try
-        # par = writenewick(obj,round=true) # but writenewick changes the network, not good
+        #= *not* 'writenewick(obj,round=true)' because writenewick changes
+        the network (runs directedges! and if it fails, tries other rootings).
+        writesubtree! does *not* modify the network.
+        =#
         s = IOBuffer()
         writesubtree!(s, obj, false,true, true,3,true)
         par = String(take!(s))
@@ -52,8 +76,6 @@ function Base.show(io::IO, obj::HybridNetwork)
     disp *= "\n$par"
     println(io, disp)
 end
-
-
 
 function Base.show(io::IO, obj::Node)
     disp = "$(typeof(obj)):"

@@ -32,11 +32,11 @@ for i in 1:9
 end
 
 nodesV2 = [-2, 1, -3, -4, -5, 2, 3, 4, 5] # root was number 6 before: with readTopologyLevel1 + rootatnode
-ind = indexin(V1.nodeNumbersTopOrder, nodesV2)
+ind = indexin(V1.nodenumbers_toporder, nodesV2)
 V2 = V2[ind, ind]
 @test_logs show(devnull, V2)
 
-@test V1[:All] ≈ V2
+@test V1[:all] ≈ V2
 
 ########################
 ## vcv function
@@ -44,7 +44,7 @@ V2 = V2[ind, ind]
 
 ## Simple test
 C = Matrix(vcv(net))
-@test C ≈ V1[:Tips]
+@test C ≈ V1[:tips]
 vv = diag(C)
 for i in 1:4
     for j in 1:4
@@ -81,7 +81,7 @@ T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
        1.0  1.0  0.0  0.0  1.0  0.0  0.0  1.0  0.0
        1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  1.0]
 
-@test T[:All] ≈ T2
+@test T[:all] ≈ T2
 
 ##################
 ## New formula
@@ -122,12 +122,12 @@ V_t_2 = sharedpathmatrix(net)
 
 ## Descendant indicatrice matrix
 des = PhyloNetworks.descendants(par_edge_1, true) # true to get internal nodes also
-mask = indexin(des, V_t_1.nodeNumbersTopOrder)
+mask = indexin(des, V_t_1.nodenumbers_toporder)
 D = zeros(net.numnodes, net.numnodes)
 D[mask, mask] .= 1.0
 
 ## Formula
-V2 = gam*V_t_1[:All] + (1-gam)*V_t_2[:All] - gam*(1-gam) * (V_t_1.V[p, p] - V_t_1.V[a, b] + V_t_2.V[p, p] - V_t_2.V[a, b]) .* D
+V2 = gam*V_t_1[:all] + (1-gam)*V_t_2[:all] - gam*(1-gam) * (V_t_1.V[p, p] - V_t_1.V[a, b] + V_t_2.V[p, p] - V_t_2.V[a, b]) .* D
 
-@test V1[:All] ≈ V2
+@test V1[:all] ≈ V2
 end

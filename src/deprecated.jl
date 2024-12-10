@@ -6,6 +6,7 @@
 @deprecate readBootstrapTrees readmultinewick_files
 @deprecate writeTopology      writenewick
 @deprecate writeMultiTopology writemultinewick
+Base.@deprecate_moved snaq! "SNaQ"
 # minor name changes: camelCase to smallcase
 @deprecate printEdges printedges
 @deprecate printNodes printnodes

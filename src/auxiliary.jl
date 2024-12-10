@@ -572,7 +572,7 @@ level-1, with valid internal fields `e.inte1` (to track which cycle
 function deleteEdge!(net::HybridNetwork, e::Edge; part::Bool=true)
     if part
         if e.inte1 == -1 && !e.hybrid && !isempty(net.partition) && !isTree(net)
-            ind = whichPartition(net,e)
+            ind = whichpartition(net,e)
             indE = getIndex(e,net.partition[ind].edges)
             deleteat!(net.partition[ind].edges,indE)
         end
@@ -1460,14 +1460,14 @@ end
 # better to return the index than the partition itself, because we need the index
 # to use splice and delete it from net.partition later on
 # cycle: is the number to look for partition on that cycle only
-function whichPartition(net::HybridNetwork,edge::Edge,cycle::Integer)
+function whichpartition(net::HybridNetwork, edge::Edge, cycle::Integer)
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inte1 == -1 || error("edge $(edge.number) is in cycle $(edge.inte1) so it cannot be in any partition")
     @debug "search partition for edge $(edge.number) in cycle $(cycle)"
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
     for i in 1:length(net.partition)
         @debug "looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])"
-        if(in(cycle,net.partition[i].cycle))
+        if in(cycle, net.partition[i].cycle)
             @debug "looking for edge $(edge.number) in partition $(i), with cycle $(cycle): $([e.number for e in net.partition[i].edges])"
             if in(edge,net.partition[i].edges)
                 @debug "partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])"
@@ -1475,7 +1475,7 @@ function whichPartition(net::HybridNetwork,edge::Edge,cycle::Integer)
             end
         end
     end
-    @debug begin; printPartitions(net); "" end
+    @debug begin; printpartitions(net); "" end
     error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
 end
 
@@ -1483,27 +1483,27 @@ end
 # returns the index of the partition, or error if not found
 # better to return the index than the partition itself, because we need the index
 # to use splice and delete it from net.partition later on
-function whichPartition(net::HybridNetwork,edge::Edge)
+function whichpartition(net::HybridNetwork, edge::Edge)
     !edge.hybrid || error("edge $(edge.number) is hybrid so it cannot be in any partition")
     edge.inte1 == -1 || error("edge $(edge.number) is in cycle $(edge.inte1) so it cannot be in any partition")
     @debug "search partition for edge $(edge.number) without knowing its cycle"
     in(edge,net.edge) || error("edge $(edge.number) is not in net.edge")
     for i in 1:length(net.partition)
         @debug "looking for edge $(edge.number) in partition $(i): $([e.number for e in net.partition[i].edges])"
-        if(in(edge,net.partition[i].edges))
+        if in(edge,net.partition[i].edges)
             @debug "partition for edge $(edge.number) is $([e.number for e in net.partition[i].edges])"
             return i
         end
     end
-    @debug begin printPartitions(net); "printed partitions" end
+    @debug begin printpartitions(net); "printed partitions" end
     error("edge $(edge.number) is not hybrid, nor part of any cycle, and it is not in any partition")
 end
 
-# function that will print the partition of net
-function printPartitions(net::HybridNetwork)
-    println("partition.cycle\t partition.edges")
+printpartitions(x) = printpartitions(stdout::IO, x)
+function printpartitions(io::IO, net::HybridNetwork)
+    println(io, "partition.cycle\t partition.edges")
     for p in net.partition
-        println("$(p.cycle)\t\t $([e.number for e in p.edges])")
+        println(io, "$(p.cycle)\t\t $([e.number for e in p.edges])")
     end
 end
 

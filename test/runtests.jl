@@ -8,6 +8,8 @@ using Random
 using StableRNGs
 
 tests = [
+    "test_deprecated.jl",
+    "test_quartet.jl",
     "test_auxiliary.jl",
     "test_generatetopology.jl",
     "test_addHybrid.jl",
