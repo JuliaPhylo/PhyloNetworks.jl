@@ -113,19 +113,19 @@ end
 
 # aux function to read floats like length or gamma values, to be read after a colon
 function readnewick_float(s::IO, c::Char)
-    if !(isdigit(c) || c in ['.','e','-','E'])
+    if !(isdigit(c) || c in ['.','e','-','E', '+'])
         a = read(s, String);
         error("Expected float digit after ':' but found $(c). remaining is $(a).");
     end
     num = ""
-    while isdigit(c) || c in ['.','e','-', 'E']
+    while isdigit(c) || c in ['.','e','-', 'E', '+']
         d = read(s, Char) # reads c and advances IO
         num = string(num,d);
         c = peekskip(s);
     end
     f = 0.0
     try
-        f = parse(Float64, num)
+		f = parse(Float64, replace(num, '+' => ""))
     catch
         error("problem with number read $(num), not a float number")
     end
