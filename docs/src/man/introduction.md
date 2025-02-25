@@ -27,8 +27,7 @@ Often you may wish to work in the directory that contains your data. To change t
 - or change the working directory within your Julia session by using the `cd()`.
 The following code changes the working directory to the `examples` folder within PhyloNetworks.
 ```@repl intro
-# just to show the command homedir() to extract the path to your home directory
-examples_path = joinpath(dirname(dirname(pathof(PhyloNetworks))), "examples")
+examples_path = joinpath(dirname(dirname(pathof(PhyloNetworks))), "examples");
 cd(examples_path)
 ```
 You will need to set the path to the folder where your data are located.
