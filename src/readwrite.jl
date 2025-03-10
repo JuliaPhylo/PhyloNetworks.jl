@@ -125,7 +125,7 @@ function readnewick_float(s::IO, c::Char)
     end
     f = 0.0
     try
-		f = parse(Float64, replace(num, '+' => ""))
+        f = parse(Float64, num)
     catch
         error("problem with number read $(num), not a float number")
     end
