@@ -58,6 +58,7 @@ for the package in particular, please cite:
 ```@contents
 Pages = [
     "man/installation.md",
+    "man/introduction.md",
     "man/netmanipulation.md",
     "man/net_plot.md",
     "man/dist_reroot.md",

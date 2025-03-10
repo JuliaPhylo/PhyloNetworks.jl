@@ -40,6 +40,7 @@ makedocs(
         "Home" => "index.md",
         "Manual" => [
             "Installation" => "man/installation.md",
+            "Introduction" => "man/introduction.md",
             "Network manipulation" => "man/netmanipulation.md",
             "Network visualization" => "man/net_plot.md",
             "Network comparison and manipulation" => "man/dist_reroot.md",
