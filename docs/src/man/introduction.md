@@ -1,7 +1,7 @@
 # Introduction
 
-With PhyloNetworks installed, we can load the package and start using it to read, manipulate,
- and analyze phylogenetic trees and networks in Julia!
+With PhyloNetworks installed, we can load the package and start using it to read,
+manipulate, and analyze phylogenetic trees and networks in Julia.
 
 ```@repl intro
 using PhyloNetworks
@@ -21,11 +21,14 @@ varinfo(PhyloNetworks)
 and press `?` inside Julia to switch to help mode,
 followed by the name of a function (or type) to get more details about it.
 
-Often you may wish to work in the directory that contains your data. To change the directory used by julia in a session, say the "examples" folder found in the  you have 2 options:
+Often you may wish to work in the directory that contains your data.
+To change the directory used by julia in a session,
+say the "examples" folder found in the  you have 2 options:
 
 - quit your session, navigate to the directory and restart julia there.
 - or change the working directory within your Julia session by using the `cd()`.
-The following code changes the working directory to the `examples` folder within PhyloNetworks.
+The following code changes the working directory to the `examples` folder
+within PhyloNetworks' source directory.
 ```@repl intro
 examples_path = joinpath(dirname(dirname(pathof(PhyloNetworks))), "examples");
 cd(examples_path)
@@ -43,13 +46,15 @@ First, we need the file name. Assuming we are in the "examples" folder:
 
 
 ```@repl intro
-raxmltreefile = joinpath(examples_path,"raxmltrees.tre")
-#raxmltreefile = "raxmltrees.tre" # If your working directory is the `examples` folder of PhyloNetworks.
+raxmltreefile = joinpath(examples_path, "raxmltrees.tre")
+# raxmltreefile = "raxmltrees.tre" # if your working directory contains the file
 typeof(raxmltreefile)
 ```
 The object `raxmltreefile` is a basic string (of letters).
-Let's create our list of gene trees by reading this file. Note that if you changed your working directory as mentioned above,
- you will **not** need to use `joinpath` to join the path to the `examples` folder with the file name.
+Let's create our list of gene trees by reading this file.
+Note that if you changed your working directory as mentioned above,
+you do **not** need to use `joinpath` to join the path to the `examples` folder
+with the file name.
 
 ```@repl intro
 genetrees = readmultinewick(raxmltreefile); # the semicolon suppresses info on the result
@@ -96,6 +101,7 @@ nothing # hide
 
 
 ## Phylogenetic networks
+
 In phylogenetics, there two types of networks:
 
 **Explicit** networks have a biological interpretation:
@@ -103,34 +109,45 @@ internal nodes represent ancestral species (or populations);
 the main evolutionary history is depicted by the "major tree".
 Various methods that estimate explicit networks use models
 that account for ILS and for gene tree estimation error.
-![explicit](../../src/assets/explicit.png)
+
+![explicit network](../assets/explicit.png)
 
 **Implicit** networks are typically descriptive:
 internal nodes do *not* represent ancestral species.
 Implicit networks do not discriminate between ILS,
 gene flow/hybridization or gene tree estimation error,
 and can be hard to interpret biologically.
-![explicit](../../src/assets/implicit.png)
 
-In PhyloNetworks, we primarily consider explicit phylogenetic networks.
+```@raw html
+<img src="../assets/implicit.png" width="50%" alt="implicit split network" class="center"/>
+```
 
-## Extended newick
+In PhyloNetworks, we consider **explicit** phylogenetic networks exclusively.
 
-Recall that in parenthetical format, internal nodes can have a name:
-![intNode](../../src/assets/intNode.png)
+## Extended newick format
 
-To represent networks in parenthetical format, we simply need to split
+In parenthetical format, internal nodes can have a name, like node `C` below,
+in a tree written as `(A,B)C` in newick format:
+
+```@raw html
+<img src="../assets/intNode.png" width="45%" alt="internal tree node C" class="center"/>
+```
+
+To represent networks in parenthetical format, the extended newick format splits
 each hybrid node into two nodes with the same name:
-![netNewick](../../src/assets/netNewick.png)
+
+```@raw html
+<img src="../assets/netNewick.png" width="70%" alt="a hybrid node is split into 2 nodes with the same name, to represent a network as a tree" class="center"/>
+```
 
 By convention, the hybrid tag is `# + H,LGT,R + number`, and the minor
 hybrid edge leads to a leaf.
 
 Thus, we get: `(((A,(B)#H1),(C,#H1)),D);`. We can write inheritance
-probabilities in the parenthetical format: `(C,#H1):branch
-length:bootstrap support:inheritance probability`.
+probabilities in the parenthetical format:
+`(C,#H1):branch length:bootstrap support:inheritance probability`.
 
-We can read a network from a newick formatted string,
+We can read a network from a newick-formatted string,
 and, for example, print a list of its edges:
 
 ```@repl intro

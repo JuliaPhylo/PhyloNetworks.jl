@@ -20,11 +20,12 @@
   3. run `deploydocs(...)` also from Documenter:
      to push the files on github, gh-pages branch.
 
-for now, docstrings are automatically used to build an entry for
+The source code is automatically used to build an entry for
 - each internal thing that has a docstring (e.g. not exported in `src/PhyloNetworks.jl`)
-- each public *type*
-Therefore: any public *function* needs to be manually listed in `docs/src/lib/public.md`,
-in a section to get a nice organization of all these manual entries.
+- each public type and function (not constants): these *must* have a docstring.
+
+To help users find functions of interest, update `src/man/netmanipulation.md`,
+which lists important functions (public and private) organized under various categories.
 
 ## The "Documenter md" format
 
@@ -94,7 +95,14 @@ julia --project=docs/ -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(
 julia --project=docs/ --color=yes docs/make.jl
 ```
 
-or interactively in `docs/`:
+or navigate to `docs/` and run the same commands from that folder:
+
+```shell
+julia -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(path=pwd()))'
+julia --project --color=yes make.jl
+```
+
+or launch `julia --project` from `docs/` then build interactively:
 
 ```shell
 pkg> activate .
