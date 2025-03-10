@@ -119,7 +119,7 @@ gene flow/hybridization or gene tree estimation error,
 and can be hard to interpret biologically.
 
 ```@raw html
-<img src="../assets/implicit.png" width="50%" alt="implicit split network" class="center"/>
+<img src="assets/implicit.png" width="50%" alt="implicit split network" class="center"/>
 ```
 
 In PhyloNetworks, we consider **explicit** phylogenetic networks exclusively.
@@ -130,14 +130,14 @@ In parenthetical format, internal nodes can have a name, like node `C` below,
 in a tree written as `(A,B)C` in newick format:
 
 ```@raw html
-<img src="../assets/intNode.png" width="45%" alt="internal tree node C" class="center"/>
+<img src="assets/intNode.png" width="45%" alt="internal tree node C" class="center"/>
 ```
 
 To represent networks in parenthetical format, the extended newick format splits
 each hybrid node into two nodes with the same name:
 
 ```@raw html
-<img src="../assets/netNewick.png" width="70%" alt="a hybrid node is split into 2 nodes with the same name, to represent a network as a tree" class="center"/>
+<img src="assets/netNewick.png" width="70%" alt="a hybrid node is split into 2 nodes with the same name, to represent a network as a tree" class="center"/>
 ```
 
 By convention, the hybrid tag is `# + H,LGT,R + number`, and the minor

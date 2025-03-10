@@ -35,6 +35,11 @@ global net
     @test_throws Exception readnewick("(E,((B)#H1") # doesn't end with ;
     @test_throws Exception readnewick(IOBuffer("E;")) # Expected beginning of tree with (
 end
+@testset "edge parameters" begin
+ net = readnewick("(A:2e-03,((B:1.2e1,#H1:1e+1):2.2E-02,(D:1.1E+2)#H1:4.4E+2::5.5E-10));")
+ @test [e.length for e in net.edge] == [0.002,12,10,0.022,110,440,-1]
+ @test [e.gamma for e in net.edge if e.hybrid] == [0.99999999945, 5.5e-10]
+end
 @testset "ismajor & gamma consistency, and miscellaneous" begin
     net = readnewick("((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));");
     @test writenewick(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
