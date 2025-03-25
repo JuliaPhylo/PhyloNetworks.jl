@@ -77,7 +77,7 @@ like
 To check that your installation worked, type this in Julia to load the package.
 This is something to type every time you start a Julia session:
 ```@example install
-using PhyloNetworks;
+using PhyloNetworks
 ```
 This step can also take a while, to pre-compile the code (after a package
 update for instance).
