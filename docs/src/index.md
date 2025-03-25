@@ -37,7 +37,7 @@ It is used by other packages for more specialized tasks, such as
   with background on networks and explanations.
 - [tutorial](https://cecileane.github.io/networkPCM-workshop/) for
   comparative methods, including network calibration (2023 workshop)
-- the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
+- the [google group](https://groups.google.com/forum/#!forum/juliaphylo-users)
   has answers to common questions.
 - the [Manual](@ref) and below has a quick tutorial (navigation on the left).
 - the [Library](@ref) further below has the full list of documented functions.

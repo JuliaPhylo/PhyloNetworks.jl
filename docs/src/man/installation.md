@@ -38,7 +38,7 @@ Pkg.update()
 ```
 It is important to update the package regularly as it is
 undergoing constant development. Join the google group for updates
-[here](https://groups.google.com/forum/#!forum/phylonetworks-users/new).
+[here](https://groups.google.com/forum/#!forum/juliaphylo-users/new).
 
 `Pkg.update()` will install the latest registered version, but there
 could be other improvements in the `master` branch of the
