@@ -52,7 +52,7 @@ To get help, check
   step-by-step tutorial with background on networks (last revised 2022)
 - [tutorial](https://cecileane.github.io/networkPCM-workshop/) for
   comparative methods, including network calibration (2023 workshop)
-- the [google group](https://groups.google.com/forum/#!forum/phylonetworks-users)
+- the [google group](https://groups.google.com/forum/#!forum/juliaphylo-users)
   for common questions. Join the group to post/email your questions,
   or to receive information on new versions, bugs fixed, etc.
 

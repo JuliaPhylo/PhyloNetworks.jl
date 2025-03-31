@@ -101,7 +101,6 @@ nothing # hide
 
 
 ## Phylogenetic networks
-
 In phylogenetics, there two types of networks:
 
 **Explicit** networks have a biological interpretation:

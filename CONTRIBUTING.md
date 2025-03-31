@@ -9,7 +9,7 @@ please open an issue in [the issue tracker](https://github.com/juliaphylo/PhyloN
 First, search through existing issues (open or closed) that might have the answer to your question.
 If you are reporting a bug, please also include a minimal code example or all relevant information for us to replicate the issue.
 
-For general questions, make sure to check out the [google user group](https://groups.google.com/g/phylonetworks-users). If you cannot find answers to your question, please post a new question. We do our best to reply in a timely fashion, but we are undermanned so we appreciate your patience.
+For general questions, make sure to check out the [google user group](https://groups.google.com/g/juliaphylo-users). If you cannot find answers to your question, please post a new question. We do our best to reply in a timely fashion, but we are undermanned so we appreciate your patience.
 
 ## Contributing Code
 
