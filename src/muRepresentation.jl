@@ -166,4 +166,4 @@ function distance_node(N1::HybridNetwork, N2::HybridNetwork)
     return dist
 end
 
-#TODO: Distance using edge mu
+#TODO: Distance using edge mus
