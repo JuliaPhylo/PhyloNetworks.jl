@@ -32,9 +32,10 @@ It is used by other packages for more specialized tasks, such as
 
 **How to get help**
 
-- the package [wiki](https://github.com/juliaphylo/PhyloNetworks.jl/wiki) has a
-  step-by-step tutorial, done for the MBL workshop (last revised 2022),
-  with background on networks and explanations.
+- PhyloUtilities: [website](https://juliaphylo.github.io/PhyloUtilities/) for a
+  step-by-step tutorial with background on networks
+  (done for the MBL workshop, last revised 2022) and associated
+  [scripts](https://github.com/JuliaPhylo/PhyloUtilities/tree/main/scripts)
 - [tutorial](https://cecileane.github.io/networkPCM-workshop/) for
   comparative methods, including network calibration (2023 workshop)
 - the [google group](https://groups.google.com/forum/#!forum/juliaphylo-users)
