@@ -212,17 +212,24 @@ end
 """
     sharedpathmatrix(net::HybridNetwork; checkpreorder::Bool=true)
 
-This function computes the shared path matrix between all the nodes of a
-network. It assumes that the network is in the pre-order. If checkpreorder is
-true (default), then it runs function `preorder!` on the network beforehand.
+Matrix Ω of shared path lengths from the root to a pair of nodes, for all pairs
+of nodes in network `net`. This is the covariance under a Brownian motion model,
+returned as a data frame by [`vcv`](@ref).
+The network is assumed to be pre-ordered if `checkpreorder` is false.
+If `checkpreorder` is true (default), `preorder!` is run on the network beforehand.
 
 Returns an object of type [`MatrixTopologicalOrder`](@ref).
 
+See also [`descendenceweight`](@ref), which returns a matrix P independent
+of edge lengths. P only depends on the network topology and γ.
+Then Ω = PDP' where D is a diagonal matrix with the network's edge lengths
+on its diagonal.
 """
 function sharedpathmatrix(net::HybridNetwork; checkpreorder::Bool=true)
     check_nonmissing_nonnegative_edgelengths(net,
         """The variance-covariance matrix of the network is not defined.
            A phylogenetic regression cannot be done.""")
+    check_valid_gammas(net, "The variance-covariance matrix is not defined.")
     checkpreorder && preorder!(net)
     V = traversal_preorder(
             net.vec_node,
@@ -283,13 +290,14 @@ end
 Descendence matrix between all the nodes of a network:
 object `D` of type [`MatrixTopologicalOrder`](@ref) in which
 `D[i,j]` is the proportion of genetic material in node `i` that can be traced
-back to node `j`. If `D[i,j]>0` then `j` is a descendent of `i` (and `j` is
+back to node `j`. If `D[i,j]>0` then `i` is a descendent of `j` (and `j` is
 an ancestor of `i`).
 The network is assumed to be pre-ordered if `checkpreorder` is false.
 If `checkpreorder` is true (default), `preorder!` is run on the network beforehand.
 """
 function descendencematrix(net::HybridNetwork; checkpreorder::Bool=true)
     checkpreorder && preorder!(net)
+    check_valid_gammas(net, "The descendence matrix is not defined.")
     V = traversal_postorder(
         net.vec_node,
         initDescendenceMatrix,
@@ -315,4 +323,116 @@ end
 function initDescendenceMatrix(nodes::Vector{Node},)
     n = length(nodes)
     return(Matrix{Float64}(I, n, n)) # identity matrix
+end
+
+"""
+    descendenceweight(net::HybridNetwork; checkpreorder::Bool=true)
+
+Matrix of weights of all paths starting from an edge and ending to a node,
+in network `net`. By default, `preorder!` is called first, to calculate
+a pre-ordering of nodes. If `checkpreorder` is `false` instead, then
+this pre-ordering is assumed to have been done already.
+
+output: object `M` of type [`MatrixTopologicalOrder`](@ref), in which
+nodes are in rows and edges are in columns, with edge numbers used as indices.
+In other words, `M[i,j]` is the sum of weights of all paths from edge number `j`
+to node `net.vec_node[i]`.
+
+warning: `net`'s edge numbers are reset to be consecutive numbers from 1 to the
+total number of edges. If any edge number needs to be modified for this,
+a warning is sent, via [`resetedgenumbers!`](@ref).
+
+See also [`descendencematrix`](@ref), which returns the matrix of
+path weights from each *node* to any other node.
+
+# example
+
+```jldoctest descendenceweight
+julia> net = readnewick("((t4:1.5,((t3:1.27,t1:1.27):1.06,#H8:0.0::0.4):1.18):1.16,(t2:1.32)#H8:1.34::0.6);");
+
+julia> m = descendenceweight(net);
+
+julia> m[:tips]
+4×9 Matrix{Float64}:
+ 1.0  0.0  0.0  0.0  0.0  0.0  1.0  0.0  0.0
+ 0.0  1.0  0.0  1.0  0.0  1.0  1.0  0.0  0.0
+ 0.0  0.0  1.0  1.0  0.0  1.0  1.0  0.0  0.0
+ 0.0  0.0  0.0  0.0  0.4  0.4  0.4  1.0  0.6
+
+julia> tiplabels(net) # order of tips along rows
+4-element Vector{String}:
+ "t4"
+ "t3"
+ "t1"
+ "t2"
+```
+
+This matrix, which contains information about the network topology and
+inheritance weights γ, can be combined with the vector of branch lengths
+to obtain the variance-covariance between tips under a Brownian motion model:
+
+```jldoctest descendenceweight
+julia> d = Dict(e.number => e.length for e in net.edge);
+
+julia> edgelengths = [d[i] for i in 1:length(net.edge)];
+
+julia> using LinearAlgebra
+
+julia> Ω = m[:tips] * Diagonal(edgelengths) * transpose(m[:tips]) # covariance
+4×4 Matrix{Float64}:
+ 2.66   1.16   1.16   0.464
+ 1.16   4.67   3.4    0.936
+ 1.16   3.4    4.67   0.936
+ 0.464  0.936  0.936  2.1768
+
+julia> Matrix(vcv(net)) ≈ Ω # same as from `vcv` function
+true
+```
+"""
+function descendenceweight(net::HybridNetwork; checkpreorder::Bool=true)
+    check_valid_gammas(net, "The descendence weight matrix is not defined.")
+    resetedgenumbers!(net)
+    checkpreorder && preorder!(net)
+    V = traversal_preorder(
+            net.vec_node,
+            init_descendenceweight,
+            traversalupdate_default!,
+            updatetree_descendenceweight!,
+            updatehybrid_descendenceweight!,
+            length(net.edge)
+        )
+    M = MatrixTopologicalOrder(V, net, :r) # nodes in rows
+    return M
+end
+
+function init_descendenceweight(nodes::Vector{Node}, ne::Integer)
+    return zeros(Float64, length(nodes), ne) # nodes in rows, edge in columns
+end
+
+function updatetree_descendenceweight!(
+    V::Matrix,
+    i::Int,
+    parentIndex::Int,
+    edge::Edge,
+    args...
+)
+    V[i,:] .= V[parentIndex,:] # useless for later edges V[i,j] = 0 already, but unknown j's
+    V[i,edge.number] = 1 # = edge.gamma
+    return true
+end
+
+function updatehybrid_descendenceweight!(
+    V::Matrix,
+    i::Int,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
+    args...
+)
+    for (pi,pe) in zip(parindx, paredge)
+        V[i,:] += pe.gamma * V[pi,:]
+    end
+    for pe in paredge
+        V[i,pe.number] =  pe.gamma
+    end
+    return true
 end
