@@ -85,6 +85,13 @@ PhyloNetworks.setmultiplegammas!([net.edge[18]], [0.25])
 
 @test PhyloNetworks.getlengths([net.edge[1]]) == [net.edge[1].length]
 @test PhyloNetworks.getlengths([net.edge[1], net.edge[5]]) == [net.edge[1].length, net.edge[5].length]
+
+net = readnewick("(((a1)#H1,#H2),(#H1,(a2)#H2));")
+@test_throws "edge(s) number 2,3,5,7 have no" PhyloNetworks.check_valid_gammas(net)
+for (i,γ) in zip([2,3,5,7], [.6,.3,-.1,.6]) net.edge[i].gamma = γ; end
+@test_throws "edge(s) number 5 have negative" PhyloNetworks.check_valid_gammas(net)
+net.edge[5].gamma = 0.4
+@test_throws "hybrid node number 3 has total" PhyloNetworks.check_valid_gammas(net)
 end
 
 @testset "hashybridladder, istreechild, isgalled" begin

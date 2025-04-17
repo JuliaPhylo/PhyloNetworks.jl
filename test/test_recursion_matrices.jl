@@ -83,6 +83,20 @@ T2 =  [1.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0
 
 @test T[:all] ≈ T2
 
+#------ descendence edge -> node -----
+P = PhyloNetworks.descendenceweight(net; checkpreorder=false)
+@test P[:all] == [
+ 0 0  0  0 0 0  0  0 0
+ 0 0  0  0 0 0  0  0 1
+ 0 0  0  0 0 0  0  1 1
+ 0 0  0  0 1 0  0  1 1
+ 0 0  0  1 0 0  0  0 1
+ 0 0 .4 .4 0 0 .6 .6 1
+ 0 0 .4 .4 0 1 .6 .6 1
+ 0 1  0  1 0 0  0  0 1
+ 1 0  0  0 0 0  0  0 0
+]
+
 ##################
 ## New formula
 #################

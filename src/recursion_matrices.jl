@@ -95,6 +95,8 @@ function Base.getindex(
     indtips::Vector{Int}=collect(1:length(obj.tipnumbers)),
     nonmissing::BitVector=trues(length(obj.tipnumbers))
 )
+    d == :all && return obj.V
+    # otherwise, do extra work
     tipnums = obj.tipnumbers[indtips][nonmissing]
     maskTips = indexin(tipnums, obj.nodenumbers_toporder)
     if d == :tips # Extract rows and/or columns corresponding to the tips with data
@@ -122,7 +124,6 @@ function Base.getindex(
         obj.indexation == :r && error("""Both rows and columns must be net
                                        ordered to take the submatrix tips vs internal nodes.""")
     end
-    d == :all && return obj.V
 end
 
 """
