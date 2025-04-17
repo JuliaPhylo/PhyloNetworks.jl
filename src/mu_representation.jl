@@ -2,32 +2,69 @@ using PhyloNetworks, DataStructures
 import Base: ==
 using Multisets
 
+"""
+    edge_mu_rep
 
-#TODO: override the == operator for the MuRep struct
-struct MuRep
-    mu_map::Dict{Node, Vector{Int}}   # Node => μ vector
+    A representation of the μ vector for edges in a network.
+    The μ vector is a vector of integers representing the number of paths from the edge to each leaf.
+    The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+
+    # Arguments
+    - `mu_map`: A dictionary mapping each edge to its μ vector
+    - `tip_labels`: A vector of strings representing the labels of the leaves
+"""
+struct edge_mu_rep
+    mu_map::Dict{Int, Vector{Int}}   # Node => μ vector
     tip_labels::Vector{String}        # Tip labels (leaf names)
 end
+"""
+    @Override ==(a::edge_mu_rep, b::edge_mu_rep)
+    Check if two edge_mu_rep objects are equal using the distance function.
+"""
+# function ==(a::edge_mu_rep, b::edge_mu_rep)
+#     return a.mu_map == b.mu_map && a.tip_labels == b.tip_labels
+# end
 
+"""
+    node_mu_rep
+
+    A representation of the μ vector for nodes in a network.
+    The μ vector is a vector of integers representing the number of paths from the node to each leaf.
+    The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+
+    # Arguments
+    - `mu_map`: A dictionary mapping each node to its μ vector
+    - `tip_labels`: A vector of strings representing the labels of the leaves
+"""
+struct node_mu_rep
+    mu_map::Dict{Int, Vector{Int}}   # Node => μ vector
+    tip_labels::Vector{String}        # Tip labels (leaf names)
+end
+"""
+    @Override ==(a::edge_mu_rep, b::edge_mu_rep)
+    Check if two node_mu_rep objects are equal using the distance function.
+"""
+function ==(a::node_mu_rep, b::node_mu_rep)
+    return node_mu_distance(a,b)==0
+end
 
 
 """
     node_mu(Network, tiplabels, preprocess))
 
-    Warning: Network cannot have multiple roots
+Warning: Network cannot have multiple roots
 
-    Get the μ vector for each node in the network.
-    The μ vector is a vector of integers representing the number of paths from the node to each leaf.
-    The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+Get the μ vector for each node in the network.
+The μ vector is a vector of integers representing the number of paths from the node to each leaf.
+The order of the leaves in the μ vector is determined by the provided tiplabels vector.
 
-    # Arguments
-    - `Network`: A HybridNetwork object
-    - `tiplabels`: A vector of strings representing the labels of the leaves
-    - `preprocess`: A boolean indicating whether to preprocess the network (default: true)
-    # Returns
-    - `mu_map`: A dictionary mapping each node to its μ vector
+# Arguments
+- `Network`: A HybridNetwork object
+- `tiplabels`: A vector of strings representing the labels of the leaves
+- `preprocess`: A boolean indicating whether to preprocess the network (default: true)
+# Returns
+- `mu_map`: A dictionary mapping each node to its μ vector
 """
-
 function node_mu(N::HybridNetwork, labels::Vector{String}, preprocess=true )
 
     #TODO: map node number instead of edge? : cant access thennode from node number unless you build a map
@@ -59,20 +96,20 @@ function node_mu(N::HybridNetwork, labels::Vector{String}, preprocess=true )
     end
 
     # dictionary to store the mu values for each node
-    mu_map = Dict{Node,Vector{Int}}([node => zeros(length(N.leaf)) for node in N.node])
+    mu_map = Dict{Int,Vector{Int}}([node.number => zeros(length(N.leaf)) for node in N.node])
 
     # dictionary to store the mapping of leaves to their indices
     label_map = Dict{String, Int}(leaf => i for (i, leaf) in enumerate(labels))
 
+    # use vec_node indices
 
-
-    for currnode in N.node
+    for currnode in N.vec_node
         # if leaf, only one way to reach a leaf
         if currnode.leaf
-            if currnode.name in label_map
+            if haskey(label_map, currnode.name)
                 # get the index of the leaf in the labels vector
                 index = label_map[currnode.name]
-                mu_map[currnode][index]= 1
+                mu_map[currnode.number][index]= 1
             end
         # add the number of paths to the leaves of the child to parent
         else
@@ -81,14 +118,13 @@ function node_mu(N::HybridNetwork, labels::Vector{String}, preprocess=true )
                 if c ==  currnode
                     continue
                 end
-                mu_map[currnode] .+= mu_map[c]
+                mu_map[currnode.number] .+= mu_map[c.number]
             end
         end
-    end
+    end 
 
-    
-
-    return mu_map       
+    mu = node_mu_rep(mu_map, labels)
+    return mu       
 end
 
 """
@@ -107,27 +143,47 @@ end
     # Returns
     - `mu`: A MuRep object containing the μ vectors for each edge in the network
 """
-
-# TODO:make sure code can be adapted easily to multiple root components
 function edge_mu(N::HybridNetwork, labels::Vector{String}, preprocess=true)
 
     # Get the mu values for the nodes
-    nodemu = node_mu(N,labels, preprocess)
-    edge_mu = Dict{Edge, Vector{Vector{Int}}}(edge => Vector{Vector{Int}}() for edge in N.edge)
-    rho = nodemu[N.node[N.rooti]] # root node
+    nodemu = node_mu(N,labels, preprocess).mu_map
+    # edge_mu = Dict{Int, Vector{Vector{Int}}}(edge.number => Vector{Vector{Int}}() for edge in N.edge)
+    edge_mu = Dict{Int, Vector{Tuple{Int}}}
+    rho = nodemu[getroot(net).number]
     for curredge in N.edge
         if !curredge.hybrid && curredge.containroot && !getchild(curredge).leaf
-            # switch to get child
-            edge_mu[curredge] = [nodemu[getchild(curredge)],rho - nodemu[getparent(curredge)]]
+            edge_mu[curredge.number] = [Tuple(nodemu[getchild(curredge).number]),Tuple(rho - nodemu[getparent(curredge).number])]
         else
-            edge_mu[curredge] = [nodemu[getchild(curredge)]]
+            edge_mu[curredge.number] = [Tuple(nodemu[getchild(curredge).number])]
         end
     end
 
     # Create a mu representation object
-    mu = MuRep(edge_mu, labels)
+    mu = edge_mu_rep(edge_mu, labels)
 
     return mu
+end
+
+"""
+    node_mu_distance(N1::node_mu_rep, N2::node_mu_rep)
+
+    Calculate the distance between two μ vectors.
+
+    # Arguments
+    - `N1`: A MuRep object
+    - `N2`: A MuRep object
+
+    # Returns
+    - `dist`: The distance between the two μ vectors.
+"""
+function node_mu_distance(N1::node_mu_rep, N2::node_mu_rep)
+    #convert to not use multiet
+    m1 = Multiset(collect(values(N1.mu_map)))
+    m2 = Multiset(collect(values(N2.mu_map)))
+    d1 = setdiff(m1, m2)
+    d2 = setdiff(m2, m1)
+    dist = length(d1) + length(d2)
+    return dist
 end
 
 """
@@ -144,7 +200,7 @@ end
     # Returns
     - `dist`: The distance between the two networks based on their μ vectors.
 """
-function distance_node(N1::HybridNetwork, N2::HybridNetwork)
+function distance_node(N1::HybridNetwork, N2::HybridNetwork, preprocess=true)
     # make sure mu vectors are consistent
     if length(tipLabels(N1)) > length(tipLabels(N2))
         labels = tipLabels(N1) 
@@ -155,15 +211,8 @@ function distance_node(N1::HybridNetwork, N2::HybridNetwork)
     # Get the mu values for the nodes
     nodemu1 = node_mu(N1,labels, preprocess)
     nodemu2 = node_mu(N2,labels, preprocess)
-
-    m1 = Multiset(Tuple(v) for  v in nodemu1.mu_map.values())
-    m2 = Multiset(Tuple(v) for  v in nodemu2.mu_map.values())
-    d1 = setdiff(m1, m2)
-    d2 = setdiff(m2, m1)
-    dist = len(d1) + len(d2)
-
-
-    return dist
+    return node_mu_distance(nodemu1, nodemu2)
+    
 end
 
-#TODO: Distance using edge mus
+#TODO: Distance using edge mu
