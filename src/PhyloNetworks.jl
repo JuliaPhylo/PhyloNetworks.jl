@@ -148,6 +148,7 @@ module PhyloNetworks
     include("recursion_matrices.jl")
     include("parsimony.jl")
     include("pairwiseDistanceLS.jl")
+    include("expectedfstat.jl")
     include("interop.jl")
     include("graph_components.jl")
     include("deprecated.jl")
