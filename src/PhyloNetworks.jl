@@ -126,7 +126,8 @@ module PhyloNetworks
         nj,
         # quartets
         tablequartetCF,
-        countquartetsintrees
+        countquartetsintrees,
+        mu_representation
 
     ##Constants
     const fAbsBL = 1e-10
@@ -153,5 +154,6 @@ module PhyloNetworks
     include("deprecated.jl")
     include("nj.jl")
     include("quartets.jl")
+    include("mu_representation.jl")
 
 end #module
