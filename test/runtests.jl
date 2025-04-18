@@ -7,6 +7,8 @@ using LinearAlgebra: diag # LinearAlgebra.rotate! not brought into scope
 using Random
 using StableRNGs
 
+const PN = PhyloNetworks
+
 tests = [
     "test_deprecated.jl",
     "test_quartet.jl",

@@ -22,13 +22,14 @@ module PhyloNetworks
     using DataFrames # innerjoin new in v0.21
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
-    using StaticArrays # for quartets
     using FASTX
     using Functors: fmap
+    using Multisets # for mu-representation
     using NLopt # for branch lengths optimization
+    using StaticArrays # for quartets
     using StatsBase # cov2cor! for vcv
 
-    import Base: show
+    import Base: show, ==
 
     const DEBUGC = false # even more debug messages
     global CHECKNET = false # for debugging only

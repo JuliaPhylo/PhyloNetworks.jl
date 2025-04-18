@@ -1,7 +1,3 @@
-using PhyloNetworks, PhyloCoalSimulations, Test, PhyloPlots
-include(joinpath(@__DIR__, "../src", "mu_representation.jl"))
-Node = PhyloNetworks.Node
-
 # @testset "node_mu_rep invariant checks for various networks" begin
 
 #     # Helper function to check μ-vector invariants
@@ -46,8 +42,8 @@ Node = PhyloNetworks.Node
 
     labels = ["A", "B", "C"]  # must match all tips used in both networks
 
-    μ1 = node_mu(net1, labels)
-    μ2 = node_mu(net2, labels)
+    μ1 = PN.node_mu(net1, labels)
+    μ2 = PN.node_mu(net2, labels)
     println(μ1== μ2)
     @test μ1 == μ2  
 

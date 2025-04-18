@@ -1,25 +1,33 @@
-using PhyloNetworks, DataStructures
-import Base: ==
-using Multisets
-
 """
     edge_mu_rep
 
-    A representation of the μ vector for edges in a network.
-    The μ vector is a vector of integers representing the number of paths from the edge to each leaf.
-    The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+A representation of the μ vector for edges in a network.
+The μ vector is a vector of integers representing the number of paths from the edge to each leaf.
+The order of the leaves in the μ vector is determined by the provided tiplabels vector.
 
-    # Arguments
-    - `mu_map`: A dictionary mapping each edge to its μ vector
-    - `tip_labels`: A vector of strings representing the labels of the leaves
+# Arguments
+
+- `mu_map`: A dictionary mapping each edge to its μ vector
+- `tip_labels`: A vector of strings representing the labels of the leaves
 """
 struct edge_mu_rep
-    mu_map::Dict{Int, Vector{Int}}   # Node => μ vector
-    tip_labels::Vector{String}        # Tip labels (leaf names)
+    "Dictionary: maps edge number => μ vector for that edge"
+    mu_map::Dict{Int, Vector{Int}}
+    "vector of tip (leaf) labels: listed in the same order as in the μ vector"
+    tip_labels::Vector{String}
 end
+
+function Base.show(io::IO, obj::edge_mu_rep)
+    disp = "$(typeof(obj))\n$(length(obj.tip_labels)) taxa, $(length(obj.mu_map)) edges,"
+    disp *= "\ntaxon order in μ vectors:\n" * string(obj.tip_labels)
+    disp *= "\nedge number => μ vector map:\n" * string(obj.mu_map)
+    println(io, disp)
+end
+
 """
     @Override ==(a::edge_mu_rep, b::edge_mu_rep)
-    Check if two edge_mu_rep objects are equal using the distance function.
+
+Check if two edge_mu_rep objects are equal using the distance function.
 """
 # function ==(a::edge_mu_rep, b::edge_mu_rep)
 #     return a.mu_map == b.mu_map && a.tip_labels == b.tip_labels
@@ -28,18 +36,27 @@ end
 """
     node_mu_rep
 
-    A representation of the μ vector for nodes in a network.
-    The μ vector is a vector of integers representing the number of paths from the node to each leaf.
-    The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+A representation of the μ vector for nodes in a network.
+The μ vector is a vector of integers representing the number of paths from the node to each leaf.
+The order of the leaves in the μ vector is determined by the provided tiplabels vector.
 
-    # Arguments
-    - `mu_map`: A dictionary mapping each node to its μ vector
-    - `tip_labels`: A vector of strings representing the labels of the leaves
+# Arguments
+- `mu_map`: A dictionary mapping each node to its μ vector
+- `tip_labels`: A vector of strings representing the labels of the leaves
 """
 struct node_mu_rep
-    mu_map::Dict{Int, Vector{Int}}   # Node => μ vector
-    tip_labels::Vector{String}        # Tip labels (leaf names)
+    "Dictionary: maps node number => μ vector for that node"
+    mu_map::Dict{Int, Vector{Int}}
+    "vector of tip (leaf) labels: listed in the same order as in the μ vector"
+    tip_labels::Vector{String}
 end
+function Base.show(io::IO, obj::node_mu_rep)
+    disp = "$(typeof(obj))\n$(length(obj.tip_labels)) taxa, $(length(obj.mu_map)) nodes,"
+    disp *= "\ntaxon order in μ vectors:\n" * string(obj.tip_labels)
+    disp *= "\nnode number => μ vector map:\n" * string(obj.mu_map)
+    println(io, disp)
+end
+
 """
     @Override ==(a::edge_mu_rep, b::edge_mu_rep)
     Check if two node_mu_rep objects are equal using the distance function.
@@ -71,7 +88,7 @@ function node_mu(N::HybridNetwork, labels::Vector{String}, preprocess=true )
     #TODO: instead of a map use of of the unused node variables and just return the network : maybe later confirm algo works first
     #TODO: get index for leaves :  done
 
-    Ntiplabels = tipLabels(N)
+    Ntiplabels = tiplabels(N)
 
     # warn if labels in the network are not in the provided labels vector
     for l in Ntiplabels
@@ -130,18 +147,18 @@ end
 """
     edge_mu(Network, tiplabels, preprocess)
 
-    Warning: Network cannot have multiple roots
+Warning: Network cannot have multiple roots
 
-    Get the μ vector for each edge in the network.
-    The μ vector is a vector of integers representing the number of paths from the edge to each leaf.
-    The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+Get the μ vector for each edge in the network.
+The μ vector is a vector of integers representing the number of paths from the edge to each leaf.
+The order of the leaves in the μ vector is determined by the provided tiplabels vector.
 
-    # Arguments
-    - `Network`: A HybridNetwork object
-    - `tiplabels`: A vector of strings representing the labels of the leaves
-    - `preprocess`: A boolean indicating whether to preprocess the network (default: true)
-    # Returns
-    - `mu`: A MuRep object containing the μ vectors for each edge in the network
+# Arguments
+- `Network`: A HybridNetwork object
+- `tiplabels`: A vector of strings representing the labels of the leaves
+- `preprocess`: A boolean indicating whether to preprocess the network (default: true)
+# Returns
+- `mu`: A MuRep object containing the μ vectors for each edge in the network
 """
 function edge_mu(N::HybridNetwork, labels::Vector{String}, preprocess=true)
 
@@ -167,14 +184,14 @@ end
 """
     node_mu_distance(N1::node_mu_rep, N2::node_mu_rep)
 
-    Calculate the distance between two μ vectors.
+Calculate the distance between two μ vectors.
 
-    # Arguments
-    - `N1`: A MuRep object
-    - `N2`: A MuRep object
+# Arguments
+- `N1`: A MuRep object
+- `N2`: A MuRep object
 
-    # Returns
-    - `dist`: The distance between the two μ vectors.
+# Returns
+- `dist`: The distance between the two μ vectors.
 """
 function node_mu_distance(N1::node_mu_rep, N2::node_mu_rep)
     #convert to not use multiet
@@ -189,23 +206,23 @@ end
 """
     distance_node(N1::HybridNetwork, N2::HybridNetwork)
 
-    Calculate the distance between two networks based on their μ vectors.
+Distance between two networks based on their μ vectors.
 
-    Warning: Networks cannot have multiple roots.
-    
-    # Arguments
-    - `N1`: A HybridNetwork object
-    - `N2`: A HybridNetwork object
+Warning: Networks cannot have multiple roots.
 
-    # Returns
-    - `dist`: The distance between the two networks based on their μ vectors.
+# Arguments
+- `N1`: A HybridNetwork object
+- `N2`: A HybridNetwork object
+
+# Returns
+- `dist`: The distance between the two networks based on their μ vectors.
 """
 function distance_node(N1::HybridNetwork, N2::HybridNetwork, preprocess=true)
     # make sure mu vectors are consistent
-    if length(tipLabels(N1)) > length(tipLabels(N2))
-        labels = tipLabels(N1) 
+    if length(tiplabels(N1)) > length(tiplabels(N2))
+        labels = tiplabels(N1)
     else
-        labels = tipLabels(N2)
+        labels = tiplabels(N2)
     end
 
     # Get the mu values for the nodes
