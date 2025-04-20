@@ -2,6 +2,7 @@
 using PhyloNetworks
 using DataFrames, CSV
 using RCall, PhyloPlots
+mkpath("../assets/figures")
 figname(x) = joinpath("..", "assets", "figures", x)
 ```
 
@@ -21,9 +22,10 @@ deleting every minor hybrid edge.
 ```@example edata
 net0 = readnewick("(O:5.5,((E:4.0,(D:3.0,(C:1.0,B:1.0):2.0):1.0):1.0,A:5.0):0.5);");
 net2 = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);")
+nothing # hide
 ```
 
-```@eval edata
+```@setup edata
 using RCall, PhyloPlots
 R"svg"(figname("expectedata_fig_net02.svg"), width=7, height=3);
 R"layout"([1 2]);
@@ -38,17 +40,58 @@ R"dev.off"();
 
 ## average pairwise distances
 
-coming next: example to use
-[`pairwisetaxondistancematrix`](@ref)
+One distance between pairs of taxa, say between t1 and t2, is the
+average length of all "up-down" paths in the network to go from t1 to t2,
+see [Xu & Ané 2023](https://doi.org/10.1007/s00285-022-01847-8) for example.
+In a tree, there is a single such path: going up from t1 to their
+most recent common ancestor, then down to t2.
+In a general network, there can be multiple paths.
+Each path has an inheritance weight: the product of the inheritance γ's of
+all edges in the path.
+Under a simple model, this is the proportion of genetic material that took
+this path.
+The average distance betwen t1 and t2 is the weighted average of these
+paths' lengths, weighted by the paths' inheritance.
 
-perhaps: extract from [`startingBL!`](@ref) the code to calculate
-pairwise distances from data, either Hamming or JC-corrected,
+It can be calculated with [`pairwisetaxondistancematrix`](@ref).
+On our tree `net0`, we get this:
+
+```@repl edata
+aveD_net0 = pairwisetaxondistancematrix(net0)
+```
+The order of rows and columns in this matrix is the same as
+given by `tiplabels`. For example, we can convert the distance matrix
+`aveD_net0` to a data frame with a column named for each taxon like this.
+
+```@repl edata
+taxonlist0 = tiplabels(net0)
+using DataFrames
+DataFrame(aveD_net0, taxonlist0)
+```
+
+Using the network `net2`, we see that its reticulations bring
+E closer to D; and bring B & C closer to A (and away from D & E
+since A is distant from them):
+
+```@example edata
+aveD_net2 = pairwisetaxondistancematrix(net2);
+DataFrame(aveD_net2, tiplabels(net2))
+```
+
+todo perhaps: extract from [`PhyloNetworks.startingBL!`](@ref)
+the code to calculate pairwise distances from data,
+either Hamming or JC-corrected,
 and show how to use it here.
 
 ## expected f2-statistics
 
-coming next: example to use
-[`expectedf2matrix`](@ref)
+coming next: explain and expand example of using
+[`PhyloNetworks.expectedf2matrix`](@ref)
+
+```@example edata
+const PN = PhyloNetworks; # for lazy typing below!
+f2D_net0 = PN.expectedf2matrix(net0)
+```
 
 ## expected f4-statistics
 

@@ -351,7 +351,7 @@ path weights from each *node* to any other node.
 ```jldoctest descendenceweight
 julia> net = readnewick("((t4:1.5,((t3:1.27,t1:1.27):1.06,#H8:0.0::0.4):1.18):1.16,(t2:1.32)#H8:1.34::0.6);");
 
-julia> m = descendenceweight(net);
+julia> m = PhyloNetworks.descendenceweight(net);
 
 julia> m[:tips]
 4×9 Matrix{Float64}:
