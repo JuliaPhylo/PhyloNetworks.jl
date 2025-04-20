@@ -47,6 +47,7 @@ makedocs(
             "Network support" => "man/network_support.md",
             "Parsimony on networks" => "man/parsimony.md",
             "Neighbour Joining" => "man/nj.md",
+            "Pairwise and quartet data" => "man,expecteddata.md",
         ],
         "Library" => [
             "Public" => "lib/public.md",

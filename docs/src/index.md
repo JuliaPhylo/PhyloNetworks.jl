@@ -65,7 +65,8 @@ Pages = [
     "man/dist_reroot.md",
     "man/network_support.md",
     "man/parsimony.md",
-    "man/nj.md"
+    "man/nj.md",
+    "man/expecteddata.md",
 ]
 Depth = 3
 ```

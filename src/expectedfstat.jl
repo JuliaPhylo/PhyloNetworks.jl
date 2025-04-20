@@ -1,4 +1,4 @@
-function expectedf2matrix!(
+function expectedf2matrix(
     net::HybridNetwork;
     keepinternal::Bool=false,
     checkpreorder::Bool=true,
