@@ -4,7 +4,8 @@ function expectedf2matrix!(
     checkpreorder::Bool=true,
 )
     m = descendenceweight(net; checkpreorder=checkpreorder)
-    P = m.V # also m[:tips]
+    P = m[:tips]
+    # change to :all to return a MatrixTopologicalOrder instead
     #= idea: f2[i,j] = Ω[i,i] + Ω[j,j] -2 Ω[i,j] where
     Ω = m[:tips] * Diagonal(edgelengths) * transpose(m[:tips])
     is a linear function of edge lengths.
@@ -25,8 +26,8 @@ function expectedf2matrix!(
     for e in net.edge
         f2mat .+= e.length .* edgeweight[:,:,e.number]
     end
-    M = MatrixTopologicalOrder(f2mat, net, :b) # nodes in both columns & rows
-    return M
+    # M = MatrixTopologicalOrder(f2mat, net, :b) # nodes in both columns & rows
+    return f2mat
 end
 
 # similarly: f3[x;i,j] = Ω[x,x] + Ω[i,j] - Ω[x,i] -2 Ω[x,j]
