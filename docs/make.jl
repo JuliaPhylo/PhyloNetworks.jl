@@ -11,7 +11,8 @@ using PhyloNetworks
 using DocumenterInterLinks
 links = InterLinks(
     "PhyloPlots" => "https://juliaphylo.github.io/PhyloPlots.jl/stable/objects.inv",
-    # "SNaQ"       => "https://juliaphylo.github.io/SNaQ.jl/stable/objects.inv",
+    "SNaQ" => "https://juliaphylo.github.io/SNaQ.jl/stable/objects.inv",
+    "QGoF" => "https://juliaphylo.github.io/QuartetNetworkGoodnessFit.jl/stable/objects.inv",
     # "PhyloTraits"=> "https://juliaphylo.github.io/PhyloTraits.jl/stable/objects.inv",
 )
 # default loading of interlinked packages in all docstring examples

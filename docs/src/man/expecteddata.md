@@ -75,7 +75,8 @@ since A is distant from them):
 
 ```@example edata
 aveD_net2 = pairwisetaxondistancematrix(net2);
-DataFrame(aveD_net2, tiplabels(net2))
+taxonlist2 = tiplabels(net2)
+DataFrame(aveD_net2, taxonlist2)
 ```
 
 todo perhaps: extract from [`PhyloNetworks.startingBL!`](@ref)
@@ -85,12 +86,34 @@ and show how to use it here.
 
 ## expected f2-statistics
 
-coming next: explain and expand example of using
-[`PhyloNetworks.expectedf2matrix`](@ref)
+The f2-statistic gives another measure of dissimilarity between pairs of taxa
+(see [Lipson 2020](https://doi.org/10.1111/1755-0998.13230) for example).
+The expected value of f2 between taxa t₁ and t₂ is
+```math
+f_2(t_1, t_2) = E(X(t_1) - X(t_2))^2
+```
+under a Brownian motion model for trait X evolving along the network,
+where X(t₁) and X(t₂) are the values of X for taxa t₁ and t₂.
+
+If the network is a tree, then this is exactly the average distance
+(or simply, the length of the unique path) between t₁ and t₂.
+
+It can be calculated with [`PhyloNetworks.expectedf2matrix`](@ref).
+On our tree `net0`, we an f2 matrix equal to the average distance matrix:
 
 ```@example edata
 const PN = PhyloNetworks; # for lazy typing below!
 f2D_net0 = PN.expectedf2matrix(net0)
+f2D_net0 == aveD_net0
+```
+
+Again, taxa are listed along rows and along columns in the same
+order as listed by `tiplabels()`.  
+On our network `net2`, the f2 and average distances differ:
+
+```@example edata
+f2D_net2 = PN.expectedf2matrix(net2)
+DataFrame(f2D_net2, taxonlist2)
 ```
 
 ## expected f4-statistics
@@ -100,6 +123,11 @@ coming next: example to use
 - a new function to calculate f4 expected from a network
 
 ## quartet concordance factors
+
+Tools to calculate quartet concordance factors expected from
+a network are provided in package
+[QGoF](https://github.com/JuliaPhylo/QuartetNetworkGoodnessFit.jl):
+see its documentation about [expected concordance factors](@extref QGoF).
 
 coming next: example to use
 [`countquartetsintrees`](@ref) and [`tablequartetCF`](@ref)
