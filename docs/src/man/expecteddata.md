@@ -79,10 +79,36 @@ taxonlist2 = tiplabels(net2)
 DataFrame(aveD_net2, taxonlist2)
 ```
 
-todo perhaps: extract from [`PhyloNetworks.startingBL!`](@ref)
-the code to calculate pairwise distances from data,
-either Hamming or JC-corrected,
-and show how to use it here.
+To calculate pairwise distances observed in data, such as
+along a DNA alignment across multiple sites, we can use
+[`PhyloNetworks.hammingdistancematrix`](@ref).
+
+```@repl edata
+dna_data = [
+    ['T','G','T','A','G'], # taxon 1
+    ['T','G','A','A','G'],
+    ['T','G','A','A','C'],
+    ['T','G','A',missing,missing],
+    ['T','G','A','T','C'], # taxon 5
+];
+d = PhyloNetworks.hammingdistancematrix(dna_data)
+```
+
+Perhaps we want to give weights to each trait, such as if an alignment is
+summarized by keeping each site pattern once, weighted by the number of sites
+having this pattern:
+
+```@repl edata
+site_count = [3,2,1,1,1]; # invariable site patterns have higher counts
+d = PhyloNetworks.hammingdistancematrix(dna_data, site_count)
+```
+
+A Jukes-Cantor correction can be applied with
+[`PhyloNetworks.distancecorrection_JC!`](@ref):
+
+```@repl edata
+PhyloNetworks.distancecorrection_JC!(d, 4) # 4 states
+```
 
 ## expected f2-statistics
 
