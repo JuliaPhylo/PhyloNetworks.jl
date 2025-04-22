@@ -153,11 +153,9 @@ first(f4,2) # first 2 4-taxon sets, each with 3 quartet f4s
 The taxon numbers above are indices in the taxon list `t`.
 Here is a way to print all f4 statistics expected from our tree `net0`:
 ```@example edata
-print(join(
-    [join(t[q.taxonnumber],",") * ": " * string(round.(q.data, sigdigits=2))
-     for q in f4],
-    "\n")
-)
+for q in f4
+    println(join(t[q.taxonnumber],",") * ": " * string(round.(q.data, sigdigits=2)))
+end
 ```
 
 For each set of 4 taxa, the 3 f4s sum up to 0: as it should be.

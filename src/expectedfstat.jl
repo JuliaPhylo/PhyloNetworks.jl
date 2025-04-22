@@ -95,15 +95,65 @@ Given a set of 4 taxa, there are 12 ways to order them, but there are only
 # example
 
 The first example is a tree: on which some f4 values are expected to be 0.
+```jldoctest
+julia> net0 = readTopology("((D:0.6,((a1:.1,a2:.1):0.1,B:0.2):0.3),C:0.4);");
 
-Next, we use a network with 2 reticulations, which contains a "32 cycle".
+julia> # using PhyloPlots; plot(net0, showedgelength=true);
+
+julia> f4,t = PhyloNetworks.expectedf4table(net0);
+Calculation of expected f4 for 5 4-taxon sets...
+0+-----+100%
+  *****
+
+julia> show(t)
+["B", "C", "D", "a1", "a2"]
+julia> show(f4[1].taxonnumber) # taxa numbered 1-4 are: B,C,D,a1
+[1, 2, 3, 4]
+julia> for q in f4
+         println(join(t[q.taxonnumber],",") * ": " * string(round.(q.data, digits=3)))
+       end
+B,C,D,a1: [-0.3, 0.3, 0.0]
+B,C,D,a2: [-0.3, 0.3, 0.0]
+B,C,a1,a2: [0.0, -0.1, 0.1]
+B,D,a1,a2: [0.0, -0.1, 0.1]
+C,D,a1,a2: [0.0, -0.4, 0.4]
+```
+The zeros correspond to splits in the tree:
+Ba1|CD, Ba2|CD, BC|a1a2, BD|a1a2, CD|a1a2.
+The other values correspond to the internal path length for each split.
+
+Next, we use a network with 2 reticulations, each time between sister species
+(resulting in 3-cycle blobs).
 
 ```jldoctest
 julia> net = readTopology("(D:1,((C:1,#H25:0):0.1,((((B1:10,B2:1):1.5,#H1:0):10.8,((A1:1,A2:1):0.001)#H1:0::0.5):0.5)#H25:0::0.501):1);");
 
-julia> # using PhyloPlots; plot(net, showedgelength=true);
+julia> # plot(net, showedgelength=true);
 
-julia> q,t = expectedf4table(net);
+julia> f4,t = PhyloNetworks.expectedf4table(net, showprogressbar=false);
+
+julia> using DataFrames
+
+julia> df = PhyloNetworks.tablequartetdata(f4, t; prefix="f4_") |> DataFrame
+15×8 DataFrame
+ Row │ qind   t1      t2      t3      t4      f4_12_34  f4_13_24  f4_14_23 
+     │ Int64  String  String  String  String  Float64   Float64   Float64  
+─────┼─────────────────────────────────────────────────────────────────────
+   1 │     1  A1      A2      B1      B2           0.0    -4.201     4.201
+   2 │     2  A1      A2      B1      C            0.0     2.699    -2.699
+   3 │     3  A1      A2      B2      C            0.0     2.699    -2.699
+   4 │     4  A1      B1      B2      C           -6.9     6.9       0.0
+   5 │     5  A2      B1      B2      C           -6.9     6.9       0.0
+   6 │     6  A1      A2      B1      D            0.0     2.699    -2.699
+   7 │     7  A1      A2      B2      D            0.0     2.699    -2.699
+   8 │     8  A1      B1      B2      D           -6.9     6.9       0.0
+   9 │     9  A2      B1      B2      D           -6.9     6.9       0.0
+  10 │    10  A1      A2      C       D            0.0    -3.176     3.176
+  11 │    11  A1      B1      C       D            0.0    -5.875     5.875
+  12 │    12  A2      B1      C       D            0.0    -5.875     5.875
+  13 │    13  A1      B2      C       D            0.0    -5.875     5.875
+  14 │    14  A2      B2      C       D            0.0    -5.875     5.875
+  15 │    15  B1      B2      C       D            0.0   -12.775    12.775
 ```
 """
 function expectedf4table(
