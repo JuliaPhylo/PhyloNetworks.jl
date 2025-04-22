@@ -144,9 +144,35 @@ DataFrame(f2D_net2, taxonlist2)
 
 ## expected f4-statistics
 
+```@example edata
+f4,t = PN.expectedf4table(net0);
+t # taxa, but ordered alphabetically: not as in tiplabels(net0)
+first(f4,2) # first 2 4-taxon sets, each with 3 quartet f4s
+```
+
+The taxon numbers above are indices in the taxon list `t`.
+Here is a way to print all f4 statistics expected from our tree `net0`:
+```@example edata
+print(join(
+    [join(t[q.taxonnumber],",") * ": " * string(round.(q.data, sigdigits=2))
+     for q in f4],
+    "\n")
+)
+```
+
+For each set of 4 taxa, the 3 f4s sum up to 0: as it should be.
+On a tree with a split `t1,t2|t4,t5`, the corresponding f4 value should
+be 0, and the other 2 should give ± the length of the branch separating
+the 2 groups of 2 taxa.
+Here for example, the first 4-taxon set is `A,B,C,D`. In our tree,
+`BC` is a clade, separated from `AD` by a branch of length 2.
+Accordingly, the third f4 value, corresponding to `AD|CB`, is 0.
+The other two f4s are 2 or -2.
+
 coming next: example to use
-- a new function to calculate f3, and
-- a new function to calculate f4 expected from a network
+- `expectedf4table` on `net2`, and convert the result to a data frame
+- a new function to calculate f3.
+
 
 ## quartet concordance factors
 

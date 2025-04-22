@@ -71,9 +71,11 @@ Calculate the f4 statistics expected from `net`. Output: `(q,t)` where
 `t` is a list of taxa and `q` is a list of 4-taxon set objects of type
 [`PhyloNetworks.QuartetT{datatype}`](@ref).
 In each element of `q`, `taxonnumber` gives the indices in `taxa` of the 4 taxa
-of interest; and `data` contains the 3 primary expected f4-statistics, for the
-following 3 ordering of the 4 taxa:
-`t1,t2|t3,t4`, `t1,t3|t2,t4` and `t1,t4|t2,t3`.
+of interest; and `data` contains the 3 primary expected f4-statistics,
+for the following 3 ordering of the 4 taxa:
+
+    t1,t2|t3,t4   t1,t3|t4,t2   t1,t4|t2,t3.
+
 This output is similar to that of `PhyloNetworks.countquartetsintrees`,
 with 4-taxon sets listed in the same order
 (same output `t`, then same order of 4-taxon sets in `q`).
@@ -88,7 +90,7 @@ Given a set of 4 taxa, there are 12 ways to order them, but there are only
 2 "degrees of freedom" in the associated 12 f4-statistics, thanks to symmetries:
 * f4[t2,t1|t3,t4] = - f4[t1,t2|t3,t4]
 * f4[t3,t4|t1,t2] =   f4[t1,t2|t3,t4]
-* f4[t1,t2|t3,t4] + f4[t1,t3|t2,t4] + f4[t1,t4|t2,t3] = 0
+* f4[t1,t2|t3,t4] + f4[t1,t3|t4,t2] + f4[t1,t4|t2,t3] = 0
 
 # example
 
@@ -109,10 +111,12 @@ function expectedf4table(
     showprogressbar::Bool=true,
     checkpreorder::Bool=true
 )
-    f2mat = expectedf2matrix(net; checkpreorder=checkpreorder)
+    f2div2 = expectedf2matrix(net; checkpreorder=checkpreorder) ./2
     # f4s are linear combinations of edge lengths: from f2s, or from
     # f4[i1,i2; i3,i4] = Ω[i1,i3] + Ω[i2,i4] - Ω[i1,i4] - Ω[i2,i3]
-    taxa = sort!(tipLabels(net))
+    taxa = tiplabels(net) # order in f2 matrix
+    o = sortperm(taxa)
+    taxa .= taxa[o]   # order to construct rows, for f4
     # todo: also get permutation to sort
     taxonnumber = Dict(taxa[i] => i for i in eachindex(taxa))
     ntax = length(taxa)
@@ -135,13 +139,23 @@ function expectedf4table(
     if showprogressbar
         nstars = (numq < 50 ? numq : 50)
         nquarnets_perstar = (numq/nstars)
-        println("Calculation of expected f4 statistics for $numq quartets...")
+        println("Calculation of expected f4 for $numq 4-taxon sets...")
         print("0+" * "-"^nstars * "+100%\n  ")
         stars = 0
         nextstar = Integer(ceil(nquarnets_perstar))
     end
-    for qi in 1:numq
-        # todo: modify quartet[qi] with its 3 f4 statistics
+    for qi in 1:numq # modify quartet[qi].data to contain the 3 f4-stat
+        qu = quartet[qi]
+        ts .= o[qu.taxonnumber] # indices in f2 matrix. reuse memory from ts
+        # @debug "4-taxon set: $(taxa[qu.taxonnumber]), index in f2: $ts"
+        qf4 = qu.data
+        # f4[t1,t2|t3,t4] = (f2[t1,t4] + f2[t2,t3] - f2[t1,t3] - f2[t2,t4])/2
+        s14_23 = f2div2[ts[1],ts[4]] + f2div2[ts[2],ts[3]]
+        s13_24 = f2div2[ts[1],ts[3]] + f2div2[ts[2],ts[4]]
+        s12_34 = f2div2[ts[1],ts[2]] + f2div2[ts[3],ts[4]]
+        qf4[1] = s14_23 - s13_24
+        qf4[2] = s12_34 - s14_23
+        qf4[3] = s13_24 - s12_34
         if showprogressbar && qi >= nextstar
             print("*")
             stars += 1
