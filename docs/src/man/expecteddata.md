@@ -1,7 +1,5 @@
 ```@setup edata
 using PhyloNetworks
-using DataFrames, CSV
-using RCall, PhyloPlots
 mkpath("../assets/figures")
 figname(x) = joinpath("..", "assets", "figures", x)
 ```
@@ -10,8 +8,8 @@ figname(x) = joinpath("..", "assets", "figures", x)
 
 We show here some functionalities to calculate data expected
 from a given network, or observed in data.
-To calculate expectations under a given network, this network
-needs to have branch lengths and γ inheritances at hybrids.
+To calculate expectations under a network, this network's edges
+need to have branch lengths and γ inheritance values.
 
 We use 2 example networks in this section:
 `net0` without reticulations (a tree) and
@@ -112,8 +110,7 @@ PhyloNetworks.distancecorrection_JC!(d, 4) # 4 states
 
 ## expected f2-statistics
 
-The f2-statistic gives another measure of dissimilarity between pairs of taxa
-(see [Lipson 2020](https://doi.org/10.1111/1755-0998.13230) for example).
+The f2-statistic gives another measure of dissimilarity between pairs of taxa.
 The expected value of f2 between taxa t₁ and t₂ is
 ```math
 f_2(t_1, t_2) = E(X(t_1) - X(t_2))^2
@@ -121,15 +118,21 @@ f_2(t_1, t_2) = E(X(t_1) - X(t_2))^2
 under a Brownian motion model for trait X evolving along the network,
 where X(t₁) and X(t₂) are the values of X for taxa t₁ and t₂.
 
+In the network, branch lengths measures units of drifts when the data X
+are allele frequencies, and with a variance factor dependent on the allele
+frequency at the root.
+For background, see for example
+[Patterson et al. 2012](https://doi.org/10.1534/genetics.112.145037) or
+[Lipson 2020](https://doi.org/10.1111/1755-0998.13230).
+
 If the network is a tree, then this is exactly the average distance
 (or simply, the length of the unique path) between t₁ and t₂.
 
-It can be calculated with [`PhyloNetworks.expectedf2matrix`](@ref).
-On our tree `net0`, we an f2 matrix equal to the average distance matrix:
+It can be calculated with [`expectedf2matrix`](@ref).
+On our tree `net0`, we get an f2 matrix equal to the average distance matrix:
 
 ```@example edata
-const PN = PhyloNetworks; # for lazy typing below!
-f2D_net0 = PN.expectedf2matrix(net0)
+f2D_net0 = expectedf2matrix(net0)
 f2D_net0 == aveD_net0
 ```
 
@@ -138,14 +141,14 @@ order as listed by `tiplabels()`.
 On our network `net2`, the f2 and average distances differ:
 
 ```@example edata
-f2D_net2 = PN.expectedf2matrix(net2)
+f2D_net2 = expectedf2matrix(net2)
 DataFrame(f2D_net2, taxonlist2)
 ```
 
 ## expected f4-statistics
 
 ```@example edata
-f4,t = PN.expectedf4table(net0);
+f4,t = expectedf4table(net0);
 t # taxa, but ordered alphabetically: not as in tiplabels(net0)
 first(f4,2) # first 2 4-taxon sets, each with 3 quartet f4s
 ```
@@ -162,13 +165,28 @@ For each set of 4 taxa, the 3 f4s sum up to 0: as it should be.
 On a tree with a split `t1,t2|t4,t5`, the corresponding f4 value should
 be 0, and the other 2 should give ± the length of the branch separating
 the 2 groups of 2 taxa.
+(Again, the branch lengths unit depends on the data being considered.)
+
 Here for example, the first 4-taxon set is `A,B,C,D`. In our tree,
 `BC` is a clade, separated from `AD` by a branch of length 2.
 Accordingly, the third f4 value, corresponding to `AD|CB`, is 0.
 The other two f4s are 2 or -2.
 
+We can see how adding reticulations to our tree affects expected f4s.
+
+```@example edata
+f4,t = expectedf4table(net2, showprogressbar=false); # same t: alphabetically
+nt = tablequartetdata(f4, t; prefix="f4_"); # convert to table
+df = DataFrame(nt) # then to data frame
+```
+
+We still have f4=0 on the 3rd column for taxon set `A,B,C,D`, because BC are
+still sister in the network.
+But there are no 0 values of f4 for `C,D,E,O`, the last taxon set for example:
+due to the reticulation because ancestors of `D` and `E`, that results in
+a cycle of 4 edges in the subnetwork for `C,D,E,O`.
+
 coming next: example to use
-- `expectedf4table` on `net2`, and convert the result to a data frame
 - a new function to calculate f3.
 
 

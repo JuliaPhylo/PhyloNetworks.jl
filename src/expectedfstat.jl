@@ -1,18 +1,24 @@
 """
     expectedf2matrix(net::HybridNetwork; checkpreorder::Bool=true)
 
-Matrix of f2 statistics expected from `net`. The rows and columns
-correspond to the taxa in the network, in the same order as listed
-by `tiplabels(net)`.
+Matrix of f2 statistics expected from `net`, assuming that branch lengths in
+`net` represent "f2 distance". When data are based on allele frequencies,
+edge lengths measure drift units scaled by a variance factor p(1-p) depending
+on the allele frequency p at the root.
 
-See for example [Lipson 2020](https://doi.org/10.1111/1755-0998.13230).
+The rows and columns correspond to the taxa in the network, in the same order
+as listed by `tiplabels(net)`.
+
+For background on f-statistics, see for example
+[Patterson et al. 2012](https://doi.org/10.1534/genetics.112.145037) or
+[Lipson 2020](https://doi.org/10.1111/1755-0998.13230).
 
 # example
 
 ```jldoctest
 julia> net2 = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);");
 
-julia> f2 = PhyloNetworks.expectedf2matrix(net2)
+julia> f2 = expectedf2matrix(net2)
 6×6 Matrix{Float64}:
   0.0   9.95  11.0   9.56  9.56  11.0
   9.95  0.0    5.45  5.95  5.95   8.95
@@ -67,21 +73,24 @@ end
                     showprogressbar::Bool=true,
                     checkpreorder::Bool=true)
 
-Calculate the f4 statistics expected from `net`. Output: `(q,t)` where
-`t` is a list of taxa and `q` is a list of 4-taxon set objects of type
-[`PhyloNetworks.QuartetT{datatype}`](@ref).
+Calculate the f4 statistics expected from `net`, assuming that branch lengths in
+`net` represent "f2 distance".
+Output: `(q,t)` where `t` is a list of taxa and `q` is a list of 4-taxon set
+objects of type [`PhyloNetworks.QuartetT{datatype}`](@ref).
 In each element of `q`, `taxonnumber` gives the indices in `taxa` of the 4 taxa
 of interest; and `data` contains the 3 primary expected f4-statistics,
 for the following 3 ordering of the 4 taxa:
 
     t1,t2|t3,t4   t1,t3|t4,t2   t1,t4|t2,t3.
 
-This output is similar to that of `PhyloNetworks.countquartetsintrees`,
-with 4-taxon sets listed in the same order
+This output is similar to that of [`countquartetsintrees`](@ref),
+with 4-taxon sets listed in the same alphabetical order
 (same output `t`, then same order of 4-taxon sets in `q`).
 
-For background of f-statistics, see for example
+For background on f-statistics, see for example
+[Patterson et al. 2012](https://doi.org/10.1534/genetics.112.145037) and
 [Lipson 2020](https://doi.org/10.1111/1755-0998.13230).
+
 f4-statistics are linear combination of f2-statistics:
 
 `f4[t1,t2|t3,t4] = (f2[t1,t4] + f2[t2,t3] - f2[t1,t3] - f2[t2,t4])/2`
@@ -96,11 +105,11 @@ Given a set of 4 taxa, there are 12 ways to order them, but there are only
 
 The first example is a tree: on which some f4 values are expected to be 0.
 ```jldoctest
-julia> net0 = readTopology("((D:0.6,((a1:.1,a2:.1):0.1,B:0.2):0.3),C:0.4);");
+julia> net0 = readnewick("((D:0.6,((a1:.1,a2:.1):0.1,B:0.2):0.3),C:0.4);");
 
 julia> # using PhyloPlots; plot(net0, showedgelength=true);
 
-julia> f4,t = PhyloNetworks.expectedf4table(net0);
+julia> f4,t = expectedf4table(net0);
 Calculation of expected f4 for 5 4-taxon sets...
 0+-----+100%
   *****
@@ -126,15 +135,17 @@ Next, we use a network with 2 reticulations, each time between sister species
 (resulting in 3-cycle blobs).
 
 ```jldoctest
-julia> net = readTopology("(D:1,((C:1,#H25:0):0.1,((((B1:10,B2:1):1.5,#H1:0):10.8,((A1:1,A2:1):0.001)#H1:0::0.5):0.5)#H25:0::0.501):1);");
+julia> net = readnewick("(D:1,((C:1,#H25:0):0.1,
+        ((((B1:10,B2:1):1.5,#H1:0):10.8,
+        ((A1:1,A2:1):0.001)#H1:0::0.5):0.5)#H25:0::0.501):1);");
 
 julia> # plot(net, showedgelength=true);
 
-julia> f4,t = PhyloNetworks.expectedf4table(net, showprogressbar=false);
+julia> f4,t = expectedf4table(net, showprogressbar=false);
 
 julia> using DataFrames
 
-julia> df = PhyloNetworks.tablequartetdata(f4, t; prefix="f4_") |> DataFrame
+julia> df = tablequartetdata(f4, t; prefix="f4_") |> DataFrame
 15×8 DataFrame
  Row │ qind   t1      t2      t3      t4      f4_12_34  f4_13_24  f4_14_23 
      │ Int64  String  String  String  String  Float64   Float64   Float64  

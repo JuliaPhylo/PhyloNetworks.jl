@@ -5,7 +5,7 @@
 # has a degree-2 node
 nwk = "((((a1:0.24)#H2:0.58::0.7,(((#H2:0.62):0.49,(a21:0.14,a22:0.86):0.51):0.29)#H1:0.19::0.6):0.88,(#H1:0.82,a3:0.89):0.33):0.17,((#H3:0.67,((b1:0.87)#H3:0.86::0.8,b2:0.42):0.69):0.18,b3:0.66):0.43);"
 net = readnewick(nwk)
-f2 = PhyloNetworks.expectedf2matrix(net)
+f2 = expectedf2matrix(net)
 #= manual calculations:
 m = PhyloNetworks.descendenceweight(net)[:tips]
 Ω = m * Diagonal([e.length for e in net.edge]) * transpose(m) # covariance
