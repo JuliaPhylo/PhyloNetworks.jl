@@ -174,11 +174,36 @@ coming next: example to use
 
 ## quartet concordance factors
 
+The concordance factor of a quartet `ab|cd` is the proportion of the
+genome whose genealogy has this unrooted topology.
+
 Tools to calculate quartet concordance factors expected from
-a network are provided in package
+a network under the coalescent model are provided in package
 [QGoF](https://github.com/JuliaPhylo/QuartetNetworkGoodnessFit.jl):
 see its documentation about [expected concordance factors](@extref QGoF).
 
-coming next: example to use
-[`countquartetsintrees`](@ref) and [`tablequartetCF`](@ref)
-Refer to QGoF for expected qCFs.
+To calculate quartet concordance factors observed in data, one option is
+to count the number of gene trees that display each quartet, using
+[`countquartetsintrees`](@ref) and [`tablequartetCF`](@ref).
+
+In the example below, the 4th gene tree is missing taxon A, and
+the 6th gene tree has a polytomies (unresolved ABE clade), such as if
+a branch of low support was collapsed.
+The number of genes underlying each quartet is captured in the table below.
+
+```@example edata
+sixgenetrees_nwk = [
+  "(E,((A,B),(C,D)),O);","(((A,B),(C,D)),(E,O));","(A,B,((C,D),(E,O)));",
+  "(B,((C,D),(E,O)));","((C,D),(A,(B,E)),O);","((C,D),(A,B,E),O);"];
+genetrees = readnewick.(sixgenetrees_nwk);
+q,t = countquartetsintrees(genetrees, showprogressbar=false);
+df = tablequartetCF(q,t) |> DataFrame
+```
+
+If low-support branches are not collapsed, this counting method does not
+account for gene tree estimation error.
+(It biases concordance factors towards 1/3 for each resolution of a
+4-taxon tree: lack of knowledge is mistaken as lack of concordance).
+Estimation error can be accounted for in a Bayesian framework:
+see [PhyloUtilities](https://juliaphylo.github.io/PhyloUtilities/)
+for a pipeline.
