@@ -128,7 +128,8 @@ module PhyloNetworks
         # quartets
         tablequartetCF,
         countquartetsintrees,
-        distance_node
+        network_edge_mu_distance,
+        network_node_mu_distance
 
     ##Constants
     const fAbsBL = 1e-10

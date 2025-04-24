@@ -1,59 +1,62 @@
-# @testset "node_mu_rep invariant checks for various networks" begin
 
-#     # Helper function to check μ-vector invariants
-#     function check_mu_invariants(newick_str::String)
-#         net = readnewick(newick_str)
-#         labels = tipLabels(net)
-#         mu = node_mu(net, labels).mu_map
-
-#         # Map each leaf node to its index in labels
-#         label_map = Dict{Node, Int}(leaf => i for (i, leaf) in enumerate(net.leaf))
-
-#         for node in net.node
-#             if node.leaf
-#                 @test mu[node.number][label_map[node]] == 1
-#                 @test sum(mu[node.number]) == 1
-#             else
-#                 leaf_count = sum(mu[node.number])
-#                 if node == net.node[1]  # root node after preorder!
-#                     @test leaf_count == length(net.leaf)
-#                 else
-#                     @test leaf_count ≥ 1
-#                 end
-#             end
-#         end
-#     end
-
-#     # All networks tested under one parent set
-#     newicks = [
-#         "((a,b)mu1,c,d)r;",
-#         "((C:0.9,(B:0.2)#H1:0.7::0.6):0.6,(#H1:0.6,A:1):0.5);"
-#     ]
-
-#     for newick in newicks
-#         check_mu_invariants(newick)
-#     end
-# end
-
-
-@testset "node mu equality test" begin
+@testset "mu representation equality test" begin
     net1 = readnewick("((C,(B)#H1),(#H1,A));")
-    net2 = readnewick("((B,(C)#H1),(#H1,A));")
+    net2 = readnewick("((A,(B)#H1),(#H1,C));")
 
     labels = ["A", "B", "C"]  # must match all tips used in both networks
 
-    μ1 = PN.node_mu(net1, labels)
-    μ2 = PN.node_mu(net2, labels)
-    println(μ1== μ2)
+    μ1 = PN.node_mu_vectors(net1, labels)
+    μ2 = PN.node_mu_vectors(net2, labels)
+
+    node_distance = network_node_mu_distance(net1, net2)
+
     @test μ1 == μ2  
+    @test node_distance == 0  
 
-    newick1 = "((C,(B)#H1),(#H1,A));"
-    newick2 = "((B,(C)#H1),(#H1,A));"
+    μ1 = PN.edge_mu_vectors(net1, labels)
+    μ2 = PN.edge_mu_vectors(net2, labels)
 
-    labels = ["A", "B", "C"]  # must match all tips used in both networks
+    edge_distance = network_node_mu_distance(net1, net2)
 
-    μ1 = node_mu(net1, labels)
-    μ2 = node_mu(net2, labels)
-    @test μ1 == μ2 
+    @test μ1 == μ2  
+    @test edge_distance == 0  
 
+end
+
+
+@testset "non zero distance test" begin
+    net1 = readnewick("(((a,b)#H1,#H1)h2,c,d)R;")
+    labels = ["a", "b", "c", "d"]
+
+    num2name = Dict{Int, String}()
+    for i in net1.node
+        num2name[i.number] = i.name
+    end
+    μ1 = PN.node_mu_vectors(net1, labels)
+    name_map = Dict{String, Tuple{Vararg{Int}}}()
+    
+    μ_map = μ1.mu_map
+    for (i, value) in μ_map
+        name_map[num2name[i]] = value
+    end
+    println("net1",name_map)
+    @test name_map == Dict{String, Tuple{Vararg{Int64}}}( "c" => (0, 0, 1, 0),"H1" => (1, 1, 0, 0), "h2" => (2, 2, 0, 0), "b" => (0, 1, 0, 0), "R" => (2, 2, 1, 1), "a" => (1, 0, 0, 0), "d" => (0, 0, 0, 1))
+
+    net2 = readnewick("(((a,b)#H1,c)h2,#H1,d)R;")
+    labels = ["a", "b", "c", "d"]
+
+    num2name = Dict{Int, String}()
+    for i in net2.node
+        num2name[i.number] = i.name
+    end
+    μ2 = PN.node_mu_vectors(net2, labels)
+    name_map = Dict{String, Tuple{Vararg{Int}}}()
+    μ_map = μ2.mu_map
+    for (i, value) in μ_map
+        name_map[num2name[i]] = value
+    end
+    println("net2",name_map)
+    @test name_map == Dict{String, Tuple{Vararg{Int64}}}( "c" => (0, 0, 1, 0),"H1" => (1, 1, 0, 0), "h2" => (1, 1, 1, 0), "b" => (0, 1, 0, 0), "R" => (2, 2, 1, 1), "a" => (1, 0, 0, 0), "d" => (0, 0, 0, 1))
+    
+    @test network_node_mu_distance(net1, net2) == 2
 end
