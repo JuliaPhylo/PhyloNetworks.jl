@@ -1,4 +1,4 @@
-@testset "expected f-stat" begin
+@testset "expected f2, f3, f4" begin
 
 # 7 tips, 2 blobs: a 3-cycle (h=1) and a 4-blob (h=2) not galled
 # rooted, 4 non-external cut edges (3 when semidirected)
@@ -26,4 +26,35 @@ f2m = [
 ]
 @test f2 ≈ f2m
 
+@test_throws "reference taxon bx" PhyloNetworks.expectedf3matrix(net, "bx"; preorder=false)
+f3 = PhyloNetworks.expectedf3matrix(net, "b3"; preorder=false)
+@test f3 ≈ [
+0       1.88736 1.88736 1.2996 0.66  0.66  0
+1.88736 0       2.6292  1.392  0.66  0.66  0
+1.88736 2.6292  0       1.392  0.66  0.66  0
+1.2996  1.392   1.392   0      0.66  0.66  0
+0.66    0.66    0.66    0.66   0     1.392 0
+0.66    0.66    0.66    0.66   1.392 0     0
+0       0       0       0      0     0     0
+]
+
+originalstdout = stdout
+redirect_stdout(devnull) # to hide progress bar
+f4,t = expectedf4table(net, preorder=false)
+redirect_stdout(originalstdout)
+nt = tablequartetdata(f4, t; colnames="f4_" .* ["12_34", "13_42", "14_23"])
+# DataFrame(nt) # splits with a 0: aa|bb, ab3|b1b2, a21a22|xy
+@test keys(nt) == (:qind, :t1, :t2, :t3, :t4, :f4_12_34, :f4_13_42, :f4_14_23)
+@test nt[:f4_12_34] ≈ [-.64944,-.74184,-.0924,-.0924,0,-.74184,-0.0924,-.0924,
+  0,0,0,0,0,0,0,-.74184,-.0924,-.0924,
+  0,0,0,0,0,0,0,0,0,0,
+  0,0,0,           -.732,-.732,-.732,-.732]
+@test nt[:f4_13_42] ≈ [.64944,.74184,-.49536,-.49536,-1.2372,.74184,-.49536,-.49536,
+ -1.2372,-1.95936,-1.95936,-2.7012,-1.3716,-1.464,-1.464,.74184,-.49536,-.49536,
+ -1.2372,-1.22736,-1.22736,-1.9692,-.6396,-.732,-.732,-1.22736,-1.22736,-1.9692,
+ -.6396,-.732,-.732,.732, .732, .732, .732]
+@test nt[:f4_14_23] ≈ [0,0,.58776,.58776,1.2372,0,.58776,.58776,
+  1.2372, 1.95936, 1.95936, 2.7012, 1.3716, 1.464, 1.464,0,.58776,.58776,
+  1.2372, 1.22736, 1.22736, 1.9692, .6396, .732, .732, 1.22736, 1.22736, 1.9692,
+  .6396, .732, .732,0,0,0,0]
 end

@@ -1,5 +1,5 @@
 """
-    expectedf2matrix(net::HybridNetwork; checkpreorder::Bool=true)
+    expectedf2matrix(net::HybridNetwork; preorder::Bool=true)
 
 Matrix of f2 statistics expected from `net`, assuming that branch lengths in
 `net` represent "f2 distance". When data are based on allele frequencies,
@@ -39,9 +39,9 @@ julia> tiplabels(net2) # order of taxa in rows and columns of f2 matrix above
 """
 function expectedf2matrix(
     net::HybridNetwork;
-    checkpreorder::Bool=true,
+    preorder::Bool=true,
 )
-    m = descendenceweight(net; checkpreorder=checkpreorder)
+    m = descendenceweight(net; checkpreorder=preorder)
     P = m[:tips]
     # change to :all to return a MatrixTopologicalOrder instead
     #= idea: f2[i,j] = Ω[i,i] + Ω[j,j] -2 Ω[i,j] where
@@ -71,7 +71,7 @@ end
 """
     expectedf4table(net::HybridNetwork;
                     showprogressbar::Bool=true,
-                    checkpreorder::Bool=true)
+                    preorder::Bool=true)
 
 Calculate the f4 statistics expected from `net`, assuming that branch lengths in
 `net` represent "f2 distance".
@@ -170,9 +170,9 @@ julia> df = tablequartetdata(f4, t; prefix="f4_") |> DataFrame
 function expectedf4table(
     net::HybridNetwork;
     showprogressbar::Bool=true,
-    checkpreorder::Bool=true
+    preorder::Bool=true
 )
-    f2div2 = expectedf2matrix(net; checkpreorder=checkpreorder) ./2
+    f2div2 = expectedf2matrix(net; preorder=preorder) ./2
     # f4s are linear combinations of edge lengths: from f2s, or from
     # f4[i1,i2; i3,i4] = Ω[i1,i3] + Ω[i2,i4] - Ω[i1,i4] - Ω[i2,i3]
     taxa = tiplabels(net) # order in f2 matrix
@@ -228,7 +228,7 @@ function expectedf4table(
 end
 
 """
-    expectedf3matrix(net::HybridNetwork, reftaxon; checkpreorder::Bool=true)
+    expectedf3matrix(net::HybridNetwork, reftaxon; preorder::Bool=true)
 
 Matrix of f3 statistics using reference taxon `reftaxon`, expected from `net`
 assuming that its branch lengths represent "f2 distance".
@@ -242,16 +242,14 @@ See [`expectedf3matrix`](@ref) and [expectedf4table](@ref).
 function expectedf3matrix(
     net::HybridNetwork,
     reftaxon::AbstractString;
-    checkpreorder::Bool=true
+    preorder::Bool=true
 )
     taxa = tiplabels(net)
     iref = findall(isequal(reftaxon), taxa)
-    isnothing(iref) &&
-        error("reference taxon $(reftaxon) not found in the network")
     length(iref) == 1 ||
         error("reference taxon $(reftaxon) found $(length(iref)) times in network")
     i0 = iref[1]
-    f2 = - expectedf2matrix(net; checkpreorder=checkpreorder) ./2
+    f2 = - expectedf2matrix(net; preorder=preorder) ./2
     # f3[x;i,j] = Ω[x,x] +  Ω[i,j] -  Ω[x,i] -  Ω[x,j] = f4[x,i;x,j]
     #       = (- f2[x,x] - f2[i,j] + f2[x,i] + f2[x,j])/2    and f2[x,x]=0
     # modify f2 in place, but do *not* touch f2[i0,:] or f2[:,i0]
@@ -266,6 +264,7 @@ function expectedf3matrix(
     for i in axes(f2,1)
         f2[i,i0] = 0.0
         f2[i0,i] = 0.0
+        f2[i,i]  = 0.0 # instead of -0 from taking -f2/2
     end
     return f2
 end

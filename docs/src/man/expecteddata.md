@@ -35,7 +35,7 @@ plot(net2, showgamma=true, useedgelength=true, style=:majortree, arrowlen=0.1, t
 R"mtext"("net2, showing γ's", line=-1);
 R"dev.off"();
 ```
-![net0 and net2](../assets/figures/expectedata_fig_net02.svg)
+![net02-distquartet](../assets/figures/expectedata_fig_net02.svg)
 
 ## average pairwise distances
 
@@ -162,27 +162,31 @@ for q in f4
 end
 ```
 
-For each set of 4 taxa, the 3 f4s sum up to 0: as it should be.
+For each set of 4 taxa, the three f4s sum up to 0: as it should be.
 On a tree with a split `t1,t2|t4,t5`, the corresponding f4 value should
-be 0, and the other 2 should give ± the length of the branch separating
+be 0, and the other 2 should give ± the length of the internal path separating
 the 2 groups of 2 taxa.
 (Again, the branch lengths unit depends on the data being considered.)
 
 Here for example, the first 4-taxon set is `A,B,C,D`. In our tree,
 `BC` is a clade, separated from `AD` by a branch of length 2.
-Accordingly, the third f4 value, corresponding to `AD|CB`, is 0.
-The other two f4s are 2 or -2.
+Accordingly, the third f4 value, corresponding to `AD|BC`, is 0;
+and the other two f4s are 2 or -2.
+
+![net02-distquartet-again](../assets/figures/expectedata_fig_net02.svg)
 
 We can see how adding reticulations to our tree affects expected f4s.
+Note the colums names below: they correspond to the order of taxa
+for each f4.
 
 ```@repl edata
 f4,t = expectedf4table(net2, showprogressbar=false); # same t: alphabetically
-nt = tablequartetdata(f4, t; prefix="f4_"); # convert to table
-df = DataFrame(nt) # then to data frame
+nt = tablequartetdata(f4, t; colnames="f4_" .* ["12_34", "13_42", "14_23"]);
+df = DataFrame(nt) # convert table to data frame
 ```
 
-We still have f4=0 on the 3rd column for taxon set `A,B,C,D`, because `BC` are
-still sister in the network.
+We still have f4=0 on the 3rd column for first taxon set `A,B,C,D`,
+because `BC` are still sister in the network.
 But the last taxon set for example, `C,D,E,O`, has no 0 values of f4
 due to the reticulation between ancestors of `D` and `E`:
 in the subnetwork for `C,D,E,O`, there is a cycle of 4 edges.
