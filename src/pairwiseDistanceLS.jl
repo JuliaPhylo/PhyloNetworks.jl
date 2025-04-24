@@ -584,7 +584,7 @@ Traits and weights:
 - `trait[i]` is for leaf with `node.number = i` in `net`, and
   `trait[i][j] = k` means that leaf number `i` has state index `k` for trait `j`.
   These indices are those used in a substitution model
-  by [PhyloTraits](@extref PhyloTraits)):
+  by [PhyloTraits](https://juliaphylo.github.io/PhyloTraits.jl/stable/man/simulate_discrete/#Discrete-trait-simulation):
   kth value of `PhyloTraits.getlabels(model)`.
 - `siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
 

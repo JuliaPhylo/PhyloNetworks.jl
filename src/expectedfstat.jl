@@ -227,4 +227,45 @@ function expectedf4table(
     return quartet, taxa
 end
 
-# similarly: f3[x;i,j] = Ω[x,x] + Ω[i,j] - Ω[x,i] - Ω[x,j]
+"""
+    expectedf3matrix(net::HybridNetwork, reftaxon; checkpreorder::Bool=true)
+
+Matrix of f3 statistics using reference taxon `reftaxon`, expected from `net`
+assuming that its branch lengths represent "f2 distance".
+f3-statistics are linear combination of f2-statistics, using `o` to denote
+the reference taxon (for "outgtroup"):
+
+`f3[o|t1,t2] = (f2[o,t1] + f2[o,t2] - f2[o,o] - f2[t1,t2])/2`
+
+See [`expectedf3matrix`](@ref) and [expectedf4table](@ref).
+"""
+function expectedf3matrix(
+    net::HybridNetwork,
+    reftaxon::AbstractString;
+    checkpreorder::Bool=true
+)
+    taxa = tiplabels(net)
+    iref = findall(isequal(reftaxon), taxa)
+    isnothing(iref) &&
+        error("reference taxon $(reftaxon) not found in the network")
+    length(iref) == 1 ||
+        error("reference taxon $(reftaxon) found $(length(iref)) times in network")
+    i0 = iref[1]
+    f2 = - expectedf2matrix(net; checkpreorder=checkpreorder) ./2
+    # f3[x;i,j] = Ω[x,x] +  Ω[i,j] -  Ω[x,i] -  Ω[x,j] = f4[x,i;x,j]
+    #       = (- f2[x,x] - f2[i,j] + f2[x,i] + f2[x,j])/2    and f2[x,x]=0
+    # modify f2 in place, but do *not* touch f2[i0,:] or f2[:,i0]
+    for i in axes(f2,1)
+        i == i0 && continue
+        for j in 1:(i-1)
+            j == i0 && continue
+            f2[i,j] -= f2[j,i0] + f2[i,i0]
+            f2[j,i] = f2[i,j]
+        end
+    end
+    for i in axes(f2,1)
+        f2[i,i0] = 0.0
+        f2[i0,i] = 0.0
+    end
+    return f2
+end
