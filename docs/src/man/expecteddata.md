@@ -6,8 +6,8 @@ figname(x) = joinpath("..", "assets", "figures", x)
 
 # Pairwise and quartet data
 
-We show here some functionalities to calculate data expected
-from a given network, or observed in data.
+We show here some functionalities to calculate dissimilarities or distances between taxa,
+either expected from a given network, or observed in data.
 To calculate expectations under a network, this network's edges
 need to have branch lengths and γ inheritance values.
 
@@ -37,7 +37,7 @@ R"dev.off"();
 ```
 ![net02-distquartet](../assets/figures/expectedata_fig_net02.svg)
 
-## average pairwise distances
+## average pairwise distance
 
 One distance between pairs of taxa, say between t1 and t2, is the
 average length of all "up-down" paths in the network to go from t1 to t2
@@ -49,7 +49,7 @@ Each path has an inheritance weight: the product of the inheritance γ's of
 all edges in the path.
 Under a simple model, this is the proportion of genetic material that took
 this path.
-The average distance betwen t1 and t2 is the weighted average of these
+The average distance between t1 and t2 is the weighted average of these
 paths' lengths, weighted by the paths' inheritance.
 
 It can be calculated with [`pairwisetaxondistancematrix`](@ref).
@@ -77,6 +77,8 @@ aveD_net2 = pairwisetaxondistancematrix(net2);
 taxonlist2 = tiplabels(net2);
 DataFrame(aveD_net2, taxonlist2)
 ```
+
+## hamming distance
 
 To calculate pairwise distances observed in data, such as
 along a DNA alignment across multiple sites, we can use
@@ -114,7 +116,7 @@ PhyloNetworks.distancecorrection_JC!(d, 4) # 4 states
 The f2-statistic gives another measure of dissimilarity between pairs of taxa.
 The expected value of f2 between taxa t₁ and t₂ is
 ```math
-f_2(t_1, t_2) = E(X(t_1) - X(t_2))^2
+f_2(t_1, t_2) = E[(X(t_1) - X(t_2))^2]
 ```
 under a Brownian motion model for trait X evolving along the network,
 where X(t₁) and X(t₂) are the values of X for taxa t₁ and t₂.
@@ -145,9 +147,44 @@ On our network `net2`, the f2 and average distances differ:
 f2D_net2 = expectedf2matrix(net2);
 DataFrame(f2D_net2, taxonlist2)
 ```
+In particular, we see that divergences between the outgroup O
+and tips B, C and E decrease because of the reticulations.
 
 ## expected f4-statistics
 
+The f4-statistic gives a measure of dissimilarity between quartets of taxa.
+The expected value of f4 between taxa t₁, t₂, t₃ and t₄ is
+```math
+f_4(t_1, t_2; t_3, t_4) = E[(X(t_2) - X(t_1))(X(t_4) - X(t_3))]
+```
+under a Brownian motion model for trait X evolving along the network,
+where X(tᵢ) is the values of X for taxa tᵢ.
+
+There are 4! = 24 f4 statistics relating 4 taxa, but all can be
+computed using only 2 of them, using the symmetries:
+```math
+f_4(t_1, t_2; t_3, t_4) = - f_4(t_1, t_2; t_4, t_3)
+\mbox{ ,}
+f_4(t_1, t_2; t_3, t_4) = f_4(t_3, t_4; t_1, t_2)
+\mbox{ ,}
+f_4(t_1, t_2; t_3, t_4) + f_4(t_1, t_3; t_4, t_2) + f_4(t_1, t_4; t_2, t_3) = 0.
+```
+
+The f4-statistics can be used to capture tree-likeness,
+as on a tree with no reticulation and quartet topology t₁t₂|t₃t₄,
+the 4-points condition writes:
+```math
+f_4(t_1, t_2; t_3, t_4) = 0
+\quad
+\text{and}
+\quad
+f_4(t_1, t_4; t_2, t_3) = - f_4(t_1, t_3; t_4, t_2) > 0.
+```
+For background, see again for example
+[Patterson et al. 2012](https://doi.org/10.1534/genetics.112.145037) or
+[Lipson 2020](https://doi.org/10.1111/1755-0998.13230).
+
+The f4-statistics can be calculated with [`expectedf4table`](@ref).
 ```@repl edata
 f4,t = expectedf4table(net0);
 t # taxa, but ordered alphabetically: not as in tiplabels(net0)
@@ -162,7 +199,11 @@ for q in f4
 end
 ```
 
-For each set of 4 taxa, the three f4s sum up to 0: as it should be.
+For each set of 4 taxa, 
+the following f4 statistics are computed:
+f4(t1, t2; t3, t4), f4(t1, t3; t4, t2) and f4(t1, t4; t2, t3),
+so that they sum up to 0 as recalled above.
+
 On a tree with a split `t1,t2|t4,t5`, the corresponding f4 value should
 be 0, and the other 2 should give ± the length of the internal path separating
 the 2 groups of 2 taxa.
@@ -176,7 +217,7 @@ and the other two f4s are 2 or -2.
 ![net02-distquartet-again](../assets/figures/expectedata_fig_net02.svg)
 
 We can see how adding reticulations to our tree affects expected f4s.
-Note the colums names below: they correspond to the order of taxa
+Note the columns names below: they correspond to the order of taxa
 for each f4.
 
 ```@repl edata
@@ -191,8 +232,17 @@ But the last taxon set for example, `C,D,E,O`, has no 0 values of f4
 due to the reticulation between ancestors of `D` and `E`:
 in the subnetwork for `C,D,E,O`, there is a cycle of 4 edges.
 
-We may also calculate f3 statistics using [`PhyloNetworks.expectedf3matrix`](@ref).
-For this, we need a reference taxon. Here we use the outgroup O:
+## expected f3-statistics
+
+The f3-statistics can give a measure of dissimilarity between pairs of taxa,
+relative to a given reference taxon tₒ.
+Using the same notations as above, the expected value of f3 between taxa t₁ and t₂ is:
+```math
+f_3(t_o; t_1, t_2) = E[(X(t_o) - X(t_1))(X(t_o) - X(t_2))]
+```
+
+We may calculate f3 statistics using [`PhyloNetworks.expectedf3matrix`](@ref).
+Here we use the outgroup `O` as a reference taxon:
 
 ```@repl edata
 f3_net2 = PhyloNetworks.expectedf3matrix(net2, "O");

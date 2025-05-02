@@ -145,9 +145,9 @@ julia> f4,t = expectedf4table(net, showprogressbar=false);
 
 julia> using DataFrames
 
-julia> df = tablequartetdata(f4, t; prefix="f4_") |> DataFrame
+julia> df = tablequartetdata(f4, t; colnames="f4_".*["12_34","13_42","14_23"]) |> DataFrame
 15×8 DataFrame
- Row │ qind   t1      t2      t3      t4      f4_12_34  f4_13_24  f4_14_23 
+ Row │ qind   t1      t2      t3      t4      f4_12_34  f4_13_42  f4_14_23 
      │ Int64  String  String  String  String  Float64   Float64   Float64  
 ─────┼─────────────────────────────────────────────────────────────────────
    1 │     1  A1      A2      B1      B2           0.0    -4.201     4.201
@@ -182,7 +182,7 @@ function expectedf4table(
     taxonnumber = Dict(taxa[i] => i for i in eachindex(taxa))
     ntax = length(taxa)
     nCk = nchoose1234(ntax) # matrix to rank 4-taxon sets
-    qtype = MVector{3,Float64} # 3 floats: f4_12_34, f4_13_24, f4_14_23
+    qtype = MVector{3,Float64} # 3 floats: f4_12_34, f4_13_42, f4_14_23
     numq = nCk[ntax+1,4]
     quartet = Vector{QuartetT{qtype}}(undef, numq)
     ts = [1,2,3,4]
