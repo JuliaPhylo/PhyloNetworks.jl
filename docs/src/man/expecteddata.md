@@ -164,9 +164,9 @@ There are 4! = 24 f4 statistics relating 4 taxa, but all can be
 computed using only 2 of them, using the symmetries:
 ```math
 f_4(t_1, t_2; t_3, t_4) = - f_4(t_1, t_2; t_4, t_3)
-\mbox{ ,}
+\;,\;
 f_4(t_1, t_2; t_3, t_4) = f_4(t_3, t_4; t_1, t_2)
-\mbox{ ,}
+\;,\;
 f_4(t_1, t_2; t_3, t_4) + f_4(t_1, t_3; t_4, t_2) + f_4(t_1, t_4; t_2, t_3) = 0.
 ```
 
@@ -234,14 +234,15 @@ in the subnetwork for `C,D,E,O`, there is a cycle of 4 edges.
 
 ## expected f3-statistics
 
-The f3-statistics can give a measure of dissimilarity between pairs of taxa,
+The f3-statistics can give a measure of similarity between pairs of taxa,
 relative to a given reference taxon tₒ.
 Using the same notations as above, the expected value of f3 between taxa t₁ and t₂ is:
 ```math
 f_3(t_o; t_1, t_2) = E[(X(t_o) - X(t_1))(X(t_o) - X(t_2))]
 ```
 
-We may calculate f3 statistics using [`PhyloNetworks.expectedf3matrix`](@ref).
+We may calculate f3 statistics expected from a network
+using [`PhyloNetworks.expectedf3matrix`](@ref).
 Here we use the outgroup `O` as a reference taxon:
 
 ```@repl edata
