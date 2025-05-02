@@ -70,9 +70,9 @@ Convert a vector of [`QuartetT`](@ref) objects to a table with 1 row for
 each four-taxon set in the list. Each four-taxon set contains quartet data of
 some type (vector of length 3 or 4, or 3×n matrix), which determines the
 number of columns in the table (3, 4, or 3n).
-[`tablequartetdata`](@ref) is called with prefix "CF",
-to name the first 3 columns "CF12_34", "CF13_24", "CF14_23" --- unless the
-full list of column names is provided in `colnames`.
+The first 3 columns are named "CF12_34", "CF13_24", "CF14_23",
+unless the full list of column names is provided in `colnames`.
+See [`tablequartetdata`](@ref) for details.
 
 The output is a `NamedTuple`, to which we can apply common table operations
 as a [`Table.jl`](https://github.com/JuliaData/Tables.jl)-compatible source.
@@ -87,12 +87,41 @@ function tablequartetCF(
     colnames=nothing,
 ) where T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
     return tablequartetdata(quartets, taxa; keepQwithoutgenes=keepQwithoutgenes,
-            colnames=colnames, prefix="CF")
+            colnames=colnames, prefix="CF", basenames=["12_34","13_24","14_23"])
+end
+
+"""
+    tablequartetf4(quartetlist::Vector{QuartetT} [, taxonnames];
+                   keepQwithoutgenes=true, colnames=nothing)
+
+Convert a vector of [`QuartetT`](@ref) objects to a table with 1 row for
+each four-taxon set in the list. Each four-taxon set contains quartet data of
+some type (vector of length 3 or 4, or 3×n matrix), which determines the
+number of columns in the table (3, 4, or 3n).
+The first 3 columns are named "f4_12_34", "f4_13_42" and "f4_14_23",
+unless the full list of column names is provided in `colnames`.
+See [`tablequartetdata`](@ref) for details.
+
+The output is a `NamedTuple`, to which we can apply common table operations
+as a [`Table.jl`](https://github.com/JuliaData/Tables.jl)-compatible source.
+It can easily be converted to other table formats such as a `DataFrame`.
+
+See [`countquartetsintrees`](@ref) for examples.
+"""
+function tablequartetf4(
+    quartets::Vector{QuartetT{T}},
+    taxa::AbstractVector{<:AbstractString}=Vector{String}();
+    keepQwithoutgenes::Bool=true,
+    colnames=nothing,
+) where T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
+    return tablequartetdata(quartets, taxa; keepQwithoutgenes=keepQwithoutgenes,
+            colnames=colnames, prefix="f4_", basenames=["12_34","13_42","14_23"])
 end
 
 """
     tablequartetdata(quartetlist::Vector{QuartetT} [, taxonnames];
-                     keepQwithoutgenes=true, colnames=nothing, prefix="")
+                     keepQwithoutgenes=true,
+                     prefix="X", basenames=["1","2","3"], colnames=nothing)
 
 Convert a vector of [`QuartetT`](@ref) objects to a table with 1 row for
 each four-taxon set in the list. Each four-taxon set contains quartet data of
@@ -111,9 +140,11 @@ In the output table, the columns are, in this order:
   taken to be `taxonnames[i]`.
 - 3 or more columns for the quartet's `data`: see [`quartetdata_columnnames`](@ref).
 
-In short, the first 3 columns of data are named "12_34", "13_24", "14_23 by default.
-If a `prefix` is provided, this prefix is used for these first 3 column names,
-for example: "CF12_34", "CF13_24", "CF14_23" if `prefix="CF"`.
+In short, the first 3 columns of data are named "X1", "X2", "X3" by default.
+If a `prefix` and/or `basenames` is provided, this prefix and/or base names
+are used for these first 3 column names,
+for example: "CF12_34", "CF13_24", "CF14_23" if `prefix="CF"` and
+`basename=["12_34","13_24","14_23"]`.
 
 If quartets have 4 data entries, then the 4th column is named `ngenes`,
 and a quartet with a value `ngenes` of 0 is skipped (excluded) from the table,
@@ -121,7 +152,7 @@ unless `keepQwithoutgenes=true` (which is the default: 4-taxon sets are kept
 by default even without any informative genes).
 
 If quartets have a data matrix with 3 rows and `d` columns, then the
-columns 4,5,6 in the table are named `V2_12_34, V2_13_24, V2_14_23`
+columns 4,5,6 in the table are named `V2_1, V2_2, V2_3`
 and contain the data in the second column of the quartet's data matrix.
 And so on.
 
@@ -130,7 +161,7 @@ For the table to have non-default column names, provide the desired
 This argument takes precedence over `prefix`, that is, a prefix is ignored if
 the full list of column names is given.
 
-Used by [`tablequartetCF`](@ref) with prefix "CF".
+Used by [`tablequartetCF`](@ref) and [`tablequartetf4`](@ref).
 See [`countquartetsintrees`](@ref) for examples.
 """
 function tablequartetdata(
@@ -138,10 +169,11 @@ function tablequartetdata(
     taxa::AbstractVector{<:AbstractString}=Vector{String}();
     keepQwithoutgenes::Bool=true,
     colnames=nothing,
-    prefix="",
+    prefix="X",
+    basenames=["1","2","3"],
 ) where T <: Union{StaticVector{3}, StaticVector{4}, StaticMatrix{3,N} where N}
     V = eltype(T)
-    colnames_data = quartetdata_columnnames(T,prefix)
+    colnames_data = quartetdata_columnnames(T,prefix,basenames)
     if !isnothing(colnames)
         if length(colnames) == length(colnames_data)
             colnames_data = colnames
@@ -179,36 +211,48 @@ end
 
 
 """
-    quartetdata_columnnames(T, prefix) where T <: StaticArray
+    quartetdata_columnnames(T, prefix, basenames) where T <: StaticArray
 
 Vector of column names to hold the quartet data of type `T` in a table.
-If T is a length-3 vector type, they are
-"`prefix`12_34","`prefix`13_24","`prefix`14_23".
-For example, with `prefix` "CF", these first 3 column names are
+If `T` is a length-3 vector type, they are
+"`prefix`1","`prefix`2","`prefix`3"
+if `basenames=["1","2","3"]`, say, the default used in [`tablequartetdata`](@ref)
+to build a table from a vector of [`QuartetT`](@ref) objects.
+
+For example, [`tablequartetCF`](@ref) uses prefix "CF" and base names
+"12_34","13_24","14_23", so the first 3 column names are:
 "CF12_34","CF13_24","CF14_23".
-If T is a length-4 vector type, the 4th name is "ngenes".
-If T is a 3×n matrix type, the output vector contains 3×n names.
+[`tablequartetf4`](@ref) uses different base names.
+
+If `T` is a length-4 vector type, the 4th name is "ngenes".
+
+If `T` is a 3×n matrix type, the output vector contains 3×n names.
 Each group of 3 is as desribed above, with prefix `prefix` for the first 3,
 and prefixes "V2_", "V3_", ... "Vn_" the following 3(n-1) names.
-
-Used by [`tablequartetdata`](@ref) and [`tablequartetCF`](@ref)
-to build a table from a vector of [`QuartetT`](@ref) objects.
 """
-function quartetdata_columnnames(::Type{T}, prefix) where
-    T <: StaticArray{Tuple{3},S,1} where S
-    return ["$(prefix)12_34","$(prefix)13_24","$(prefix)14_23"]
+function quartetdata_columnnames(
+    ::Type{T},
+    prefix,
+    basenames,
+) where T <: StaticArray{Tuple{3},S,1} where S
+    return prefix .* basenames
 end
-function quartetdata_columnnames(::Type{T}, prefix) where
-    T <: StaticArray{Tuple{4},S,1} where S
-    return ["$(prefix)12_34","$(prefix)13_24","$(prefix)14_23","ngenes"]
+function quartetdata_columnnames(
+    ::Type{T},
+    prefix,
+    basenames,
+) where T <: StaticArray{Tuple{4},S,1} where S
+    return [(prefix .* basenames)..., "ngenes"]
 end
-function quartetdata_columnnames(::Type{T}, prefix) where
-    T <: StaticArray{Tuple{3,N},S,2} where {N,S}
-    # for a 3×N matrix: N names
+function quartetdata_columnnames(
+    ::Type{T},
+    prefix,
+    basenames,
+) where T <: StaticArray{Tuple{3,N},S,2} where {N,S}
+    # for a 3×N matrix: 3N names
     N > 0 || error("expected at least 1 column of data")
-    colnames_q = ["12_34","13_24","14_23"]
-    colnames = prefix .* colnames_q
-    for i in 2:N append!(colnames, "V$(i)_" .* colnames_q); end
+    colnames = prefix .* basenames
+    for i in 2:N append!(colnames, "V$(i)_" .* basenames); end
     return colnames
 end
 

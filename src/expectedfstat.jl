@@ -145,7 +145,7 @@ julia> f4,t = expectedf4table(net, showprogressbar=false);
 
 julia> using DataFrames
 
-julia> df = tablequartetdata(f4, t; colnames="f4_".*["12_34","13_42","14_23"]) |> DataFrame
+julia> df = tablequartetf4(f4, t) |> DataFrame
 15×8 DataFrame
  Row │ qind   t1      t2      t3      t4      f4_12_34  f4_13_42  f4_14_23 
      │ Int64  String  String  String  String  Float64   Float64   Float64  

@@ -161,12 +161,11 @@ under a Brownian motion model for trait X evolving along the network,
 where X(tᵢ) is the values of X for taxa tᵢ.
 
 There are 4! = 24 f4 statistics relating 4 taxa, but all can be
-computed using only 2 of them, using the symmetries:
+computed using only 2 of them, using the symmetries such as:
+``f_4(t_1, t_2; t_3, t_4) = - f_4(t_1, t_2; t_4, t_3)``;
+``f_4(t_1, t_2; t_3, t_4) = f_4(t_3, t_4; t_1, t_2)``
+and
 ```math
-f_4(t_1, t_2; t_3, t_4) = - f_4(t_1, t_2; t_4, t_3)
-\;,\;
-f_4(t_1, t_2; t_3, t_4) = f_4(t_3, t_4; t_1, t_2)
-\;,\;
 f_4(t_1, t_2; t_3, t_4) + f_4(t_1, t_3; t_4, t_2) + f_4(t_1, t_4; t_2, t_3) = 0.
 ```
 
@@ -184,7 +183,8 @@ For background, see again for example
 [Patterson et al. 2012](https://doi.org/10.1534/genetics.112.145037) or
 [Lipson 2020](https://doi.org/10.1111/1755-0998.13230).
 
-The f4-statistics can be calculated with [`expectedf4table`](@ref).
+The f4-statistics expected from a network can be calculated with
+[`expectedf4table`](@ref).
 ```@repl edata
 f4,t = expectedf4table(net0);
 t # taxa, but ordered alphabetically: not as in tiplabels(net0)
@@ -217,12 +217,12 @@ and the other two f4s are 2 or -2.
 ![net02-distquartet-again](../assets/figures/expectedata_fig_net02.svg)
 
 We can see how adding reticulations to our tree affects expected f4s.
-Note the columns names below: they correspond to the order of taxa
-for each f4.
+The columns names below indicate the specific order of taxa for each f4.
+This order matters for the sign.
 
 ```@repl edata
 f4,t = expectedf4table(net2, showprogressbar=false); # same t: alphabetically
-nt = tablequartetdata(f4, t; colnames="f4_" .* ["12_34", "13_42", "14_23"]);
+nt = tablequartetf4(f4, t);
 df = DataFrame(nt) # convert table to data frame
 ```
 

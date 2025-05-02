@@ -42,7 +42,7 @@ originalstdout = stdout
 redirect_stdout(devnull) # to hide progress bar
 f4,t = expectedf4table(net, preorder=false)
 redirect_stdout(originalstdout)
-nt = tablequartetdata(f4, t; colnames="f4_" .* ["12_34", "13_42", "14_23"])
+nt = tablequartetf4(f4, t)
 # DataFrame(nt) # splits with a 0: aa|bb, ab3|b1b2, a21a22|xy
 @test keys(nt) == (:qind, :t1, :t2, :t3, :t4, :f4_12_34, :f4_13_42, :f4_14_23)
 @test nt[:f4_12_34] ≈ [-.64944,-.74184,-.0924,-.0924,0,-.74184,-0.0924,-.0924,
