@@ -1,27 +1,126 @@
+struct MuTag
+    tag::Int8
+end
+# integer that happens to match in-degree
+const mutag_r = MuTag( 0) # root node. integer that matches in-degree
+const mutag_t = MuTag( 1) # tree edges / nodes
+const mutag_h = MuTag( 2) # hybrid edges / nodes
+const mutag_i = MuTag(-1) # incident to root component
+function Base.show(io::IO, obj::MuTag)
+    tag = obj.tag
+    s = (tag==0 ? "root" : (tag==1 ? "tree" : (tag==2 ? "hybrid" : "incident")))
+    print(io, s)
+end
+
+"""
+    MuVector
+
+μ-vector for a single node (see [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390))
+separated into
+- one μ-vector counting the number of paths starting at the node and ending at
+  each leaf
+- μ0: number of paths starting at the node or edge and ending at any hybrid node
+
+This type does not store the leaf labels nor the order in which leaves are
+positioned in μ-vectors.
+"""
+struct MuVector
+    "μ-vector: number of paths to tips"
+    mu_tips::Vector{Int}
+    "μ0: number of paths to any hybrid node"
+    mu_hybs::Int
+end
+function Base.show(io::IO, obj::MuVector)
+    s  =   "    μ-vector to tips:" * string(obj.mu_tips)
+    s *= "\n    μ0 to hybrids: " * string(obj.mu_hybs)
+    s *= "\n"
+    println(io, disp)
+end
+
+abstract type MuRepresentation end
+
+tiplabels(m::MuRepresentation) = m.tiplabels
+
+"""
+    NodeMuRepresentation
+
+Representation of a rooted network with one [`MuVector`](@ref) per non-leaf node.
+This entry contains the node's μ-vector: a vector of integers counting the
+number of paths from that node to each leaf.
+`tiplabels` gives the order of leaves in μ-vectors.
+
+Leaf nodes have trivial μ-vector, hence are not included in this node-based
+μ-representation.
+
+See [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390).
+"""
+struct NodeMuRepresentation <: MuRepresentation
+    "Dictionary: maps node number => [`MuVector`](@ref) object for that node"
+    mu_map::Dict{Int, MuVector}
+    "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
+    tiplabels::Vector{String}
+end
+function Base.show(io::IO, obj::NodeMuRepresentation)
+    labs = tiplabels(obj)
+    disp = "$(typeof(obj))\n$(length(labs)) taxa, $(length(obj.mu_map)) nodes,"
+    disp *= "\ntaxon order in μ-vectors:\n" * string(labs)
+    disp *= "\nmap node number => μ-vector:\n" * string(obj.mu_map)
+    println(io, disp)
+end
+
+
+"""
+    @Override ==(a::NodeMuRepresentation, b::NodeMuRepresentation)
+    Check if two NodeMuRepresentation objects are equal using the distance function.
+"""
+function ==(a::NodeMuRepresentation, b::NodeMuRepresentation)
+    return node_vec_distance(a,b)==0
+end
+
 """
     EdgeMuRepresentation
 
-A representation of the μ vector for edges in a network.
-The μ vector is a vector of integers representing the number of paths from the edge to each leaf.
-The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+Representation of a semidirected network with one μ-entry for each edge, see
+[Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
 
-# Arguments
+- If an edge has a fixed direction regardless of where the network is rooted,
+  its entry is 1 tagged μ-vector.
+  The tag says whether the edge is a tree e}dge or hybrid edge.
+- If an edge is in the root component, that is, both of its incident nodes can
+  root the network, then its entry is a set of 2 tagged μ-vectors (each with a
+  tree tag because the edge must be a tree edge).
+- If an edge is not in the root component, but is incident to it (one of its
+  incident nodes can be the root), then the root may be placed along the edge,
+  and its entry is a set of 2 tagged μ-vectors. The tag is the edge type for
+  the μ-vector corresponding to the edge's direction.
 
-- `mu_map`: A dictionary mapping each edge to its μ vector
-- `tip_labels`: A vector of strings representing the labels of the leaves
+Each μ-vector is a vector of integers representing the number of paths from the
+edge to each leaf. `tiplabels` gives the order of leaves in μ-vectors.
 """
-struct EdgeMuRepresentation
-    "Dictionary: maps edge number => μ vector for that edge"
-    mu_map::Dict{Int, Tuple{Vararg{Tuple{Vararg{Int}}}}}
-    "vector of tip (leaf) labels: listed in the same order as in the μ vector"
-    tip_labels::Vector{String}
+struct EdgeMuRepresentation <: MuRepresentation
+    "root μ-vector, assuming the network has a single root component"
+    mu_root::MuVector
+    "for edges in root components: dictionary edge number => (μ-vector1, μ-vector2)"
+    mu_rootcomp::Dict{Int, Tuple{MuVector, MuVector}}
+    "for edges with a fixed direction: edge number => (μ-vector, tag)"
+    mu_directed::Dict{Int, Tuple{MuVector, MuTag}}
+    "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
+    tiplabels::Vector{String}
 end
-
 function Base.show(io::IO, obj::EdgeMuRepresentation)
-    disp = "$(typeof(obj))\n$(length(obj.tip_labels)) taxa, $(length(obj.mu_map)) edges,"
-    disp *= "\ntaxon order in μ vectors:\n" * string(obj.tip_labels)
-    disp *= "\nedge number => μ vector map:\n" * string(obj.mu_map)
-    println(io, disp)
+    labs = tiplabels(obj)
+    s = "$(typeof(obj))\n$(length(labs)) taxa, $(length(obj.mu_map)) edges,"
+    s *= "\ntaxon order in μ-vectors:\n" * string(labs)
+    s *= "root μ-vector:\n" * string(obj.mu_root)
+    s *= "\nmap edge number => μ-entry, in root component:\n"
+    for (k,v) in mu_rootcomp
+        s *= "tree edge $k:\n" * string(v[1]) * string(v[2])
+    end
+    s *= "\nmap edge number => μ-entry, in directed part:\n"
+    for (k,v) in mu_rootcomp
+        s *= "edge $k, tagged $(v[2]):\n" * string(v[1])
+    end
+    println(io, s)
 end
 
 """
@@ -34,167 +133,149 @@ function ==(a::EdgeMuRepresentation, b::EdgeMuRepresentation)
 end
 
 """
-    NodeMuRepresentation
+    node_murepresentation(net::HybridNetwork,
+        labels::AbstractVector{<:AbstractString},
+        preprocess::Bool=true)
 
-A representation of the μ vector for nodes in a network.
-The μ vector is a vector of integers representing the number of paths from the node to each leaf.
-The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+[`NodeMuRepresentation`](@ref) object for network `net` considered as rooted,
+including a mapping from each non-leaf node in `net` to its μ-vector: vector
+integers representing the number of paths from the node to each leaf,
+with leaves ordered as in `labels`.
 
-# Arguments
-- `mu_map`: A dictionary mapping each node to its μ vector
-- `tip_labels`: A vector of strings representing the labels of the leaves
+`net` is assumed to have a single root.
+
+`preprocess`: boolean indicating whether to preprocess the network with
+`directedges!` and `preorder!`.
+
+Assumptions about tip labels:
+- `labels` should have no repeats, otherwise an error is thrown
+- `net` should have unique tip labels, otherwise an error is thrown
+- tip labels in `net` should all appear in `labels`, otherwise a warning is sent
+  and μ-vectors will be missing the entry for the tips not listed in `labels`
+- if `label[i]` is not a tip in `net`, then all μ-vector will have a count of 0
+  at index `i`, with no warning.
 """
-struct NodeMuRepresentation
-    "Dictionary: maps node number => μ vector for that node"
-    mu_map::Dict{Int, Tuple{Vararg{Int}}}
-    "vector of tip (leaf) labels: listed in the same order as in the μ vector"
-    tip_labels::Vector{String}
-end
-function Base.show(io::IO, obj::NodeMuRepresentation)
-    disp = "$(typeof(obj))\n$(length(obj.tip_labels)) taxa, $(length(obj.mu_map)) nodes,"
-    disp *= "\ntaxon order in μ vectors:\n" * string(obj.tip_labels)
-    disp *= "\nnode number => μ vector map:\n" * string(obj.mu_map)
-    println(io, disp)
-end
-
-"""
-    @Override ==(a::EdgeMuRepresentation, b::EdgeMuRepresentation)
-    Check if two NodeMuRepresentation objects are equal using the distance function.
-"""
-function ==(a::NodeMuRepresentation, b::NodeMuRepresentation)
-    return node_vec_distance(a,b)==0
-end
-
-
-"""
-    node_mu_vectors(Network, tiplabels, preprocess))
-
-Warning: Network cannot have multiple roots
-
-Get the μ vector for each node in the network.
-The μ vector is a vector of integers representing the number of paths from the node to each leaf.
-The order of the leaves in the μ vector is determined by the provided tiplabels vector.
-
-# Arguments
-- `Network`: A HybridNetwork object
-- `tiplabels`: A vector of strings representing the labels of the leaves
-- `preprocess`: A boolean indicating whether to preprocess the network (default: true)
-# Returns
-- `nodemurepresentation`:  An NodeMuRepresentation object containing the μ vectors for each node in the network
-"""
-function node_mu_vectors(Net::HybridNetwork, labels::Vector{String}, preprocess=true )
-
-    Ntiplabels = tiplabels(Net)
-
-    # warn if labels in the network are not in the provided labels vector
+function node_murepresentation(
+    net::HybridNetwork,
+    labels::AbstractVector{<:AbstractString},
+    preprocess::Bool=true
+)
+    allunique(labels) || error("some input tip labels are repeated.")
+    # map: label => index in μ-vectors, for quick access later
+    label_map = Dict{String, Int}(l => i for (i,l) in enumerate(labels))
+    Ntiplabels = tiplabels(net)
+    allunique(Ntiplabels) ||
+        error("the network is a MUL-net: has multiple tips with the same label.")
+    # warn if a tip in the network is missing from `labels`
     for l in Ntiplabels
-        if !(l in labels)
-            @warn("Leaf label $(l) not in the provided labels. will be missing from μ vectors")
-        end
+        haskey(label_map, l) || @warn("""
+            leaf $l in the network is not in the input list of labels:
+            its coordinate will be missing from μ-vectors (count of paths to that leaf).""")
     end
-
-    #check if labels are repeated in the provided labels vector or in the network
-    if length(labels) != length(Set(labels))
-        error("Tip Labels are repeated in the provided labels vector.")
-    end
-    if length(Ntiplabels) != length(Set(Ntiplabels))
-        error("Tip Labels are repeated in the network.")
-    end
-
-
-    # preprocess the network if needed
     if preprocess
-        directedges!(Net)
-        preorder!(Net)
+        directedges!(net)
+        preorder!(net)
     end
+    nlabs = length(labels)
+    mu_tips = Dict(node.number => zeros(Int,nlabs) for node in net.node)
+    # number of paths ending at any hybrid node: initialize by simply counting
+    # trivial paths (h) that start & end at h, where h is a hybrid node.
+    mu_hybs = Dict(node.number => (node.hybrid ? 1 : 0) for node in net.node)
 
-    # dictionary to store the mu values for each node
-    mu_map = Dict{Int,Vector{Int}}([node.number => zeros(length(Net.leaf)) for node in Net.node])
-
-    # dictionary to store the mapping of leaves to their indices
-    label_map = Dict{String, Int}(leaf => i for (i, leaf) in enumerate(labels))
-
-    # use vec_node indices
-
-    for currnode in reverse(Net.vec_node)
-
-        # if leaf, only one way to reach a leaf
-        if currnode.leaf
+    # postorder traversal from the tips to the root: reverse of preorder
+    for currnode in reverse(net.vec_node)
+        currnum = currnode.number
+        if currnode.leaf # current node can only reach itself
             if haskey(label_map, currnode.name)
-                # get the index of the leaf in the labels vector
                 index = label_map[currnode.name]
-                mu_map[currnode.number][index]= 1
+                mu_tips[currnum][index] = 1
             end
-        # add the number of paths to the leaves of the child to parent
-        else
-            for curredge in currnode.edge
-                c = getchild(curredge)
-                if c ==  currnode
-                    continue
-                end
-                mu_map[currnode.number] .+= mu_map[c.number]
-            end
+            # other entries remain as initialized at 0
+            continue
+        end
+        for curredge in currnode.edge
+            c = getchild(curredge)
+            c === currnode && continue # skip parent edge(s)
+            chnum = c.number
+            mu_tips[currnum] .+= mu_tips[chnum]
+            mu_hybs[currnum]  += mu_hybs[chnum]
         end
     end 
-    node_mu_dict = Dict{Int, Tuple{Vararg{Int}}}([node.number => Tuple(mu_map[node.number]) for node in Net.node])
-    
-
-    nodemurepresentation = NodeMuRepresentation(node_mu_dict, labels)
-    return nodemurepresentation       
+    mu_dict = Dict{Int, MuVector}()
+    for no in net.node
+        no.leaf && continue # do *not* store the trivial μ-vectors of leaves
+        num = no.number
+        push!(mu_dict, num => MuVector(mu_tips[num], mu_hybs[num]))
+    end
+    return NodeMuRepresentation(mu_dict, labels)
 end
 
 """
-    edge_mu_vectors(Network, tiplabels, preprocess)
+    edge_murepresentation(net::HybridNetwork,
+        labels::AbstractVector{<:AbstractString},
+        preprocess::Bool=true)
 
-Warning: Network cannot have multiple roots
+[`EdgeMuRepresentation`](@ref) object for network `net`, considered as a
+semidirected network. This representation maps each internal edge in `net` to
+its μ-entry (1 or 2 tagged μ-vectors). A μ-vector contains the number of paths
+from the edge to each leaf, with leaves ordered as in `labels`. It also contains
+the number of paths from the edge to a (any) hybrid node.
 
-Get the μ vector for each edge in the network.
-The μ vector is a vector of integers representing the number of paths from the edge to each leaf.
-The order of the leaves in the μ vector is determined by the provided tiplabels vector.
+External edges are edges whose child is a leaf, and have trivial μ-vectors under
+the common assumption that leaves are incident to a single edge (that is, leaves
+must not be hybrid nodes).
 
-# Arguments
-- `Network`: A HybridNetwork object
-- `tiplabels`: A vector of strings representing the labels of the leaves
-- `preprocess`: A boolean indicating whether to preprocess the network (default: true)
-# Returns
-- `edgemurepresentation`: An EdgeMuRepresentation object containing the μ vectors for each edge in the network
+`net` is assumed to have a single root component.
+
+`preprocess`: boolean indicating whether to preprocess the network (direct edges
+away from the root and calculate a pre-ordering of nodes).
+
+See [`node_murepresentation`](@ref) for assumptions about `labels` and tip labels
+in `net`.
 """
-function edge_mu_vectors(Net::HybridNetwork, labels::Vector{String}, preprocess=true)
-
-    # Get the mu values for the nodes
-    nodemu = node_mu_vectors(Net,labels, preprocess).mu_map
-    edge_mu = Dict{Int, Tuple{Vararg{Tuple{Vararg{Int64}}}}}()
-    rho = collect(nodemu[getroot(Net).number])
-    for curredge in Net.edge
-        if !curredge.hybrid && curredge.containroot && !getchild(curredge).leaf
-            edge_mu[curredge.number] = (nodemu[getchild(curredge).number],Tuple(rho - collect(nodemu[getparent(curredge).number])))
+function edge_murepresentation(
+    net::HybridNetwork,
+    labels::AbstractVector{<:AbstractString},
+    preprocess::Bool=true
+)
+    nodemu = node_murepresentation(net, labels, preprocess).mu_map
+    rho = nodemu[getroot(net).number]
+    mu_rootcomp::Dict{Int, Tuple{MuVector, MuVector}}()
+    mu_directed::Dict{Int, Tuple{MuVector, MuTag}}()
+    for ee in net.edge
+        enum = ee.number
+        cn = getchild(ee)
+        if cn.leaf
+            ee.hybrid && @warn("edge $enum is hybrid yet has a leaf child: its μ-entry won't be stored")
+            continue # skip this edge
+        end
+        if !ee.hybrid && ee.containroot
+            pnum = getparent(ee).number
+            push!(mu_rootcomp, enum => (nodemu[cn.number], rho - nodemu[pnum]))
         else
-            edge_mu[curredge.number] = (nodemu[getchild(curredge).number],)
+            tag = (ee.containroot ? mutag_i : (ee.hybrid ? mutag_h : mutag_t))
+            push!(mu_directed, enum => (nodemu[cn.number], tag))
         end
     end
-
-    # Create a mu representation object
-    edgemurepresentation = EdgeMuRepresentation(edge_mu, labels)
-
-    return edgemurepresentation
+    return EdgeMuRepresentation(rho, mu_rootcomp, mu_directed, labels)
 end
 
 """
-    node_vec_distance(Net1::NodeMuRepresentation, Net2::NodeMuRepresentation)
+    node_vec_distance(net1::NodeMuRepresentation, net2::NodeMuRepresentation)
 
-Calculate the distance between two node based μ vectors.
+Calculate the distance between two node-based μ-vectors.
 
 # Arguments
-- `Net1`: A NodeMuRepresentation object
-- `Net2`: A NodeMuRepresentation object
+- `net1`: A NodeMuRepresentation object
+- `net2`: A NodeMuRepresentation object
 
 # Returns
-- `dist`: The distance between the two node based μ vectors.
+- `dist`: The distance between the two node-based μ-vectors.
 """
-function node_vec_distance(Net1::NodeMuRepresentation, Net2::NodeMuRepresentation)
+function node_vec_distance(net1::NodeMuRepresentation, net2::NodeMuRepresentation)
     #convert to not use multiet
-    m1 = Multiset(collect(values(Net1.mu_map)))
-    m2 = Multiset(collect(values(Net2.mu_map)))
+    m1 = Multiset(collect(values(net1.mu_map)))
+    m2 = Multiset(collect(values(net2.mu_map)))
     d1 = setdiff(m1, m2)
     d2 = setdiff(m2, m1)
     dist = length(d1) + length(d2)
@@ -202,80 +283,80 @@ function node_vec_distance(Net1::NodeMuRepresentation, Net2::NodeMuRepresentatio
 end
 
 """
-    distance_node(Net1::HybridNetwork, Net2::HybridNetwork)
+    distance_node(net1::HybridNetwork, net2::HybridNetwork)
 
-Distance between two networks based on their node based μ vectors.
+Distance between two networks based on their node-based μ-vectors.
 
 Warning: Networks cannot have multiple roots.
 
 # Arguments
-- `Net1`: A HybridNetwork object
-- `Net2`: A HybridNetwork object
+- `net1`: A HybridNetwork object
+- `net2`: A HybridNetwork object
 
 # Returns
-- `dist`: The distance between the two networks based on their node based μ vectors.
+- `dist`: The distance between the two networks based on their node-based μ-vectors.
 """
-function network_node_mu_distance(Net1::HybridNetwork, Net2::HybridNetwork, preprocess=true)
+function network_node_mu_distance(net1::HybridNetwork, net2::HybridNetwork, preprocess=true)
     # make sure mu vectors are consistent
-    if length(tiplabels(Net1)) > length(tiplabels(Net2))
-        labels = tiplabels(Net1)
+    if length(tiplabels(net1)) > length(tiplabels(net2))
+        labels = tiplabels(net1)
     else
-        labels = tiplabels(Net2)
+        labels = tiplabels(net2)
     end
 
     # Get the mu values for the nodes
-    nodemu1 = node_mu_vectors(Net1,labels, preprocess)
-    nodemu2 = node_mu_vectors(Net2,labels, preprocess)
+    nodemu1 = node_murepresentation(net1,labels, preprocess)
+    nodemu2 = node_murepresentation(net2,labels, preprocess)
     return node_vec_distance(nodemu1, nodemu2)
     
 end
 
 """
-    edge_vec_distance(Net1::EdgeMuRepresentation, Net2::EdgeMuRepresentation)
+    edge_vec_distance(net1::EdgeMuRepresentation, net2::EdgeMuRepresentation)
 
-Calculate the distance between two edge based μ vectors.
+Calculate the distance between two edge-based μ-vectors.
 
 # Arguments
-- `Net1`: A EdgeMuRepresentation object
-- `Net2`: A EdgeMuRepresentation object
+- `net1`: A EdgeMuRepresentation object
+- `net2`: A EdgeMuRepresentation object
 
 # Returns
-- `dist`: The distance between the two edge based μ vectors.
+- `dist`: The distance between the two edge-based μ-vectors.
 """
-function edge_vec_distance(Net1::EdgeMuRepresentation, Net2::EdgeMuRepresentation)
+function edge_vec_distance(net1::EdgeMuRepresentation, net2::EdgeMuRepresentation)
 
-    m1 = Multiset(collect(values(Net1.mu_map)))
-    m2 = Multiset(collect(values(Net2.mu_map)))
+    m1 = Multiset(collect(values(net1.mu_map)))
+    m2 = Multiset(collect(values(net2.mu_map)))
     d1 = setdiff(m1, m2)
     d2 = setdiff(m2, m1)
     dist = length(d1) + length(d2)
     return dist
 end
 """
-    distance_edge(Net1::HybridNetwork, Net2::HybridNetwork)
+    distance_edge(net1::HybridNetwork, net2::HybridNetwork)
 
-Distance between two networks based on their edge based μ vectors.
+Distance between two networks based on their edge-based μ-vectors.
 
-Warning: Networks cannot have multiple roots.
+Warning: networks cannot have multiple roots.
 
 # Arguments
-- `Net1`: A HybridNetwork object
-- `Net2`: A HybridNetwork object
+- `net1`: A HybridNetwork object
+- `net2`: A HybridNetwork object
 
 # Returns
-- `dist`: The distance between the two networks based on their edge based μ vectors.
+- `dist`: The distance between the two networks based on their edge-based μ-vectors.
 """
-function network_edge_mu_distance(Net1::HybridNetwork, Net2::HybridNetwork, preprocess=true)
+function network_edge_mu_distance(net1::HybridNetwork, net2::HybridNetwork, preprocess=true)
     # make sure mu vectors are consistent
-    if length(tiplabels(Net1)) > length(tiplabels(Net2))
-        labels = tiplabels(Net1)
+    if length(tiplabels(net1)) > length(tiplabels(net2))
+        labels = tiplabels(net1)
     else
-        labels = tiplabels(Net2)
+        labels = tiplabels(net2)
     end
 
     # Get the mu values for the nodes
-    edgemu1 = edge_mu_vectors(Net1,labels, preprocess)
-    edgemu2 = edge_mu_vectors(Net2,labels, preprocess)
+    edgemu1 = edge_murepresentation(net1,labels, preprocess)
+    edgemu2 = edge_murepresentation(net2,labels, preprocess)
     return edge_vec_distance(edgemu1, edgemu2)
     
 end

@@ -5,16 +5,16 @@
 
     labels = ["A", "B", "C"]  # must match all tips used in both networks
 
-    μ1 = PN.node_mu_vectors(net1, labels)
-    μ2 = PN.node_mu_vectors(net2, labels)
+    μ1 = PN.node_murepresentation(net1, labels)
+    μ2 = PN.node_murepresentation(net2, labels)
 
     node_distance = network_node_mu_distance(net1, net2)
 
     @test μ1 == μ2  
     @test node_distance == 0  
 
-    μ1 = PN.edge_mu_vectors(net1, labels)
-    μ2 = PN.edge_mu_vectors(net2, labels)
+    μ1 = PN.edge_murepresentation(net1, labels)
+    μ2 = PN.edge_murepresentation(net2, labels)
 
     edge_distance = network_node_mu_distance(net1, net2)
 
@@ -32,7 +32,7 @@ end
     for i in net1.node
         num2name[i.number] = i.name
     end
-    μ1 = PN.node_mu_vectors(net1, labels)
+    μ1 = PN.node_murepresentation(net1, labels)
     name_map = Dict{String, Tuple{Vararg{Int}}}()
     
     μ_map = μ1.mu_map
@@ -49,7 +49,7 @@ end
     for i in net2.node
         num2name[i.number] = i.name
     end
-    μ2 = PN.node_mu_vectors(net2, labels)
+    μ2 = PN.node_murepresentation(net2, labels)
     name_map = Dict{String, Tuple{Vararg{Int}}}()
     μ_map = μ2.mu_map
     for (i, value) in μ_map
