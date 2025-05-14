@@ -11,30 +11,39 @@ function Base.show(io::IO, obj::MuTag)
     s = (tag==0 ? "root" : (tag==1 ? "tree" : (tag==2 ? "hybrid" : "incident")))
     print(io, s)
 end
+isless(t1::MuTag, t2::MuTag) = isless(t1.tag, t2.tag)
 
 """
     MuVector
 
 μ-vector for a single node (see [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390))
 separated into
-- one μ-vector counting the number of paths starting at the node and ending at
-  each leaf
 - μ0: number of paths starting at the node or edge and ending at any hybrid node
+- μ-vector counting the number of paths from that node to each leaf.
 
 This type does not store the leaf labels nor the order in which leaves are
 positioned in μ-vectors.
 """
 struct MuVector
-    "μ-vector: number of paths to tips"
-    mu_tips::Vector{Int}
     "μ0: number of paths to any hybrid node"
     mu_hybs::Int
+    "μ-vector: number of paths to tips"
+    mu_tips::Vector{Int}
 end
 function Base.show(io::IO, obj::MuVector)
-    s  =   "    μ-vector to tips:" * string(obj.mu_tips)
-    s *= "\n    μ0 to hybrids: " * string(obj.mu_hybs)
+    s  = "    μ0 to hybrids: " * string(obj.mu_hybs)
+    s *= "\n    μ-vector to tips:" * string(obj.mu_tips)
     s *= "\n"
     println(io, disp)
+end
+# comparing μ-vectors: lexicographic order using
+# 1. μ0, number of paths to hybrids
+# 2. μ-vector itself, lexicographically
+function isless(m1::MuVector, m2::MuVector)
+    if m1.mu_hybs == m2.mu_hybs
+        return isless(m1.mu_tips, m2.mu_tips)
+    end
+    return isless(m1.mu_hybs, m2.mu_hybs)
 end
 
 abstract type MuRepresentation end
@@ -55,10 +64,10 @@ Leaf nodes have trivial μ-vector, hence are not included in this node-based
 See [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390).
 """
 struct NodeMuRepresentation <: MuRepresentation
-    "Dictionary: maps node number => [`MuVector`](@ref) object for that node"
-    mu_map::Dict{Int, MuVector}
     "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
     tiplabels::Vector{String}
+    "Dictionary: maps node number => [`MuVector`](@ref) object for that node"
+    mu_map::Dict{Int, MuVector}
 end
 function Base.show(io::IO, obj::NodeMuRepresentation)
     labs = tiplabels(obj)
@@ -98,14 +107,18 @@ Each μ-vector is a vector of integers representing the number of paths from the
 edge to each leaf. `tiplabels` gives the order of leaves in μ-vectors.
 """
 struct EdgeMuRepresentation <: MuRepresentation
-    "root μ-vector, assuming the network has a single root component"
-    mu_root::MuVector
-    "for edges in root components: dictionary edge number => (μ-vector1, μ-vector2)"
-    mu_rootcomp::Dict{Int, Tuple{MuVector, MuVector}}
-    "for edges with a fixed direction: edge number => (μ-vector, tag)"
-    mu_directed::Dict{Int, Tuple{MuVector, MuTag}}
     "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
     tiplabels::Vector{String}
+    "root μ-vector, assuming the network has a single root component"
+    mu_root::MuVector
+    "dictionary for root components: edge number => (μ-vector1, μ-vector2)"
+    mumap_rootcomp::Dict{Int, Tuple{MuVector,MuVector}}
+    "dictionary for fixed direction: edge number => (μ-vector, tag)"
+    mumap_directed::Dict{Int, Tuple{MuTag,MuVector}}
+    "sorted vector of sorted μ-entries in the root component"
+    muvec_rootcomp::Vector{Tuple{MuVector,MuVector}}
+    "sorted vector of μ-entries in the directed part"
+    muvec_directed::Vector{Tuple{MuTag,MuVector}}
 end
 function Base.show(io::IO, obj::EdgeMuRepresentation)
     labs = tiplabels(obj)
@@ -113,14 +126,30 @@ function Base.show(io::IO, obj::EdgeMuRepresentation)
     s *= "\ntaxon order in μ-vectors:\n" * string(labs)
     s *= "root μ-vector:\n" * string(obj.mu_root)
     s *= "\nmap edge number => μ-entry, in root component:\n"
-    for (k,v) in mu_rootcomp
+    for (k,v) in mumap_rootcomp
         s *= "tree edge $k:\n" * string(v[1]) * string(v[2])
     end
     s *= "\nmap edge number => μ-entry, in directed part:\n"
-    for (k,v) in mu_rootcomp
-        s *= "edge $k, tagged $(v[2]):\n" * string(v[1])
+    for (k,v) in mumap_rootcomp
+        s *= "edge $k, tagged $(v[1]):\n" * string(v[2])
     end
     println(io, s)
+end
+
+function EdgeMuRepresentation(labels, mu_root, map_rootcomp, map_directed)
+    vec_root = Vector{Tuple{MuVector,MuVector}}()
+    for (v1,v2) in values(map_rootcomp)
+        if v1 < v2
+            push!(vec_root, (v1,v2))
+        else
+            push!(vec_root, (v2,v1))
+        end
+    end
+    sort!(vec_root)
+    vec_dir = collect(values(map_directed))
+    sort!(vec_dir)
+    return EdgeMuRepresentation(labels, mu_root, map_rootcomp, map_directed,
+                                vec_root, vec_dir)
 end
 
 """
@@ -240,8 +269,8 @@ function edge_murepresentation(
 )
     nodemu = node_murepresentation(net, labels, preprocess).mu_map
     rho = nodemu[getroot(net).number]
-    mu_rootcomp::Dict{Int, Tuple{MuVector, MuVector}}()
-    mu_directed::Dict{Int, Tuple{MuVector, MuTag}}()
+    mumap_rootcomp::Dict{Int, Tuple{MuVector, MuVector}}()
+    mumap_directed::Dict{Int, Tuple{MuVector, MuTag}}()
     for ee in net.edge
         enum = ee.number
         cn = getchild(ee)
@@ -251,13 +280,13 @@ function edge_murepresentation(
         end
         if !ee.hybrid && ee.containroot
             pnum = getparent(ee).number
-            push!(mu_rootcomp, enum => (nodemu[cn.number], rho - nodemu[pnum]))
+            push!(mumap_rootcomp, enum => (nodemu[cn.number], rho - nodemu[pnum]))
         else
             tag = (ee.containroot ? mutag_i : (ee.hybrid ? mutag_h : mutag_t))
-            push!(mu_directed, enum => (nodemu[cn.number], tag))
+            push!(mumap_directed, enum => (nodemu[cn.number], tag))
         end
     end
-    return EdgeMuRepresentation(rho, mu_rootcomp, mu_directed, labels)
+    return EdgeMuRepresentation(rho, mumap_rootcomp, mumap_directed, labels)
 end
 
 """
