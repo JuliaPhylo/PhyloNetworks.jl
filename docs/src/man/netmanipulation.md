@@ -139,3 +139,12 @@ To calibrate a network (modify its edge lengths):
   guarantee that the 2 networks have the same topology in general.
   But it does if the networks are in some classes (e.g. trees, level-1,
   tree-child, and others).
+
+## Comparing taxa
+
+- average pairwise distances on a network: [`pairwisetaxondistancematrix`](@ref),  
+  and from data: [`PhyloNetworks.hammingdistancematrix](@ref), that can be
+  followed by [`PhyloNetworks.distancecorrection_JC!`](@ref)
+- f2-distances expected from a network: [`expectedf2matrix`](@ref)
+  which can be used to get expected f3 and expected f4 statistics:
+  [`PhyloNetworks.expectedf3matrix`](@ref) and [`expectedf4table`](@ref).
