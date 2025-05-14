@@ -8,7 +8,7 @@
     μ1 = PN.node_murepresentation(net1, labels)
     μ2 = PN.node_murepresentation(net2, labels)
 
-    node_distance = network_node_mu_distance(net1, net2)
+    node_distance = mudistance_rooted(net1, net2)
 
     @test μ1 == μ2  
     @test node_distance == 0  
@@ -16,7 +16,7 @@
     μ1 = PN.edge_murepresentation(net1, labels)
     μ2 = PN.edge_murepresentation(net2, labels)
 
-    edge_distance = network_node_mu_distance(net1, net2)
+    edge_distance = mudistance_rooted(net1, net2)
 
     @test μ1 == μ2  
     @test edge_distance == 0  
@@ -58,5 +58,5 @@ end
     println("net2",name_map)
     @test name_map == Dict{String, Tuple{Vararg{Int64}}}( "c" => (0, 0, 1, 0),"H1" => (1, 1, 0, 0), "h2" => (1, 1, 1, 0), "b" => (0, 1, 0, 0), "R" => (2, 2, 1, 1), "a" => (1, 0, 0, 0), "d" => (0, 0, 0, 1))
     
-    @test network_node_mu_distance(net1, net2) == 2
+    @test mudistance_rooted(net1, net2) == 2
 end

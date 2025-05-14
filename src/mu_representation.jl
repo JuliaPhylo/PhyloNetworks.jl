@@ -45,7 +45,7 @@ function isless(m1::MuVector, m2::MuVector)
     end
     return isless(m1.mu_hybs, m2.mu_hybs)
 end
-has_0μentries_at(m::MuVector, i) = all(m.mu_tips[i] == 0)
+has_0μentries_at(m::MuVector, i) = all(m.mu_tips[i] .== 0)
 function has_0μentries_at(ms::Tuple{MuVector,MuVector}, i)
     b = has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
     return b
@@ -73,6 +73,8 @@ struct NodeMuRepresentation <: MuRepresentation
     tiplabels::Vector{String}
     "Dictionary: maps node number => [`MuVector`](@ref) object for that node"
     mu_map::Dict{Int, MuVector}
+    "sorted vector of μ-vectors"
+    mu_vec::Vector{MuVector}
 end
 function Base.show(io::IO, obj::NodeMuRepresentation)
     labs = tiplabels(obj)
@@ -81,6 +83,14 @@ function Base.show(io::IO, obj::NodeMuRepresentation)
     disp *= "\nmap node number => μ-vector:\n" * string(obj.mu_map)
     println(io, disp)
 end
+
+# constructor: builds sorted vector from map, re-using memory for each μ-vector
+function NodeMuRepresentation(labels, mu_map)
+    mu_vec = collect(values(mu_map))
+    sort!(mu_vec)
+    return NodeMuRepresentation(labels, mu_map, mu_vec)
+end
+
 function has_0μentries_at(m::NodeMuRepresentation, i)
     for md in values(m.mu_map)
         has_0μentries_at(md, i) || return false
@@ -88,13 +98,49 @@ function has_0μentries_at(m::NodeMuRepresentation, i)
     return true
 end
 
-"""
-    @Override ==(a::NodeMuRepresentation, b::NodeMuRepresentation)
-    Check if two NodeMuRepresentation objects are equal using the distance function.
-"""
-function ==(a::NodeMuRepresentation, b::NodeMuRepresentation)
-    return node_vec_distance(a,b)==0
+function indexin_check0μentries(m1::MuRepresentation, m2::MuRepresentation)
+    l1 = tiplabels(m1); l2 = tiplabels(m2)
+    o2 = indexin(l1, l2) # order to use for μ-vectors in m2: l2[o2] == l1
+    # if a label is in l1 but not in m2: all its entries should be 0 in m1
+    in1not2_i = findall(isnothing, o2) # indices in o2 and in m1
+    if !isempty(in1not2_i)
+        has_0μentries_at(m1, in1not1_i) || return nothing
+        deleteat!(o2, in1not2_i)
+    end
+    o1 = collect(1:length(l1))
+    if length(l2) + length(in1not2_i) > length(l1)
+        # then some labels in are l2 but not in l1: find their indices in l2
+        in2not1_i = findall(!in(l1), l2)
+        has_0μentries_at(m2, in2not1_i) || return nothing
+        deleteat!(o1, in2not1_i)
+    end
+    return (o1, o2)
 end
+
+"""
+    ==(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
+
+Equality of two [`NodeMuRepresentation`](@ref) objects, requiring that:
+- If `m1` has labels that `m2` doesn't have, then all corresponding entries
+  for these labels in `m1` should be 0 -- as if a label is tracked in `m1`
+  but absent from the original network, and not tracked in `m2`.
+  Vice versa: labels in `m2` but not in `m1` should have 0 entries in `m2`.
+- `m1` and `m2` should have the same number of μ-vectors
+- The μ-vectors should have the same subvectors corresponding to the labels
+  shared by `m1` and `m2`.
+"""
+function ==(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
+    # order for μ-vectors: tiplabels(m1)[o1] == tiplabels(m2)[o2], others are 0
+    o12 = indexin_check0μentries(m1, m2)
+    isnothing(o12) && return false
+    o1, o2 = o12
+    length(m1.mu_vec) == length(m2.mu_vec) || return false
+    for (μ1, μ2) in zip(m1.mu_vec, m2.mu_vec)
+        μ1[o1] == μ2[o2] || return false
+    end
+    return true
+end
+
 
 """
     EdgeMuRepresentation
@@ -175,30 +221,10 @@ function has_0μentries_at(m::EdgeMuRepresentation, i)
     return true
 end
 
-function indexin_check0μentries(m1::MuRepresentation, m2::MuRepresentation)
-    l1 = tiplabels(m1); l2 = tiplabels(m2)
-    o2 = indexin(l1, l2) # order to use for μ-vectors in m2: l2[o2] == l1
-    # if a label is in l1 but not in m2: all its entries should be 0 in m1
-    in1not2_i = findall(isnothing, o2) # indices in o2 and in m1
-    if !isempty(in1not2_i)
-        has_0μentries_at(m1, in1not1_i) || return nothing
-        deleteat!(o2, in1not2_i)
-    end
-    o1 = collect(1:length(l1))
-    if length(l2) + length(in1not2_i) > length(l1)
-        # then some labels in are l2 but not in l1: find their indices in l2
-        in2not1_i = findall(!in(l1), l2)
-        has_0μentries_at(m2, in2not1_i) || return nothing
-        deleteat!(o1, in2not1_i)
-    end
-    return (o1, o2)
-end
-
 """
     ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
 
-Equality of two [`EdgeMuRepresentation`](@ref) objects, based on the following
-requirements:
+Equality of two [`EdgeMuRepresentation`](@ref) objects, requiring that:
 - If `m1` has labels that `m2` doesn't have, then all corresponding entries
   for these labels in `m1` should be 0 -- as if a label is tracked in `m1`
   but absent from the original network, and not tracked in `m2`.
@@ -228,22 +254,11 @@ function ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
     return true
 end
 
-function has_0μentries_at(ms::Tuple{MuVector,MuVector}, i)
-    b = has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
-    # if a label is in a but not in b: all its entries should be 0 in a
-    inanotb_i = findall(isnothing, o) # indices in `o` and `a`
-    has_0μentries_at(a, inanotb_i) || return false
-    if length(tiplabels(b)) + length(inanotb_i) > length(tiplabels(a))
-        # then some labels in are b but not in a: find their indices in b
-    end
-    return edge_vec_distance(a,b)==0
-end
-
 
 """
     node_murepresentation(net::HybridNetwork,
         labels::AbstractVector{<:AbstractString},
-        preprocess::Bool=true)
+        preorder::Bool=true)
 
 [`NodeMuRepresentation`](@ref) object for network `net` considered as rooted,
 including a mapping from each non-leaf node in `net` to its μ-vector: vector
@@ -252,8 +267,8 @@ with leaves ordered as in `labels`.
 
 `net` is assumed to have a single root.
 
-`preprocess`: boolean indicating whether to preprocess the network with
-`directedges!` and `preorder!`.
+`preorder`: boolean indicating whether to preprocess the network with
+[`directedges!`](@ref) and [`preorder!`](@ref).
 
 Assumptions about tip labels:
 - `labels` should have no repeats, otherwise an error is thrown
@@ -266,21 +281,21 @@ Assumptions about tip labels:
 function node_murepresentation(
     net::HybridNetwork,
     labels::AbstractVector{<:AbstractString},
-    preprocess::Bool=true
+    preorder::Bool=true
 )
     allunique(labels) || error("some input tip labels are repeated.")
     # map: label => index in μ-vectors, for quick access later
     label_map = Dict{String, Int}(l => i for (i,l) in enumerate(labels))
-    Ntiplabels = tiplabels(net)
-    allunique(Ntiplabels) ||
+    net_labels = tiplabels(net)
+    allunique(net_labels) ||
         error("the network is a MUL-net: has multiple tips with the same label.")
     # warn if a tip in the network is missing from `labels`
-    for l in Ntiplabels
+    for l in net_labels
         haskey(label_map, l) || @warn("""
             leaf $l in the network is not in the input list of labels:
             its coordinate will be missing from μ-vectors (count of paths to that leaf).""")
     end
-    if preprocess
+    if preorder
         directedges!(net)
         preorder!(net)
     end
@@ -315,13 +330,13 @@ function node_murepresentation(
         num = no.number
         push!(mu_dict, num => MuVector(mu_tips[num], mu_hybs[num]))
     end
-    return NodeMuRepresentation(mu_dict, labels)
+    return NodeMuRepresentation(labels, mu_dict)
 end
 
 """
     edge_murepresentation(net::HybridNetwork,
         labels::AbstractVector{<:AbstractString},
-        preprocess::Bool=true)
+        preorder::Bool=true)
 
 [`EdgeMuRepresentation`](@ref) object for network `net`, considered as a
 semidirected network. This representation maps each internal edge in `net` to
@@ -335,7 +350,7 @@ must not be hybrid nodes).
 
 `net` is assumed to have a single root component.
 
-`preprocess`: boolean indicating whether to preprocess the network (direct edges
+`preorder`: boolean indicating whether to preprocess the network (direct edges
 away from the root and calculate a pre-ordering of nodes).
 
 See [`node_murepresentation`](@ref) for assumptions about `labels` and tip labels
@@ -344,10 +359,12 @@ in `net`.
 function edge_murepresentation(
     net::HybridNetwork,
     labels::AbstractVector{<:AbstractString},
-    preprocess::Bool=true
+    preorder::Bool=true
 )
-    nodemu = node_murepresentation(net, labels, preprocess).mu_map
+    nodemu = node_murepresentation(net, labels, preorder).mu_map
     rho = nodemu[getroot(net).number]
+    rμ0 = rho.mu_hybs
+    rμv = rho.mu_tips
     mumap_rootcomp::Dict{Int, Tuple{MuVector, MuVector}}()
     mumap_directed::Dict{Int, Tuple{MuVector, MuTag}}()
     for ee in net.edge
@@ -357,30 +374,28 @@ function edge_murepresentation(
             ee.hybrid && @warn("edge $enum is hybrid yet has a leaf child: its μ-entry won't be stored")
             continue # skip this edge
         end
+        cmu = nodemu[cn.number]
         if !ee.hybrid && ee.containroot
-            pnum = getparent(ee).number
-            push!(mumap_rootcomp, enum => (nodemu[cn.number], rho - nodemu[pnum]))
+            mu_otherdirection = MuVector(rμ0 - cmu.mu_hybs, rμv - cmu.mu_tips)
+            push!(mumap_rootcomp, enum => (cmu, mu_otherdirection))
         else
             tag = (ee.containroot ? mutag_i : (ee.hybrid ? mutag_h : mutag_t))
-            push!(mumap_directed, enum => (nodemu[cn.number], tag))
+            push!(mumap_directed, enum => (cmu, tag))
         end
     end
     return EdgeMuRepresentation(rho, mumap_rootcomp, mumap_directed, labels)
 end
 
 """
-    node_vec_distance(net1::NodeMuRepresentation, net2::NodeMuRepresentation)
+    mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
 
-Calculate the distance between two node-based μ-vectors.
+Calculate the distance between two node-based μ-representations: number of
+μ-vectors in one but not in the other.
 
-# Arguments
-- `net1`: A NodeMuRepresentation object
-- `net2`: A NodeMuRepresentation object
-
-# Returns
-- `dist`: The distance between the two node-based μ-vectors.
+Warning: this method assumes, without checking, that `m1` and `m2` have the same
+labels (and in the same order), for efficiency.
 """
-function node_vec_distance(net1::NodeMuRepresentation, net2::NodeMuRepresentation)
+function mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
     #convert to not use multiet
     m1 = Multiset(collect(values(net1.mu_map)))
     m2 = Multiset(collect(values(net2.mu_map)))
@@ -391,48 +406,42 @@ function node_vec_distance(net1::NodeMuRepresentation, net2::NodeMuRepresentatio
 end
 
 """
-    distance_node(net1::HybridNetwork, net2::HybridNetwork)
+    mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork, preorder::Bool=true)
 
-Distance between two networks based on their node-based μ-vectors.
+Distance between two networks, considered as rooted networks, based on their
+node-based μ-representation: number of nodes in one network whose μ-vector does
+not match with that of a node in the other network.
+See [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390).
 
-Warning: Networks cannot have multiple roots.
+If `net1` and `net2` have different tip labels, the union of all their labels
+is considered to build μ-vectors, and the resulting distance must be positive.
 
-# Arguments
-- `net1`: A HybridNetwork object
-- `net2`: A HybridNetwork object
+Consider pruning leaves that are not shared between the two networks beforehand,
+using [`deleteleaf!`](@ref), to compare the subnetworks on their shared leaf set.
 
-# Returns
-- `dist`: The distance between the two networks based on their node-based μ-vectors.
+Assumption: networks have a single root.
 """
-function network_node_mu_distance(net1::HybridNetwork, net2::HybridNetwork, preprocess=true)
-    # make sure mu vectors are consistent
-    if length(tiplabels(net1)) > length(tiplabels(net2))
-        labels = tiplabels(net1)
-    else
-        labels = tiplabels(net2)
-    end
-
-    # Get the mu values for the nodes
-    nodemu1 = node_murepresentation(net1,labels, preprocess)
-    nodemu2 = node_murepresentation(net2,labels, preprocess)
-    return node_vec_distance(nodemu1, nodemu2)
-    
+function mudistance_rooted(
+    net1::HybridNetwork,
+    net2::HybridNetwork,
+    preorder::Bool=true
+)
+    labels = union(tiplabels(net1), tiplabels(net2))
+    nodemu1 = node_murepresentation(net1, labels, preorder)
+    nodemu2 = node_murepresentation(net2, labels, preorder)
+    return mudistance(nodemu1, nodemu2)
 end
 
 """
-    edge_vec_distance(net1::EdgeMuRepresentation, net2::EdgeMuRepresentation)
+    mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
 
-Calculate the distance between two edge-based μ-vectors.
+Calculate the distance between two edge-based μ-representations: number of
+μ-entries in one but not in the other.
 
-# Arguments
-- `net1`: A EdgeMuRepresentation object
-- `net2`: A EdgeMuRepresentation object
-
-# Returns
-- `dist`: The distance between the two edge-based μ-vectors.
+Warning: this method assumes, without checking, that `m1` and `m2` have the same
+labels (and in the same order), for efficiency.
 """
-function edge_vec_distance(net1::EdgeMuRepresentation, net2::EdgeMuRepresentation)
-
+function mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
     m1 = Multiset(collect(values(net1.mu_map)))
     m2 = Multiset(collect(values(net2.mu_map)))
     d1 = setdiff(m1, m2)
@@ -441,30 +450,28 @@ function edge_vec_distance(net1::EdgeMuRepresentation, net2::EdgeMuRepresentatio
     return dist
 end
 """
-    distance_edge(net1::HybridNetwork, net2::HybridNetwork)
+    mudistance_semidirected(net1::HybridNetwork, net2::HybridNetwork, preorder::Bool=true)
 
-Distance between two networks based on their edge-based μ-vectors.
+Distance between two networks, considered as semidirected, based on their
+edge-based μ-representation: number of edges in one network whose μ-entry does
+not match with that of an edge in the other network.
+See [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
 
-Warning: networks cannot have multiple roots.
+If `net1` and `net2` have different tip labels, the union of all their labels
+is considered to build μ-vectors, and the resulting distance must be positive.
 
-# Arguments
-- `net1`: A HybridNetwork object
-- `net2`: A HybridNetwork object
+Consider pruning leaves that are not shared between the two networks beforehand,
+using [`deleteleaf!`](@ref), to compare the subnetworks on their shared leaf set.
 
-# Returns
-- `dist`: The distance between the two networks based on their edge-based μ-vectors.
+Assumption: networks have a single root.
 """
-function network_edge_mu_distance(net1::HybridNetwork, net2::HybridNetwork, preprocess=true)
-    # make sure mu vectors are consistent
-    if length(tiplabels(net1)) > length(tiplabels(net2))
-        labels = tiplabels(net1)
-    else
-        labels = tiplabels(net2)
-    end
-
-    # Get the mu values for the nodes
-    edgemu1 = edge_murepresentation(net1,labels, preprocess)
-    edgemu2 = edge_murepresentation(net2,labels, preprocess)
-    return edge_vec_distance(edgemu1, edgemu2)
-    
+function mudistance_semidirected(
+    net1::HybridNetwork,
+    net2::HybridNetwork,
+    preorder::Bool=true,
+)
+    labels = union(tiplabels(net1), tiplabels(net2))
+    m1 = edge_murepresentation(net1, labels, preorder)
+    m2 = edge_murepresentation(net2, labels, preorder)
+    return mudistance(m1, m2)
 end
