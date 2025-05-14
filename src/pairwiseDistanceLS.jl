@@ -463,9 +463,113 @@ function calibratefrompairwisedistances!(
 end
 
 """
+    hammingdistancematrix(
+        trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
+        traitweight::AbstractVector{<:Real}=ones(length(trait[1]));
+        scaled::Bool=true
+    )
+
+Matrix of pairwise Hamming distances between taxa:
+proportion (or number) of traits at which 2 taxa differ, possibly weighted.
+
+Arguments:
+- `trait`: vector of vectors of integers.
+  `trait[i]` has the data for taxon number `i`. All vectors `trait[i]` should
+  be of the same length: same number of traits across taxa.
+  `trait[i][j] = k` means that taxon `i` has state index `k` for trait `j`.
+- `traitweight[k]` gives the weight of trait `k` (default: all 1s)
+- `scaled`: if `false`, the output distance is the number (or total weight) of
+  traits at which 2 taxa differ. If `scaled` is `true`, the output distance is
+  a proportion: the un-scaled distance divided by the number of traits
+  (or sum of trait weights).
+
+Missing data:
+For each pair, the Hamming distances is calculated ignoring any trait in
+which one of 2 values is missing. The total number of differences is then
+divided by the total weight of all sites, ignoring that some of them may
+have been missing for the pair. This is an inexact rescaling of the
+Hamming distance, assuming a small proportion of missing values for each pair.
+"""
+function hammingdistancematrix(
+    trait::AbstractVector{Vector{T}},
+    traitweight::AbstractVector{<:Real}=ones(length(trait[1]));
+    scaled::Bool=true
+) where T
+    ntax = length(trait)
+    M = zeros(Float64, ntax, ntax)
+    ncols = length(trait[1])
+    all(length.(trait) .== ncols) ||
+        error("all taxa should have the same number of traits")
+    length(traitweight) == ncols ||
+        error("$(length(traitweight)) weights but $ncols columns (traits) in the data")
+    # count pairwise differences, then multiply by pattern weight
+    for i in 2:ntax
+        species1 = trait[i]
+        for j in 1:(i-1)
+            species2 = trait[j]
+            for col in 1:ncols
+                if !(ismissing(species1[col]) || ismissing(species2[col])) &&
+                    (species1[col] != species2[col])
+                    M[i, j] += traitweight[col]
+                end
+            end
+            M[j,i] = M[i,j]
+        end
+    end
+    if scaled # normalize to get proportion
+        M ./= sum(traitweight)
+    end
+    return M
+end
+
+"""
+    distancecorrection_JC!(M::AbstractMatrix, nstates::Integer; scalar=1.01)
+
+Jukes-Cantor (JC) corrected distance matrix, to estimate pairwise evolutionary
+distances from scaled Hamming distances (proportion of sites at which the pair
+differs). `M` should contain non-negative values, such as Hamming distances
+from [`hammingdistancematrix`](@ref).
+The JC correction is defined as:
+`- 0.75 log(1 - M/0.75)` if there are 4 states, and more generally
+`- dmax log(1 - M/dmax)` where `dmax = (n-1/n)` on `n` states.
+
+Theoretically, scaled Hamming distances from the Jukes-Cantor model are < 0.75
+on four states, or < `(n-1)/n` on `n` states.
+
+If `M` has some values ≥ 0.75 (or `dmax` more generally), then `M` does not fit
+the Jukes-Cantor model, and `log(1 - M/0.75)` would give negative values.
+To avoid negative corrected distances, and numerical issues if some M values
+are close to 0.75, the JC correction here applies a following stronger
+normalization. `M` is modified in place to contain:
+
+`d_JC = - 0.75 log(1 - M/max{0.75, m*1.01})`
+
+for 4 states (replace 0.75 by (n-1)/n for n states),
+where `m` is the maximum observed distance in `M`.
+
+The `scalar=1.01` value above is a keyword argument, to adjust the strength
+of normalization.
+"""
+function distancecorrection_JC!(
+    M::AbstractMatrix,
+    nstates::Integer;
+    scalar::Real=1.01
+)
+    maxdist = (nstates-1)/nstates
+    M ./= max(maxdist, maximum(M)*scalar) # values ≤ 0.9901: log(1-M) well defined
+    M .= - maxdist .* log.( 1.0 .- M)     # 0 -> -0, not nice
+    for I in eachindex(M)
+        if M[I] == -0
+            M[I] = 0
+        end
+    end
+    return M
+end
+
+"""
     startingBL!(net::HybridNetwork,
                 trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
-                siteweight::AbstractVector{Float64}=ones(length(trait[1])))
+                siteweight::AbstractVector{<:Real}=ones(length(trait[1])))
 
 Calibrate branch lengths in `net` by minimizing the mean squared error
 between the JC-adjusted pairwise distance between taxa, and network-predicted
@@ -473,63 +577,33 @@ pairwise distances, using [`calibratefrompairwisedistances!`](@ref).
 The network is *not* forced to be time-consistent nor ultrametric.
 To avoid one source of non-identifiability, the network is "zipped" by
 forcing minor hybrid edges to have length 0.
+Finally, any edge length smaller than 1.0e-10 is reset to 0.0001,
+to avoid the 0 boundary.
 
-`siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
-
-Assumptions:
-
-- all species have the same number of traits (sites): `length(trait[i])` constant
+Traits and weights:
 - `trait[i]` is for leaf with `node.number = i` in `net`, and
   `trait[i][j] = k` means that leaf number `i` has state index `k` for trait `j`.
-  These indices are those used in a substitution model (see `PhyloTraits.jl`):
-  kth value of `getlabels(model)`.
+  These indices are those used in a substitution model
+  by [PhyloTraits](https://juliaphylo.github.io/PhyloTraits.jl/stable/man/simulate_discrete/#Discrete-trait-simulation):
+  kth value of `PhyloTraits.getlabels(model)`.
+- `siteweight[k]` gives the weight of site (or site pattern) `k` (default: all 1s).
 
-Other:
-- Hamming distances are calculated for each pair, ignoring any site in which
-  one of 2 values is missing. The total number of differences is then divided
-  by the total weight of all sites, ignoring that some of them may have been
-  missing for the pair. This is an inexact rescaling of the hamming distance,
-  assuming a small proportion of missing values for each pair.
-- Theoretically, Hamming distances are < 0.75 with four states,
-  or < (n-1)/n for n states.
-  If not, all pairwise hamming distances are scaled by `.75/(m*1.01)` where `m`
-  is the maximum observed hamming distance, to make them all < 0.75.
-  The JC correction calculates: d_JC = - 0.75 log(1-d_hamming/0.75) for n=4 states
-- At the end, any edge length smaller than 1.0e-10 is reset to 0.0001,
-  to avoid the 0 boundary.
+See [`hammingdistancematrix`](@ref) for how missing data are treated to
+calculate the Hamming distance.  
+See [`distancecorrection_JC!`](@ref) for the Jukes-Cantor correction.
+For this correction, the number of traits is taken as the maximum trait
+state index (denoted `k` above).
 """
 function startingBL!(
     net::HybridNetwork,
     trait::AbstractVector{Vector{Union{Missings.Missing,Int}}},
     siteweight::AbstractVector{<:Real}=ones(Float64,length(trait[1]))
 )
-    nspecies = net.numtaxa
-    M = zeros(Float64, nspecies, nspecies) # pairwise distances initialized to 0
-    # count pairwise differences, then multiply by pattern weight
-    ncols = length(trait[1]) # assumption: all species have same # columns
-    length(siteweight) == ncols ||
-      error("$(length(siteweight)) site weights but $ncols columns in the data")
-    for i in 2:nspecies
-        species1 = trait[i]
-        for j in 1:(i-1)
-            species2 = trait[j]
-            for col in 1:ncols
-                if !(ismissing(species1[col]) || ismissing(species2[col])) &&
-                    (species1[col] != species2[col])
-                    M[i, j] += siteweight[col]
-                end
-            end
-            M[j,i] = M[i,j]
-        end
-    end
-    Mp = M ./ sum(siteweight) # to get proportion of sites, for each pair
-
-    # estimate pairwise evolutionary distances using extended Jukes Cantor model
+    dhat = hammingdistancematrix(trait, siteweight)
+    net.numtaxa == size(dhat,1) ||
+        error("$(net.numtaxa) in net, yet $(join(size(dhat),"×")) distances")
     nstates = mapreduce(x -> maximum(skipmissing(x)), max, trait)
-    maxdist = (nstates-1)/nstates
-    Mp[:] = Mp ./ max(maxdist, maximum(Mp*1.01)) # values in [0,0.9901]: log(1-Mp) well defined
-    dhat = - maxdist .* log.( 1.0 .- Mp)
-
+    distancecorrection_JC!(dhat, nstates) # default scalar=1.01
     taxonnames = [net.leaf[i].name for i in sortperm([n.number for n in net.leaf])]
     # taxon names: to tell the calibration that row i of dhat is for taxonnames[i]
     # trait[i][j] = trait j for taxon at node number i: 'node.number' = i

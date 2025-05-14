@@ -110,10 +110,12 @@ module PhyloNetworks
         treeedges_support,
         hybridclades_support,
         readmultinewick_files,
-        ## Network Calibration
+        ## node & taxon distances
         getnodeages,
         pairwisetaxondistancematrix,
         calibratefrompairwisedistances!,
+        expectedf2matrix,
+        expectedf4table,
         # recursion
         sharedpathmatrix,
         descendencematrix,
@@ -126,6 +128,7 @@ module PhyloNetworks
         # neighbor joining
         nj,
         # quartets
+        tablequartetf4,
         tablequartetCF,
         countquartetsintrees,
         network_edge_mu_distance,
@@ -151,6 +154,7 @@ module PhyloNetworks
     include("recursion_matrices.jl")
     include("parsimony.jl")
     include("pairwiseDistanceLS.jl")
+    include("expectedfstat.jl")
     include("interop.jl")
     include("graph_components.jl")
     include("deprecated.jl")

@@ -914,6 +914,46 @@ function remove_edgelengthsgammas!(net::HybridNetwork)
 end
 
 """
+    check_valid_gammas(net, str="")
+
+Throw an Exception if `net` has any inheritance edge γ that is either
+undefined (coded as -1.0), or negative, or not 1 for tree edges, or
+that do not approximately sum up to 1 across hybrid partner edges.
+The error message indicates the number of the offending edge(s), followed by `str`.
+"""
+function check_valid_gammas(net::HybridNetwork, str="")
+    if any(e.gamma == -1.0 for e in net.edge)
+        undefined = [e.number for e in net.edge if e.gamma == -1.0]
+        msg = string("edge(s) number ", join(undefined,","), " have no γ.\n", str)
+        error(msg)
+    end
+    if any(e.gamma < 0 for e in net.edge)
+        negatives = [e.number for e in net.edge if e.gamma < 0.0]
+        msg = string("edge(s) number ", join(negatives,","), " have negative γ.\n", str)
+        error(msg)
+    end
+    γsum = Dict{Int64, Float64}()
+    for e in net.edge
+        if e.hybrid
+            nn = getchild(e).number
+            if haskey(γsum, nn)
+                γsum[nn] += e.gamma
+            else
+                γsum[nn]  = e.gamma
+            end
+        else
+            e.gamma == 1 ||
+            error(string("tree edge number $(e.number) has γ $(e.gamma) instead of 1.\n", str))
+        end
+    end
+    for (nn,γs) in γsum
+        isapprox(γs, 1.0) ||
+        error(string("hybrid node number $nn has total γ $γs instead of 1.\n", str))
+    end
+    return nothing
+end
+
+"""
     check_nonmissing_nonnegative_edgelengths(net, str="")
 
 Throw an Exception if `net` has undefined edge lengths (coded as -1.0) or

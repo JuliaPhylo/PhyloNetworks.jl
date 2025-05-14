@@ -3,7 +3,7 @@ using PhyloNetworks
 using CSV # for reading files
 using DataFrames
 using Distributed # for parsimony search, currently broken
-using LinearAlgebra: diag # LinearAlgebra.rotate! not brought into scope
+using LinearAlgebra: diag, Diagonal # LinearAlgebra.rotate! not brought into scope
 using Random
 using StableRNGs
 
@@ -23,6 +23,7 @@ tests = [
     "test_parsimony.jl", # has broken tests: parsimony search broken
     "test_recursion_matrices.jl",
     "test_calibratePairwise.jl",
+    "test_expectedfstat.jl",
     "test_relaxed_reading.jl",
     "test_isMajor.jl",
     "test_interop.jl",

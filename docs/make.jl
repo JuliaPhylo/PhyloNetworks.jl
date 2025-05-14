@@ -1,5 +1,7 @@
 using Documenter
 
+ENV["COLUMNS"] = 90 # see ? displaysize: defaults to 80 columns
+
 # this installs the dev version of PhyloPlots for compatibility.
 using Pkg
 Pkg.add(PackageSpec(name="PhyloPlots", rev="master"))
@@ -11,8 +13,9 @@ using PhyloNetworks
 using DocumenterInterLinks
 links = InterLinks(
     "PhyloPlots" => "https://juliaphylo.github.io/PhyloPlots.jl/stable/objects.inv",
-    # "SNaQ"       => "https://juliaphylo.github.io/SNaQ.jl/stable/objects.inv",
-    # "PhyloTraits"=> "https://juliaphylo.github.io/PhyloTraits.jl/stable/objects.inv",
+    #"SNaQ" => "https://juliaphylo.github.io/SNaQ.jl/stable/objects.inv",
+    "QuartetNetworkGoodnessFit" => "https://juliaphylo.github.io/QuartetNetworkGoodnessFit.jl/stable/objects.inv",
+    "PhyloTraits"=> "https://juliaphylo.github.io/PhyloTraits.jl/stable/objects.inv",
 )
 # default loading of interlinked packages in all docstring examples
 DocMeta.setdocmeta!(PhyloNetworks, :DocTestSetup,
@@ -47,6 +50,7 @@ makedocs(
             "Network support" => "man/network_support.md",
             "Parsimony on networks" => "man/parsimony.md",
             "Neighbour Joining" => "man/nj.md",
+            "Pairwise and quartet data" => "man/expecteddata.md",
         ],
         "Library" => [
             "Public" => "lib/public.md",

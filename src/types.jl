@@ -306,7 +306,7 @@ Base.showerror(io::IO, e::RootMismatch) = print(io, "RootMismatch: ", e.msg);
 abstract type AQuartet end
 
 """
-QuartetT{T}
+    QuartetT{T}
 
 Generic type for 4-taxon sets. Fields:
 - `number`: rank of the 4-taxon set
