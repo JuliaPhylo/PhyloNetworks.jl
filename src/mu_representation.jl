@@ -45,6 +45,11 @@ function isless(m1::MuVector, m2::MuVector)
     end
     return isless(m1.mu_hybs, m2.mu_hybs)
 end
+has_0μentries_at(m::MuVector, i) = all(m.mu_tips[i] == 0)
+function has_0μentries_at(ms::Tuple{MuVector,MuVector}, i)
+    b = has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
+    return b
+end
 
 abstract type MuRepresentation end
 
@@ -76,7 +81,12 @@ function Base.show(io::IO, obj::NodeMuRepresentation)
     disp *= "\nmap node number => μ-vector:\n" * string(obj.mu_map)
     println(io, disp)
 end
-
+function has_0μentries_at(m::NodeMuRepresentation, i)
+    for md in values(m.mu_map)
+        has_0μentries_at(md, i) || return false
+    end
+    return true
+end
 
 """
     @Override ==(a::NodeMuRepresentation, b::NodeMuRepresentation)
@@ -136,6 +146,8 @@ function Base.show(io::IO, obj::EdgeMuRepresentation)
     println(io, s)
 end
 
+# constructor: builds sorted vectors from dictionaries
+#              re-using memory for each μ-vector
 function EdgeMuRepresentation(labels, mu_root, map_rootcomp, map_directed)
     vec_root = Vector{Tuple{MuVector,MuVector}}()
     for (v1,v2) in values(map_rootcomp)
@@ -152,14 +164,81 @@ function EdgeMuRepresentation(labels, mu_root, map_rootcomp, map_directed)
                                 vec_root, vec_dir)
 end
 
-"""
-    @Override ==(a::EdgeMuRepresentation, b::EdgeMuRepresentation)
+function has_0μentries_at(m::EdgeMuRepresentation, i)
+    has_0μentries_at(m.mu_root, i) || return false
+    for mr in m.muvec_rootcomp
+        has_0μentries_at(mr, i) || return false
+    end
+    for md in m.muvec_directed
+        has_0μentries_at(md[2], i) || return false
+    end
+    return true
+end
 
-Check if two EdgeMuRepresentation objects are equal using the distance function.
+function indexin_check0μentries(m1::MuRepresentation, m2::MuRepresentation)
+    l1 = tiplabels(m1); l2 = tiplabels(m2)
+    o2 = indexin(l1, l2) # order to use for μ-vectors in m2: l2[o2] == l1
+    # if a label is in l1 but not in m2: all its entries should be 0 in m1
+    in1not2_i = findall(isnothing, o2) # indices in o2 and in m1
+    if !isempty(in1not2_i)
+        has_0μentries_at(m1, in1not1_i) || return nothing
+        deleteat!(o2, in1not2_i)
+    end
+    o1 = collect(1:length(l1))
+    if length(l2) + length(in1not2_i) > length(l1)
+        # then some labels in are l2 but not in l1: find their indices in l2
+        in2not1_i = findall(!in(l1), l2)
+        has_0μentries_at(m2, in2not1_i) || return nothing
+        deleteat!(o1, in2not1_i)
+    end
+    return (o1, o2)
+end
+
 """
-function ==(a::EdgeMuRepresentation, b::EdgeMuRepresentation)
+    ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
+
+Equality of two [`EdgeMuRepresentation`](@ref) objects, based on the following
+requirements:
+- If `m1` has labels that `m2` doesn't have, then all corresponding entries
+  for these labels in `m1` should be 0 -- as if a label is tracked in `m1`
+  but absent from the original network, and not tracked in `m2`.
+  Vice versa: labels in `m2` but not in `m1` should have 0 entries in `m2`.
+- `m1` and `m2` should have the same number of μ-entries of the same type
+  (either in the root component, or directed with the same tags).
+- All μ-entries should have the same subvectors corresponding to the labels
+  shared by `m1` and `m2`.
+"""
+function ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
+    # order for μ-vectors: tiplabels(m1)[o1] == tiplabels(m2)[o2], others are 0
+    o12 = indexin_check0μentries(m1, m2)
+    isnothing(o12) && return false
+    o1, o2 = o12
+    m1.mu_root[o1] == m2.mu_root[o2] || return false
+    length(m1.muvec_rootcomp) == length(m2.muvec_rootcomp) || return false
+    length(m1.muvec_directed) == length(m2.muvec_directed) || return false
+    for (ms1, ms2) in zip(m1.muvec_rootcomp, m2.muvec_rootcomp)
+        ms1[1][o1] == ms2[1][o2] || return false
+        # no need to check second vector: bc 1 root and same root μ-vector
+        # ms1[2][o1] == ms2[2][o2] || return false
+    end
+    for (ms1, ms2) in zip(m1.muvec_directed, m2.muvec_directed)
+        ms1[1] == ms2[1] || return false         # same tags
+        ms1[2][o1] == ms2[2][o2] || return false # same μ-vectors
+    end
+    return true
+end
+
+function has_0μentries_at(ms::Tuple{MuVector,MuVector}, i)
+    b = has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
+    # if a label is in a but not in b: all its entries should be 0 in a
+    inanotb_i = findall(isnothing, o) # indices in `o` and `a`
+    has_0μentries_at(a, inanotb_i) || return false
+    if length(tiplabels(b)) + length(inanotb_i) > length(tiplabels(a))
+        # then some labels in are b but not in a: find their indices in b
+    end
     return edge_vec_distance(a,b)==0
 end
+
 
 """
     node_murepresentation(net::HybridNetwork,
