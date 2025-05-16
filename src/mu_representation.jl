@@ -19,7 +19,7 @@ isless(t1::MuTag, t2::MuTag) = isless(t1.tag, t2.tag)
 μ-vector for a single node (see [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390))
 separated into
 - μ0: number of paths starting at the node or edge and ending at any hybrid node
-- μ-vector counting the number of paths from that node to each leaf.
+- μ-vector counting the number of paths from that node to each specific leaf.
 
 This type does not store the leaf labels nor the order in which leaves are
 positioned in μ-vectors.
@@ -58,13 +58,14 @@ tiplabels(m::MuRepresentation) = m.tiplabels
 """
     NodeMuRepresentation
 
-Representation of a rooted network with one [`MuVector`](@ref) per non-leaf node.
+Representation of a rooted network with one [`MuVector`](@ref) per node.
 This entry contains the node's μ-vector: a vector of integers counting the
 number of paths from that node to each leaf.
 `tiplabels` gives the order of leaves in μ-vectors.
 
-Leaf nodes have trivial μ-vector, hence are not included in this node-based
-μ-representation.
+[`node_murepresentation`](@ref) constructs such an object, with a μ-vector
+for each non-leaf node only (not for tips), because leaf nodes have trivial
+μ-vectors (all 0s but one 1) that would match across any network with that leaf.
 
 See [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390).
 """
@@ -121,10 +122,10 @@ end
     ==(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
 
 Equality of two [`NodeMuRepresentation`](@ref) objects, requiring that:
-- If `m1` has labels that `m2` doesn't have, then all corresponding entries
+- If `m1` has labels that `m2` doesn't have, then all corresponding values
   for these labels in `m1` should be 0 -- as if a label is tracked in `m1`
   but absent from the original network, and not tracked in `m2`.
-  Vice versa: labels in `m2` but not in `m1` should have 0 entries in `m2`.
+  Vice versa: labels in `m2` but not in `m1` should have 0 values in `m2`.
 - `m1` and `m2` should have the same number of μ-vectors
 - The μ-vectors should have the same subvectors corresponding to the labels
   shared by `m1` and `m2`.
@@ -145,22 +146,28 @@ end
 """
     EdgeMuRepresentation
 
-Representation of a semidirected network with one μ-entry for each edge, see
-[Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
+Representation of a semidirected network with one μ-entry for each edge.
+See [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
+[`edge_murepresentation`](@ref) constructs such an object, with μ-entries
+for internal edges only (not external to a tip).
 
-- If an edge has a fixed direction regardless of where the network is rooted,
-  its entry is 1 tagged μ-vector.
-  The tag says whether the edge is a tree e}dge or hybrid edge.
-- If an edge is in the root component, that is, both of its incident nodes can
-  root the network, then its entry is a set of 2 tagged μ-vectors (each with a
-  tree tag because the edge must be a tree edge).
-- If an edge is not in the root component, but is incident to it (one of its
-  incident nodes can be the root), then the root may be placed along the edge,
-  and its entry is a set of 2 tagged μ-vectors. The tag is the edge type for
-  the μ-vector corresponding to the edge's direction.
+1. If an edge is in the root component, that is, both of its incident nodes can
+   root the network, then its μ-entry is a set of 2 μ-vectors, one corresponding
+   to each direction of the edge. (Each μ-vector would get a tree tag because
+   such edges must be tree edges, so these tags are not stored).
+2. If an edge has a fixed direction regardless of where the network is rooted:
+   its μ-entry is 1 tagged μ-vector corresponding to the edge's direction.
+   * if the edge is not adjacent to the root component, then the tag says
+     whether the edge is a tree edge or a hybrid edge.
+   * if the edge is adjacent to the root component (one of its incident nodes
+     could be the root), then the root may be placed along the edge.
+     Then its tag indicates so -- departing from Maxfield, Xu & Ané (2025).
+     For semidirected induced by a rooted network in the standard way,
+     these edges must be hybrid edges, and there is no information loss.
 
-Each μ-vector is a vector of integers representing the number of paths from the
-edge to each leaf. `tiplabels` gives the order of leaves in μ-vectors.
+All μ-vectors include the number of paths to hybrids, defined for rooted networks
+by [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390).
+See [`MuVector`](@ref).
 """
 struct EdgeMuRepresentation <: MuRepresentation
     "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
@@ -267,8 +274,8 @@ with leaves ordered as in `labels`.
 
 `net` is assumed to have a single root.
 
-`preorder`: boolean indicating whether to preprocess the network with
-[`directedges!`](@ref) and [`preorder!`](@ref).
+`preorder`: whether to preprocess the network with [`directedges!`](@ref) and
+[`preorder!`](@ref).
 
 Assumptions about tip labels:
 - `labels` should have no repeats, otherwise an error is thrown
@@ -344,14 +351,14 @@ its μ-entry (1 or 2 tagged μ-vectors). A μ-vector contains the number of path
 from the edge to each leaf, with leaves ordered as in `labels`. It also contains
 the number of paths from the edge to a (any) hybrid node.
 
-External edges are edges whose child is a leaf, and have trivial μ-vectors under
-the common assumption that leaves are incident to a single edge (that is, leaves
-must not be hybrid nodes).
+External edges are edges whose child is a leaf. They are excluded here because
+they have trivial μ-vectors under the common assumption that leaves are incident
+to a single edge (that is, leaves must not be hybrid nodes).
 
 `net` is assumed to have a single root component.
 
-`preorder`: boolean indicating whether to preprocess the network (direct edges
-away from the root and calculate a pre-ordering of nodes).
+`preorder`: whether to preprocess the network (direct edges away from the root
+and calculate a pre-ordering of nodes).
 
 See [`node_murepresentation`](@ref) for assumptions about `labels` and tip labels
 in `net`.
@@ -387,9 +394,9 @@ function edge_murepresentation(
 end
 
 """
-Symmetric distance between two vectors, assumed already sorted in ascending
-order: number of elements in one vector but not in the order, with element
-considered multiplicities. The vectors are *not* mutated.
+Symmetric distance between two vectors, assumed sorted in ascending order:
+number of elements in one vector but not in the order, each element considered
+as many times as it appears (with multiplicity). The vectors are *not* mutated.
 """
 function symmetricdistance_insorted(v1::Vector{T}, v2::Vector{T}) where T
     d = 0
@@ -432,7 +439,18 @@ end
 Distance between two networks, considered as rooted networks, based on their
 node-based μ-representation: number of nodes in one network whose μ-vector does
 not match with that of a node in the other network.
-See [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390).
+The μ-vector of a node has n+1 coordinates: one for each tip taxon, and one
+for hybrids. Each value counts the number of paths starting at the node and
+ending at a specific leaf, or ending at a hybrid node (any hybrid node).
+
+See [Cardona, Rossello & Valiente 2009](https://doi.org/10.1109/TCBB.2007.70270)
+for the original μ-distance, and
+[Cardona et al. 2024](https://10.1109/TCBB.2024.3361390) for the extension
+using paths ending at hybrids.
+
+The distance implemented here considers one μ-vector per non-leaf node:
+without ignoring any non-leaf node (including degree-2 nodes if any), and
+ignoring leaves whose μ-vectors are trivial.
 
 If `net1` and `net2` have different tip labels, the union of all their labels
 is considered to build μ-vectors, and the resulting distance must be positive.
@@ -455,14 +473,14 @@ end
 
 """
     mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation,
-               considerrootμ::Bool=false)
+               userootμ::Bool)
 
 Distance between two edge-based μ-representations: number of μ-entries,
 considered with their multiplicities, in one but not in the other.
-Option `considerrootμ` controls whether the root μ-vector in considered in the
-set of μ-entries (it is ignored by default, as different root μ-vectors for
-networks with a single root would cause all μ-entries in their root components
-to be different).
+`userootμ` controls whether the root μ-vector in included in the
+set of μ-entries being compared. It is ignored by default, because different
+root μ-vectors for networks with a single root would cause all μ-entries in
+their root components to be different.
 
 Warning: this method assumes, without checking, that `m1` and `m2` have the same
 labels (and in the same order), for efficiency.
@@ -470,11 +488,11 @@ labels (and in the same order), for efficiency.
 function mudistance(
     m1::EdgeMuRepresentation,
     m2::EdgeMuRepresentation,
-    considerrootμ::Bool=false
+    userootμ::Bool
 )
     d  = symmetricdistance_insorted(m1.muvec_directed, m2.muvec_directed)
     d += symmetricdistance_insorted(m1.muvec_rootcomp, m2.muvec_rootcomp)
-    if considerrootμ
+    if userootμ
         if m1.mu_root != m2.mu_root
             d += 1
         end
@@ -484,18 +502,39 @@ end
 
 """
     mudistance_semidirected(net1::HybridNetwork, net2::HybridNetwork;
-                            preorder::Bool=true)
+                            preorder::Bool=true, userootμ::Bool=false)
 
 Distance between two networks, considered as semidirected, based on their
 edge-based μ-representation: number of edges in one network whose μ-entry does
 not match with that of an edge in the other network.
-See [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
+
+The μ-vector of an edge, assigned some specific direction, has n+1 coordinates:
+one for each tip taxon, and one for hybrids. Each value counts the number of
+paths starting with the edge (directed as specified) and ending at a specific
+leaf, or ending at a (any) hybrid node. For more details, see
+[Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
+The implementation here departs from Maxfield, Xu & Ané (2025) by considering
+μ-vectors "extended" with the counts of paths ending at hybrids, as defined
+on rooted networks by [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390).
+
+Each μ-entry includes 1 or 2 μ-vector(s) and tag(s) indicating the edge type
+(e.g. hybrid). The number of μ-vector(s) depends on the direction(s) that an
+edge may have under different rootings.
 
 If `net1` and `net2` have different tip labels, the union of all their labels
 is considered to build μ-vectors, and the resulting distance must be positive.
-
 Consider pruning leaves that are not shared between the two networks beforehand,
 using [`deleteleaf!`](@ref), to compare the subnetworks on their shared leaf set.
+
+# keyword options
+
+- `preorder` indicates whether to preprocess each network with
+  [`directedges!`](@ref) and [`preorder!`](@ref).
+- `userootμ` controls whether the root μ-vector in included in the set of
+  μ-entries being compared. It is ignored by default (departing from
+  [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780))
+  because different root μ-vectors for networks with a single root would cause
+  all μ-entries in their root components to be different.
 
 Assumption: networks have a single root.
 """
@@ -503,9 +542,10 @@ function mudistance_semidirected(
     net1::HybridNetwork,
     net2::HybridNetwork;
     preorder::Bool=true,
+    userootμ::Bool=false,
 )
     labels = union(tiplabels(net1), tiplabels(net2))
     m1 = edge_murepresentation(net1, labels, preorder)
     m2 = edge_murepresentation(net2, labels, preorder)
-    return mudistance(m1, m2)
+    return mudistance(m1, m2, userootμ)
 end

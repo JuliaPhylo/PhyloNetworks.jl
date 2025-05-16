@@ -236,7 +236,7 @@ We can compare two networks using the hardwired-cluster dissimilarity.
     d(N, N') = 0 exactly when N and N' have the same topology.
     ([Cardona et al. 2009](https://doi.org/10.1109/TCBB.2024.3361390),
     [Bai et al.](https://doi.org/10.1016/j.mbs.2021.108537)
-    [Maxfield et al. 2024](https://arxiv.org/abs/2405.16035)).
+    [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780)).
     Unfortunately, this is not generally true for complex network: there are
     networks at hardwired-cluster 'distance' 0, that have different topologies.
     But no dissimilarity measure can both be fast to calculate and
