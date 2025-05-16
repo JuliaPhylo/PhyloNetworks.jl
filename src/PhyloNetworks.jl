@@ -159,6 +159,6 @@ module PhyloNetworks
     include("deprecated.jl")
     include("nj.jl")
     include("quartets.jl")
-    include("mu_representation.jl")
+    include("murepresentation.jl")
 
 end #module

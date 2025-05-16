@@ -28,7 +28,7 @@ tests = [
     "test_isMajor.jl",
     "test_interop.jl",
     "test_nj.jl",
-    "test_mu_rep.jl"
+    "test_murepresentation.jl"
 ]
 
 anyerrors = false
