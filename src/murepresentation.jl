@@ -34,6 +34,9 @@ function Base.show(io::IO, obj::MuVector)
     s  = "μ0=$(obj.mu_hybs) μ=$(obj.mu_tips)"
     print(io, s)
 end
+function ==(m1::MuVector, m2::MuVector)
+    return m1.mu_hybs == m2.mu_hybs && m1.mu_tips == m2.mu_tips
+end
 # comparing μ-vectors: lexicographic order using
 # 1. μ0, number of paths to hybrids
 # 2. μ-vector itself, lexicographically
@@ -134,8 +137,8 @@ function ==(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
     isnothing(o12) && return false
     o1, o2 = o12
     length(m1.mu_vec) == length(m2.mu_vec) || return false
-    for (μ1, μ2) in zip(m1.mu_vec, m2.mu_vec)
-        μ1[o1] == μ2[o2] || return false
+    for (μ1, μ2) in zip(m1.mu_vec[o1], m2.mu_vec[o2])
+        μ1 == μ2 || return false
     end
     return true
 end
@@ -401,17 +404,23 @@ function symmetricdistance_insorted(v1::Vector{T}, v2::Vector{T}) where T
     l1 = length(v1); l2 = length(v2)
     l1==0 && return l2
     l2==0 && return l1
-    x1 = r1[l1];     x2 = r2[l2] # last: largest
-    while l1>0 && l2>0
+    x1 = v1[l1]; x2 = v2[l2] # last: largest
+    while true
         if x1 > x2
-            l1 -= 1; x1 = r1[l1]
-            d += 1
+            l1 -= 1; d += 1
+            if l1>0
+                x1 = v1[l1]
+            else break; end
         elseif x2 > x1
-            l2 -= 1; x2 = r2[l2]
-            d += 1
+            l2 -= 1; d += 1
+            if l2>0
+                x2 = v2[l2]
+            else break; end
         else
-            l1 -= 1; x1 = r1[l1]
-            l2 -= 1; x2 = r2[l2]
+            l1 -= 1; l2 -= 1
+            if l1>0 && l2>0
+                x1 = v1[l1]; x2 = v2[l2]
+            else break; end
         end
     end
     return d + l1 + l2 # at least one of them is 0

@@ -1,7 +1,6 @@
-
-@testset "mu representation equality test" begin
+@testset "μ distances" begin
+@testset "on the μ-representations" begin
 net1 = readnewick("((C,(B)#H1),(#H1,A));")
-net2 = readnewick("((A,(B)#H1),(#H1,C));")
 
 μ1 = (@test_logs (:warn, r"^leaf C") PN.node_murepresentation(net1, ["D","A","B"]))
 @test string(μ1) == """PhyloNetworks.NodeMuRepresentation
@@ -12,11 +11,18 @@ net2 = readnewick("((A,(B)#H1),(#H1,C));")
   -2 => μ0=2 μ=[0, 1, 2]
   3 => μ0=1 μ=[0, 0, 1]"""
 
-labels = ["D","A","B","C"]
-μ1 = PN.node_murepresentation(net1, labels)
-μ2 = PN.node_murepresentation(net2, labels)
+# net1 subnetwork: net2 = (net1, (D)), and degree-2 node in net2
+net2 = readnewick("(((A,(B)#H1),(#H1,C)),(D));")
+labels = ["D","A","B","C"] # different order than from both net1 & net2
+μ1 = (@test_logs PN.node_murepresentation(net1, labels, false)) # net1 already preordered
+μ2 = (@test_logs PN.node_murepresentation(net2, labels))
+@test μ1 != μ2
+@test PN.mudistance(μ1, μ2) == 2 # root and degree-2 node above D
 
-node_distance = mudistance_rooted(net1, net2)
+deleteleaf!(net2, "D")
+μ2 = (@test_logs PN.node_murepresentation(net2, labels))
+@test μ1 == μ2
+@test PN.mudistance(μ1, μ2) == 2
 
 @test μ1 == μ2
 @test node_distance == 0
@@ -31,7 +37,7 @@ edge_distance = mudistance_rooted(net1, net2)
 end
 
 
-@testset "non zero distance test" begin
+@testset "on networks" begin
     net1 = readnewick("(((a,b)#H1,#H1)h2,c,d)R;")
     labels = ["a", "b", "c", "d"]
 
@@ -66,4 +72,5 @@ end
     @test name_map == Dict{String, Tuple{Vararg{Int64}}}( "c" => (0, 0, 1, 0),"H1" => (1, 1, 0, 0), "h2" => (1, 1, 1, 0), "b" => (0, 1, 0, 0), "R" => (2, 2, 1, 1), "a" => (1, 0, 0, 0), "d" => (0, 0, 0, 1))
     
     @test mudistance_rooted(net1, net2) == 2
+end
 end
