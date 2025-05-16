@@ -387,22 +387,43 @@ function edge_murepresentation(
 end
 
 """
+Symmetric distance between two vectors, assumed already sorted in ascending
+order: number of elements in one vector but not in the order, with element
+considered multiplicities. The vectors are *not* mutated.
+"""
+function symmetricdistance_insorted(v1::Vector{T}, v2::Vector{T}) where T
+    d = 0
+    l1 = length(v1); l2 = length(v2)
+    l1==0 && return l2
+    l2==0 && return l1
+    x1 = r1[l1];     x2 = r2[l2] # last: largest
+    while l1>0 && l2>0
+        if x1 > x2
+            l1 -= 1; x1 = r1[l1]
+            d += 1
+        elseif x2 > x1
+            l2 -= 1; x2 = r2[l2]
+            d += 1
+        else
+            l1 -= 1; x1 = r1[l1]
+            l2 -= 1; x2 = r2[l2]
+        end
+    end
+    return d + l1 + l2 # at least one of them is 0
+end
+
+"""
     mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
 
-Calculate the distance between two node-based μ-representations: number of
-μ-vectors in one but not in the other.
+Distance between two node-based μ-representations: number of μ-vectors,
+considered with their multiplicity, in one but not in the other.
 
 Warning: this method assumes, without checking, that `m1` and `m2` have the same
 labels (and in the same order), for efficiency.
 """
 function mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
-    #convert to not use multiet
-    m1 = Multiset(collect(values(net1.mu_map)))
-    m2 = Multiset(collect(values(net2.mu_map)))
-    d1 = setdiff(m1, m2)
-    d2 = setdiff(m2, m1)
-    dist = length(d1) + length(d2)
-    return dist
+    # algorithm based on `mu_vec` being already sorted, in ascending order
+    return symmetricdistance_insorted(m1.mu_vec, m2.mu_vec)
 end
 
 """
@@ -433,24 +454,37 @@ function mudistance_rooted(
 end
 
 """
-    mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
+    mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation,
+               considerrootμ::Bool=false)
 
-Calculate the distance between two edge-based μ-representations: number of
-μ-entries in one but not in the other.
+Distance between two edge-based μ-representations: number of μ-entries,
+considered with their multiplicities, in one but not in the other.
+Option `considerrootμ` controls whether the root μ-vector in considered in the
+set of μ-entries (it is ignored by default, as different root μ-vectors for
+networks with a single root would cause all μ-entries in their root components
+to be different).
 
 Warning: this method assumes, without checking, that `m1` and `m2` have the same
 labels (and in the same order), for efficiency.
 """
-function mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
-    m1 = Multiset(collect(values(net1.mu_map)))
-    m2 = Multiset(collect(values(net2.mu_map)))
-    d1 = setdiff(m1, m2)
-    d2 = setdiff(m2, m1)
-    dist = length(d1) + length(d2)
-    return dist
+function mudistance(
+    m1::EdgeMuRepresentation,
+    m2::EdgeMuRepresentation,
+    considerrootμ::Bool=false
+)
+    d  = symmetricdistance_insorted(m1.muvec_directed, m2.muvec_directed)
+    d += symmetricdistance_insorted(m1.muvec_rootcomp, m2.muvec_rootcomp)
+    if considerrootμ
+        if m1.mu_root != m2.mu_root
+            d += 1
+        end
+    end
+    return d
 end
+
 """
-    mudistance_semidirected(net1::HybridNetwork, net2::HybridNetwork, preorder::Bool=true)
+    mudistance_semidirected(net1::HybridNetwork, net2::HybridNetwork;
+                            preorder::Bool=true)
 
 Distance between two networks, considered as semidirected, based on their
 edge-based μ-representation: number of edges in one network whose μ-entry does
@@ -467,7 +501,7 @@ Assumption: networks have a single root.
 """
 function mudistance_semidirected(
     net1::HybridNetwork,
-    net2::HybridNetwork,
+    net2::HybridNetwork;
     preorder::Bool=true,
 )
     labels = union(tiplabels(net1), tiplabels(net2))

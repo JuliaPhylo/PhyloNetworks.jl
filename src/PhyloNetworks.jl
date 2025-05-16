@@ -24,7 +24,6 @@ module PhyloNetworks
     using Distributions #for RateVariationAcrossSites
     using FASTX
     using Functors: fmap
-    using Multisets # for mu-representation
     using NLopt # for branch lengths optimization
     using StaticArrays # for quartets
     using StatsBase # cov2cor! for vcv
