@@ -28,7 +28,7 @@ module PhyloNetworks
     using StaticArrays # for quartets
     using StatsBase # cov2cor! for vcv
 
-    import Base: show, ==
+    import Base: show, ==, isless
 
     const DEBUGC = false # even more debug messages
     global CHECKNET = false # for debugging only

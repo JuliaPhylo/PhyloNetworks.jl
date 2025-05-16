@@ -1,26 +1,33 @@
 
 @testset "mu representation equality test" begin
-    net1 = readnewick("((C,(B)#H1),(#H1,A));")
-    net2 = readnewick("((A,(B)#H1),(#H1,C));")
+net1 = readnewick("((C,(B)#H1),(#H1,A));")
+net2 = readnewick("((A,(B)#H1),(#H1,C));")
 
-    labels = ["A", "B", "C"]  # must match all tips used in both networks
+μ1 = (@test_logs (:warn, r"^leaf C") PN.node_murepresentation(net1, ["D","A","B"]))
+@test string(μ1) == """PhyloNetworks.NodeMuRepresentation
+3 taxa in μ-vectors: ["D", "A", "B"]
+4 nodes, map node number => μ0 to hybrids and μ-vector to taxa:
+  -5 => μ0=1 μ=[0, 1, 1]
+  -3 => μ0=1 μ=[0, 0, 1]
+  -2 => μ0=2 μ=[0, 1, 2]
+  3 => μ0=1 μ=[0, 0, 1]"""
 
-    μ1 = PN.node_murepresentation(net1, labels)
-    μ2 = PN.node_murepresentation(net2, labels)
+labels = ["D","A","B","C"]
+μ1 = PN.node_murepresentation(net1, labels)
+μ2 = PN.node_murepresentation(net2, labels)
 
-    node_distance = mudistance_rooted(net1, net2)
+node_distance = mudistance_rooted(net1, net2)
 
-    @test μ1 == μ2  
-    @test node_distance == 0  
+@test μ1 == μ2
+@test node_distance == 0
 
-    μ1 = PN.edge_murepresentation(net1, labels)
-    μ2 = PN.edge_murepresentation(net2, labels)
+μ1 = PN.edge_murepresentation(net1, labels)
+μ2 = PN.edge_murepresentation(net2, labels)
 
-    edge_distance = mudistance_rooted(net1, net2)
+edge_distance = mudistance_rooted(net1, net2)
 
-    @test μ1 == μ2  
-    @test edge_distance == 0  
-
+@test μ1 == μ2
+@test edge_distance == 0
 end
 
 

@@ -11,7 +11,7 @@ function Base.show(io::IO, obj::MuTag)
     s = (tag==0 ? "root" : (tag==1 ? "tree" : (tag==2 ? "hybrid" : "incident")))
     print(io, s)
 end
-isless(t1::MuTag, t2::MuTag) = isless(t1.tag, t2.tag)
+Base.isless(t1::MuTag, t2::MuTag) = isless(t1.tag, t2.tag)
 
 """
     MuVector
@@ -31,15 +31,13 @@ struct MuVector
     mu_tips::Vector{Int}
 end
 function Base.show(io::IO, obj::MuVector)
-    s  = "    μ0 to hybrids: " * string(obj.mu_hybs)
-    s *= "\n    μ-vector to tips:" * string(obj.mu_tips)
-    s *= "\n"
-    println(io, disp)
+    s  = "μ0=$(obj.mu_hybs) μ=$(obj.mu_tips)"
+    print(io, s)
 end
 # comparing μ-vectors: lexicographic order using
 # 1. μ0, number of paths to hybrids
 # 2. μ-vector itself, lexicographically
-function isless(m1::MuVector, m2::MuVector)
+function Base.isless(m1::MuVector, m2::MuVector)
     if m1.mu_hybs == m2.mu_hybs
         return isless(m1.mu_tips, m2.mu_tips)
     end
@@ -79,10 +77,10 @@ struct NodeMuRepresentation <: MuRepresentation
 end
 function Base.show(io::IO, obj::NodeMuRepresentation)
     labs = tiplabels(obj)
-    disp = "$(typeof(obj))\n$(length(labs)) taxa, $(length(obj.mu_map)) nodes,"
-    disp *= "\ntaxon order in μ-vectors:\n" * string(labs)
-    disp *= "\nmap node number => μ-vector:\n" * string(obj.mu_map)
-    println(io, disp)
+    disp = "$(typeof(obj))\n$(length(labs)) taxa in μ-vectors: $labs\n"
+    disp *= "$(length(obj.mu_map)) nodes, map node number => μ0 to hybrids and μ-vector to taxa:"
+    for (k,v) in obj.mu_map disp *= "\n  $k => $v"; end
+    print(io, disp)
 end
 
 # constructor: builds sorted vector from map, re-using memory for each μ-vector
@@ -185,18 +183,18 @@ struct EdgeMuRepresentation <: MuRepresentation
 end
 function Base.show(io::IO, obj::EdgeMuRepresentation)
     labs = tiplabels(obj)
-    s = "$(typeof(obj))\n$(length(labs)) taxa, $(length(obj.mu_map)) edges,"
-    s *= "\ntaxon order in μ-vectors:\n" * string(labs)
-    s *= "root μ-vector:\n" * string(obj.mu_root)
-    s *= "\nmap edge number => μ-entry, in root component:\n"
-    for (k,v) in mumap_rootcomp
-        s *= "tree edge $k:\n" * string(v[1]) * string(v[2])
+    s = "$(typeof(obj))\n$(length(labs)) taxa in μ-vectors: $labs\n"
+    s *= "root μ-vector: $(obj.mu_root)\n"
+    s *= "maps edge number => μ-entry:"
+    s *= "\n$(length(obj.mumap_rootcomp)) tree edges in the root component"
+    for (k,v) in obj.mumap_rootcomp
+        s *= "\n  $k => $(v[1]); $(v[1])"
     end
-    s *= "\nmap edge number => μ-entry, in directed part:\n"
-    for (k,v) in mumap_rootcomp
-        s *= "edge $k, tagged $(v[1]):\n" * string(v[2])
+    s *= "\n$(length(obj.mumap_directed)) edges in the directed part:"
+    for (k,v) in obj.mumap_directed
+        s *= "\n  $k => $(v[1]); $(v[2])"
     end
-    println(io, s)
+    print(io, s)
 end
 
 # constructor: builds sorted vectors from dictionaries
@@ -335,7 +333,7 @@ function node_murepresentation(
     for no in net.node
         no.leaf && continue # do *not* store the trivial μ-vectors of leaves
         num = no.number
-        push!(mu_dict, num => MuVector(mu_tips[num], mu_hybs[num]))
+        push!(mu_dict, num => MuVector(mu_hybs[num], mu_tips[num]))
     end
     return NodeMuRepresentation(labels, mu_dict)
 end
@@ -372,8 +370,8 @@ function edge_murepresentation(
     rho = nodemu[getroot(net).number]
     rμ0 = rho.mu_hybs
     rμv = rho.mu_tips
-    mumap_rootcomp::Dict{Int, Tuple{MuVector, MuVector}}()
-    mumap_directed::Dict{Int, Tuple{MuVector, MuTag}}()
+    mumap_rootcomp = Dict{Int, Tuple{MuVector,MuVector}}()
+    mumap_directed = Dict{Int, Tuple{MuTag,MuVector,}}()
     for ee in net.edge
         enum = ee.number
         cn = getchild(ee)
@@ -387,10 +385,10 @@ function edge_murepresentation(
             push!(mumap_rootcomp, enum => (cmu, mu_otherdirection))
         else
             tag = (ee.containroot ? mutag_i : (ee.hybrid ? mutag_h : mutag_t))
-            push!(mumap_directed, enum => (cmu, tag))
+            push!(mumap_directed, enum => (tag, cmu))
         end
     end
-    return EdgeMuRepresentation(rho, mumap_rootcomp, mumap_directed, labels)
+    return EdgeMuRepresentation(labels, rho, mumap_rootcomp, mumap_directed)
 end
 
 """
