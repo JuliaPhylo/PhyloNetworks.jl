@@ -192,7 +192,7 @@ function Base.show(io::IO, obj::EdgeMuRepresentation)
     s *= "maps edge number => μ-entry:"
     s *= "\n$(length(obj.mumap_rootcomp)) tree edges in the root component"
     for (k,v) in obj.mumap_rootcomp
-        s *= "\n  $k => $(v[1]); $(v[1])"
+        s *= "\n  $k => $(v[1]); $(v[2])"
     end
     s *= "\n$(length(obj.mumap_directed)) edges in the directed part:"
     for (k,v) in obj.mumap_directed

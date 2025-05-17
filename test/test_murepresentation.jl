@@ -1,5 +1,5 @@
 @testset "μ distances" begin
-@testset "on the μ-representations" begin
+@testset "on μ-representations" begin
 
 net1 = readnewick("((C,(B)#H1),(#H1,A));")
 μ1 = (@test_logs (:warn, r"^leaf C") PN.node_murepresentation(net1, ["D","A","B"]))
@@ -25,10 +25,10 @@ labels = ["D","A","B","C"] # different order than from both net1 & net2
 root μ-vector: μ0=2 μ=[1, 1, 2, 1]
 maps edge number => μ-entry:
 4 tree edges in the root component
-  4 => μ0=1 μ=[0, 1, 1, 0]; μ0=1 μ=[0, 1, 1, 0]
-  7 => μ0=1 μ=[0, 0, 1, 1]; μ0=1 μ=[0, 0, 1, 1]
-  10 => μ0=0 μ=[1, 0, 0, 0]; μ0=0 μ=[1, 0, 0, 0]
-  8 => μ0=2 μ=[0, 1, 2, 1]; μ0=2 μ=[0, 1, 2, 1]
+  4 => μ0=1 μ=[0, 1, 1, 0]; μ0=1 μ=[1, 0, 1, 1]
+  7 => μ0=1 μ=[0, 0, 1, 1]; μ0=1 μ=[1, 1, 1, 0]
+  10 => μ0=0 μ=[1, 0, 0, 0]; μ0=2 μ=[0, 1, 2, 1]
+  8 => μ0=2 μ=[0, 1, 2, 1]; μ0=0 μ=[1, 0, 0, 0]
 2 edges in the directed part:
   5 => incident; μ0=1 μ=[0, 0, 1, 0]
   3 => incident; μ0=1 μ=[0, 0, 1, 0]"""
@@ -44,41 +44,30 @@ deleteleaf!(net2, "D")
 @test μ2 != μ2o
 end
 
+@testset "on more complex networks" begin
 
-@testset "on networks" begin
-    net1 = readnewick("(((a,b)#H1,#H1)h2,c,d)R;")
-    labels = ["a", "b", "c", "d"]
+net1 = readnewick("((((b,a))#H1,#H1)h2,c,d)R;")
+net2 = readnewick("(((((a,b))#H1,c)h2,#H1),d)R;")
+@test mudistance_rooted(net1, net2) == 3
 
-    num2name = Dict{Int, String}()
-    for i in net1.node
-        num2name[i.number] = i.name
-    end
-    μ1 = PN.node_murepresentation(net1, labels)
-    name_map = Dict{String, Tuple{Vararg{Int}}}()
-    
-    μ_map = μ1.mu_map
-    for (i, value) in μ_map
-        name_map[num2name[i]] = value
-    end
-    println("net1",name_map)
-    @test name_map == Dict{String, Tuple{Vararg{Int64}}}( "c" => (0, 0, 1, 0),"H1" => (1, 1, 0, 0), "h2" => (2, 2, 0, 0), "b" => (0, 1, 0, 0), "R" => (2, 2, 1, 1), "a" => (1, 0, 0, 0), "d" => (0, 0, 0, 1))
+labs = ["a","b","c","d"]
+μ1  = PN.edge_murepresentation(net1 , labs, false)
+@test string(μ1) == """
+PhyloNetworks.EdgeMuRepresentation
+4 taxa in μ-vectors: ["a", "b", "c", "d"]
+root μ-vector: μ0=2 μ=[2, 2, 1, 1]
+maps edge number => μ-entry:
+1 tree edges in the root component
+  6 => μ0=2 μ=[2, 2, 0, 0]; μ0=0 μ=[0, 0, 1, 1]
+3 edges in the directed part:
+  5 => incident; μ0=1 μ=[1, 1, 0, 0]
+  4 => incident; μ0=1 μ=[1, 1, 0, 0]
+  3 => tree; μ0=0 μ=[1, 1, 0, 0]"""
+net1r = deepcopy(net1); rootatnode!(net1r, 4);
+μ1r = PN.edge_murepresentation(net1r, labs)
+@test string(μ1r.mumap_rootcomp[6]) == "(μ0=0 μ=[0, 0, 1, 1], μ0=2 μ=[2, 2, 0, 0])"
+@test mudistance_semidirected(net1, net1r; preorder=false) == 0
 
-    net2 = readnewick("(((a,b)#H1,c)h2,#H1,d)R;")
-    labels = ["a", "b", "c", "d"]
-
-    num2name = Dict{Int, String}()
-    for i in net2.node
-        num2name[i.number] = i.name
-    end
-    μ2 = PN.node_murepresentation(net2, labels)
-    name_map = Dict{String, Tuple{Vararg{Int}}}()
-    μ_map = μ2.mu_map
-    for (i, value) in μ_map
-        name_map[num2name[i]] = value
-    end
-    println("net2",name_map)
-    @test name_map == Dict{String, Tuple{Vararg{Int64}}}( "c" => (0, 0, 1, 0),"H1" => (1, 1, 0, 0), "h2" => (1, 1, 1, 0), "b" => (0, 1, 0, 0), "R" => (2, 2, 1, 1), "a" => (1, 0, 0, 0), "d" => (0, 0, 0, 1))
-    
-    @test mudistance_rooted(net1, net2) == 2
+# non-orchard network, with all tag types
 end
 end
