@@ -1,7 +1,7 @@
 @testset "μ distances" begin
 @testset "on the μ-representations" begin
-net1 = readnewick("((C,(B)#H1),(#H1,A));")
 
+net1 = readnewick("((C,(B)#H1),(#H1,A));")
 μ1 = (@test_logs (:warn, r"^leaf C") PN.node_murepresentation(net1, ["D","A","B"]))
 @test string(μ1) == """PhyloNetworks.NodeMuRepresentation
 3 taxa in μ-vectors: ["D", "A", "B"]
@@ -19,21 +19,29 @@ labels = ["D","A","B","C"] # different order than from both net1 & net2
 @test μ1 != μ2
 @test PN.mudistance(μ1, μ2) == 2 # root and degree-2 node above D
 
+μ2o = PN.edge_murepresentation(net2, labels, false)
+@test string(μ2o) == """PhyloNetworks.EdgeMuRepresentation
+4 taxa in μ-vectors: ["D", "A", "B", "C"]
+root μ-vector: μ0=2 μ=[1, 1, 2, 1]
+maps edge number => μ-entry:
+4 tree edges in the root component
+  4 => μ0=1 μ=[0, 1, 1, 0]; μ0=1 μ=[0, 1, 1, 0]
+  7 => μ0=1 μ=[0, 0, 1, 1]; μ0=1 μ=[0, 0, 1, 1]
+  10 => μ0=0 μ=[1, 0, 0, 0]; μ0=0 μ=[1, 0, 0, 0]
+  8 => μ0=2 μ=[0, 1, 2, 1]; μ0=2 μ=[0, 1, 2, 1]
+2 edges in the directed part:
+  5 => incident; μ0=1 μ=[0, 0, 1, 0]
+  3 => incident; μ0=1 μ=[0, 0, 1, 0]"""
+
 deleteleaf!(net2, "D")
 μ2 = (@test_logs PN.node_murepresentation(net2, labels))
 @test μ1 == μ2
-@test PN.mudistance(μ1, μ2) == 2
+@test PN.mudistance(μ1, μ2) == 0
 
-@test μ1 == μ2
-@test node_distance == 0
-
-μ1 = PN.edge_murepresentation(net1, labels)
-μ2 = PN.edge_murepresentation(net2, labels)
-
-edge_distance = mudistance_rooted(net1, net2)
-
-@test μ1 == μ2
-@test edge_distance == 0
+μ1 = PN.edge_murepresentation(net1, labels, false)
+μ2 = PN.edge_murepresentation(net2, labels, false)
+@test μ2 == μ1
+@test μ2 != μ2o
 end
 
 

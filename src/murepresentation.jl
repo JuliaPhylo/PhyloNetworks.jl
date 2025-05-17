@@ -137,8 +137,9 @@ function ==(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
     isnothing(o12) && return false
     o1, o2 = o12
     length(m1.mu_vec) == length(m2.mu_vec) || return false
-    for (μ1, μ2) in zip(m1.mu_vec[o1], m2.mu_vec[o2])
-        μ1 == μ2 || return false
+    for (μ1, μ2) in zip(m1.mu_vec, m2.mu_vec)
+        μ1.mu_hybs == μ2.mu_hybs || return false
+        μ1.mu_tips[o1] == μ2.mu_tips[o2] || return false
     end
     return true
 end
@@ -247,17 +248,20 @@ function ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
     o12 = indexin_check0μentries(m1, m2)
     isnothing(o12) && return false
     o1, o2 = o12
-    m1.mu_root[o1] == m2.mu_root[o2] || return false
+    m1.mu_root.mu_hybs == m2.mu_root.mu_hybs || return false
+    m1.mu_root.mu_tips[o1] == m2.mu_root.mu_tips[o2] || return false
     length(m1.muvec_rootcomp) == length(m2.muvec_rootcomp) || return false
     length(m1.muvec_directed) == length(m2.muvec_directed) || return false
     for (ms1, ms2) in zip(m1.muvec_rootcomp, m2.muvec_rootcomp)
-        ms1[1][o1] == ms2[1][o2] || return false
+        ms1[1].mu_hybs == ms2[1].mu_hybs || return false
+        ms1[1].mu_tips[o1] == ms2[1].mu_tips[o2] || return false
         # no need to check second vector: bc 1 root and same root μ-vector
         # ms1[2][o1] == ms2[2][o2] || return false
     end
     for (ms1, ms2) in zip(m1.muvec_directed, m2.muvec_directed)
-        ms1[1] == ms2[1] || return false         # same tags
-        ms1[2][o1] == ms2[2][o2] || return false # same μ-vectors
+        ms1[1] == ms2[1] || return false # same tags
+        ms1[2].mu_hybs == ms2[2].mu_hybs || return false # same μ-vectors
+        ms1[2].mu_tips[o1] == ms2[2].mu_tips[o2] || return false
     end
     return true
 end
