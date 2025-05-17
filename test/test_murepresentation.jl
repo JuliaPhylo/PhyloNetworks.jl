@@ -68,6 +68,32 @@ net1r = deepcopy(net1); rootatnode!(net1r, 4);
 @test string(μ1r.mumap_rootcomp[6]) == "(μ0=0 μ=[0, 0, 1, 1], μ0=2 μ=[2, 2, 0, 0])"
 @test mudistance_semidirected(net1, net1r; preorder=false) == 0
 
+# networks with differen leaf sets
+deleteleaf!(net1r,"c")
+@test mudistance_rooted(net1, net1r) == 3
+@test mudistance_semidirected(net1, net1r; preorder=false) == 1
+
 # non-orchard network, with all tag types
+nwkstr1 = "((b1:1,((a1:1)#H12:3,#H1:0)r1:2):1,((x1:.5,((#H21:1,#H3:.5)w1:1)#H1:1):1,((((c:1)#H3:.5,#H12:1)w2:1)#H2:1,x2:.5):1):1,((#H2:0,(a2:1)#H21:3)r2:2,b2:1):1);"
+net1 = readnewick(nwkstr1)
+# plot(net1, useedgelength=true, showedgenumber=true, shownodelabel=true);
+μ1 = PN.edge_murepresentation(net1) # default labels
+@test tiplabels(μ1) == ["b1","a1","x1","c","x2","a2","b2"]
+@test μ1.mu_root == PN.MuVector(14, [1,3,1,4,1,3,1])
+rv = μ1.muvec_rootcomp
+@test length(rv) == 7
+@test [(m[1].mu_hybs, m[2].mu_hybs) for m in rv] == [(3,11),(3,11),(4,10),(4,10),(4,10),(4,10),(6,8)]
+@test rv[1][1].mu_tips == [0,0,1,1,0,1,0]
+@test rv[1][2].mu_tips == [1,3,0,3,1,2,1]
+@test rv[7][1].mu_tips == [0,1,1,2,1,1,0]
+@test rv[7][2].mu_tips == [1,2,0,2,0,2,1]
+
+# swap b1 and b2: different topology, yet same hardwired clusters etc
+nwkstr2 = replace(replace(replace(nwkstr1,"b1"=>"tmp"), "b2"=>"b1"), "tmp"=>"b2")
+net2 = readnewick(nwkstr2)
+# @test hardwiredclusterdistance(net1, net2, true) == 0
+@test mudistance_rooted(net1, net2) == 0
+@test mudistance_semidirected(net1, net2) == 0
+
 end
 end

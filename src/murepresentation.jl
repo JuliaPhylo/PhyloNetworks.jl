@@ -269,7 +269,7 @@ end
 
 """
     node_murepresentation(net::HybridNetwork,
-        labels::AbstractVector{<:AbstractString},
+        labels::AbstractVector{<:AbstractString}=tiplabels(net),
         preorder::Bool=true)
 
 [`NodeMuRepresentation`](@ref) object for network `net` considered as rooted,
@@ -292,7 +292,7 @@ Assumptions about tip labels:
 """
 function node_murepresentation(
     net::HybridNetwork,
-    labels::AbstractVector{<:AbstractString},
+    labels::AbstractVector{<:AbstractString}=tiplabels(net),
     preorder::Bool=true
 )
     allunique(labels) || error("some input tip labels are repeated.")
@@ -347,7 +347,7 @@ end
 
 """
     edge_murepresentation(net::HybridNetwork,
-        labels::AbstractVector{<:AbstractString},
+        labels::AbstractVector{<:AbstractString}=tiplabels(net),
         preorder::Bool=true)
 
 [`EdgeMuRepresentation`](@ref) object for network `net`, considered as a
@@ -370,7 +370,7 @@ in `net`.
 """
 function edge_murepresentation(
     net::HybridNetwork,
-    labels::AbstractVector{<:AbstractString},
+    labels::AbstractVector{<:AbstractString}=tiplabels(net),
     preorder::Bool=true
 )
     nodemu = node_murepresentation(net, labels, preorder).mu_map
