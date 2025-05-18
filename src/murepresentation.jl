@@ -485,6 +485,7 @@ without ignoring any non-leaf node (including degree-2 nodes if any), and
 ignoring leaves whose μ-vectors are trivial.
 
 Assumption: networks have a single root.
+See also [`node_murepresentation`](@ref).
 
 ## keyword arguments
 
@@ -588,6 +589,7 @@ Consider pruning leaves that are not shared between the two networks beforehand,
 using [`deleteleaf!`](@ref), to compare the subnetworks on their shared leaf set.
 
 Assumption: networks have a single root.
+See also [`edge_murepresentation`](@ref).
 
 # keyword arguments
 

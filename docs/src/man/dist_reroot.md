@@ -265,6 +265,8 @@ From the plots, we see that:
 The node-based μ-representation of rooted networks and the
 edge-based μ-representation of semidirected networks lead to μ-distances,
 which generalize the RF-distance on trees.
+See [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390)
+and [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780)
 
 Each μ-representation lists a number of counts: counting the number of paths
 from each node / edge to each leaf (and to some/any hybrid node).
@@ -279,7 +281,7 @@ single traversal of the network.
 
 !!! info "distance versus dissimilarity"
     Again, the μ-distances are only dissimilarities generally. They are known
-    to provided a distance, with d(N, N') = 0 exactly when N and N' share the
+    to provided a distance, with d(N,N') = 0 exactly when N and N' share the
     same topology, when N and N' are tree-child rooted or semidirected networks.
 
 ```@repl dist_reroot
@@ -318,6 +320,10 @@ net1_noB    = deepcopy(net1);    deleteleaf!(net1_noB, "B");
 truenet_noB = deepcopy(truenet); deleteleaf!(truenet_noB, "B");
 mudistance_semidirected(net1_noB, truenet_noB)
 ```
+
+To get the μ-representations themselves, see
+[`node_murepresentation`](@ref) and
+[`edge_murepresentation`](@ref).
 
 ## Displayed trees and subnetworks
 

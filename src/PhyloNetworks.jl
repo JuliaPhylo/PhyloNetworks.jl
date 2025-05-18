@@ -99,6 +99,8 @@ module PhyloNetworks
         hardwiredcluster,
         hardwiredcluster!,
         hardwiredclusterdistance,
+        mudistance_semidirected,
+        mudistance_rooted,
         biconnectedcomponents,
         blobdecomposition!,
         blobdecomposition,
@@ -129,9 +131,7 @@ module PhyloNetworks
         # quartets
         tablequartetf4,
         tablequartetCF,
-        countquartetsintrees,
-        mudistance_semidirected,
-        mudistance_rooted
+        countquartetsintrees
 
     ##Constants
     const fAbsBL = 1e-10

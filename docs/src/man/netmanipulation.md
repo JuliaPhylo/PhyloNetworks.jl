@@ -139,6 +139,10 @@ To calibrate a network (modify its edge lengths):
   guarantee that the 2 networks have the same topology in general.
   But it does if the networks are in some classes (e.g. trees, level-1,
   tree-child, and others).
+- μ-distances [`mudistance_rooted`](@ref) and [`mudistance_semidirected`](@ref):
+  they also extend the Robinson-Foulds distance on trees.
+  They are dissimilarities on general networks, but distances on some classes
+  (including tree-child).
 
 ## Comparing taxa
 
