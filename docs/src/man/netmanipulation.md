@@ -132,7 +132,7 @@ To calibrate a network (modify its edge lengths):
   about calibration so far, but see this
   [tutorial](https://cecileane.github.io/networkPCM-workshop/topic1-netcalibration.html)
 
-## Comparing two networks
+## Comparing networks
 
 - [`hardwiredclusterdistance`](@ref): extends the Robinson-Foulds distance.
   It's a dissimilarity measure on networks: a dissimilarity of 0 does not

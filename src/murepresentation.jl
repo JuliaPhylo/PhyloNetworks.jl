@@ -16,7 +16,8 @@ Base.isless(t1::MuTag, t2::MuTag) = isless(t1.tag, t2.tag)
 """
     MuVector
 
-μ-vector for a single node (see [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390))
+μ-vector for a single node
+(see [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390))
 separated into
 - μ0: number of paths starting at the node or edge and ending at any hybrid node
 - μ-vector counting the number of paths from that node to each specific leaf.
@@ -68,7 +69,7 @@ number of paths from that node to each leaf.
 for each non-leaf node only (not for tips), because leaf nodes have trivial
 μ-vectors (all 0s but one 1) that would match across any network with that leaf.
 
-See [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390).
+See [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
 """
 struct NodeMuRepresentation <: MuRepresentation
     "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
@@ -168,7 +169,7 @@ for internal edges only (not external to a tip).
      these edges must be hybrid edges, and there is no information loss.
 
 All μ-vectors include the number of paths to hybrids, defined for rooted networks
-by [Cardona et al. 2024](https://doi.org/10.1109/TCBB.2024.3361390).
+by [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
 See [`MuVector`](@ref).
 """
 struct EdgeMuRepresentation <: MuRepresentation
@@ -465,8 +466,7 @@ end
 """
     mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork;
         labels::AbstractVector{<:AbstractString}=union(tiplabels(net1), tiplabels(net2)),
-        preorder::Bool=true,
-    )
+        preorder::Bool=true)
 
 Distance or matrix of distances between the networks, considered as rooted,
 based on their node-based μ-representation: number of nodes in one network
@@ -475,10 +475,10 @@ The μ-vector of a node has n+1 coordinates: one for each tip taxon, and one
 for hybrids. Each value counts the number of paths starting at the node and
 ending at a specific leaf, or ending at a hybrid node (any hybrid node).
 
-See [Cardona, Rossello & Valiente 2009](https://doi.org/10.1109/TCBB.2007.70270)
+See [Cardona, Rossello & Valiente (2009)](https://doi.org/10.1109/TCBB.2007.70270)
 for the original μ-distance, and
-[Cardona et al. 2024](https://10.1109/TCBB.2024.3361390) for the extension
-using paths ending at hybrids.
+[Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390) for the
+extension using paths ending at hybrids.
 
 The distance implemented here considers one μ-vector per non-leaf node:
 without ignoring any non-leaf node (including degree-2 nodes if any), and
@@ -577,7 +577,7 @@ leaf, or ending at a (any) hybrid node. For more details, see
 [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
 The implementation here departs from Maxfield, Xu & Ané (2025) by considering
 μ-vectors "extended" with the counts of paths ending at hybrids, as defined
-on rooted networks by [Cardona et al. 2024](https://10.1109/TCBB.2024.3361390).
+on rooted networks by [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
 
 Each μ-entry includes 1 or 2 μ-vector(s) and tag(s) indicating the edge type
 (e.g. hybrid). The number of μ-vector(s) depends on the direction(s) that an
