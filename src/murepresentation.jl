@@ -290,6 +290,8 @@ Assumptions about tip labels:
   and μ-vectors will be missing the entry for the tips not listed in `labels`
 - if `label[i]` is not a tip in `net`, then all μ-vector will have a count of 0
   at index `i`, with no warning.
+
+Used by [`mudistance_rooted`](@ref), and [`edge_murepresentation`](@ref).
 """
 function node_murepresentation(
     net::HybridNetwork,
@@ -362,8 +364,6 @@ External edges are edges whose child is a leaf. They are excluded here because
 they have trivial μ-vectors under the common assumption that leaves are incident
 to a single edge (that is, leaves must not be hybrid nodes).
 
-`net` is assumed to have a single root component.
-
 - `preorder`: whether to preprocess the network (direct edges away from the root
   and calculate a pre-ordering of nodes).
 - `suppressroot`: whether to exclude one internal tree edge incident to the root,
@@ -371,8 +371,11 @@ to a single edge (that is, leaves must not be hybrid nodes).
   In that case, re-rooting the network would suppress that internal tree edge,
   hence its associated μ-entry. This option does *not* modify the network.
 
+`net` is assumed to have a single root component.  
 See [`node_murepresentation`](@ref) for assumptions about `labels` and tip labels
 in `net`.
+
+Used by [`mudistance_semidirected`](@ref).
 """
 function edge_murepresentation(
     net::HybridNetwork,
@@ -484,7 +487,7 @@ The distance implemented here considers one μ-vector per non-leaf node:
 without ignoring any non-leaf node (including degree-2 nodes if any), and
 ignoring leaves whose μ-vectors are trivial.
 
-Assumption: networks have a single root.
+Assumption: networks have a single root.  
 See also [`node_murepresentation`](@ref).
 
 ## keyword arguments
@@ -588,7 +591,7 @@ is considered to build μ-vectors, and the resulting distance must be positive.
 Consider pruning leaves that are not shared between the two networks beforehand,
 using [`deleteleaf!`](@ref), to compare the subnetworks on their shared leaf set.
 
-Assumption: networks have a single root.
+Assumption: networks have a single root.  
 See also [`edge_murepresentation`](@ref).
 
 # keyword arguments
