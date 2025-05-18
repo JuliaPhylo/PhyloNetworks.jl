@@ -348,7 +348,8 @@ end
 """
     edge_murepresentation(net::HybridNetwork,
         labels::AbstractVector{<:AbstractString}=tiplabels(net);
-        preorder::Bool=true)
+        preorder::Bool=true,
+        suppressroot::Bool=true)
 
 [`EdgeMuRepresentation`](@ref) object for network `net`, considered as a
 semidirected network. This representation maps each internal edge in `net` to
@@ -362,8 +363,12 @@ to a single edge (that is, leaves must not be hybrid nodes).
 
 `net` is assumed to have a single root component.
 
-`preorder`: whether to preprocess the network (direct edges away from the root
-and calculate a pre-ordering of nodes).
+- `preorder`: whether to preprocess the network (direct edges away from the root
+  and calculate a pre-ordering of nodes).
+- `suppressroot`: whether to exclude one internal tree edge incident to the root,
+  in case the root is incident to exactly 2 edges which are not both hybrid edges.
+  In that case, re-rooting the network would suppress that internal tree edge,
+  hence its associated μ-entry. This option does *not* modify the network.
 
 See [`node_murepresentation`](@ref) for assumptions about `labels` and tip labels
 in `net`.
@@ -371,10 +376,13 @@ in `net`.
 function edge_murepresentation(
     net::HybridNetwork,
     labels::AbstractVector{<:AbstractString}=tiplabels(net);
-    preorder::Bool=true
+    preorder::Bool=true,
+    suppressroot::Bool=true,
 )
     nodemu = node_murepresentation(net, labels; preorder=preorder).mu_map
-    rho = nodemu[getroot(net).number]
+    rn = getroot(net)
+    rn.leaf && error("please re-root the network: it's leaf $(rn.name)")
+    rho = nodemu[rn.number]
     rμ0 = rho.mu_hybs
     rμv = rho.mu_tips
     mumap_rootcomp = Dict{Int, Tuple{MuVector,MuVector}}()
@@ -394,6 +402,16 @@ function edge_murepresentation(
             tag = (ee.containroot ? mutag_i : (ee.hybrid ? mutag_h : mutag_t))
             push!(mumap_directed, enum => (tag, cmu))
         end
+    end
+    re = rn.edge
+    if suppressroot && length(re)==2 && !(re[1].hybrid && re[2].hybrid)
+        i1,i2 = (re[1].number < re[2].number ? (1,2) : (2,1))
+        e = re[i2] # ignore edge with larger number, if possible
+        if e.hybrid || isexternal(e)
+            e = re[i1]
+            e.hybrid && error("oops: root adjacent to 1 leaf and 1 hybrid")
+        end
+        delete!(mumap_rootcomp, e.number)
     end
     return EdgeMuRepresentation(labels, rho, mumap_rootcomp, mumap_directed)
 end
@@ -446,11 +464,13 @@ end
 
 """
     mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork;
-                      preorder::Bool=true)
+        labels::AbstractVector{<:AbstractString}=union(tiplabels(net1), tiplabels(net2)),
+        preorder::Bool=true,
+    )
 
-Distance between two networks, considered as rooted networks, based on their
-node-based μ-representation: number of nodes in one network whose μ-vector does
-not match with that of a node in the other network.
+Distance or matrix of distances between the networks, considered as rooted,
+based on their node-based μ-representation: number of nodes in one network
+whose μ-vector does not match with that of a node in the other network.
 The μ-vector of a node has n+1 coordinates: one for each tip taxon, and one
 for hybrids. Each value counts the number of paths starting at the node and
 ending at a specific leaf, or ending at a hybrid node (any hybrid node).
@@ -464,20 +484,33 @@ The distance implemented here considers one μ-vector per non-leaf node:
 without ignoring any non-leaf node (including degree-2 nodes if any), and
 ignoring leaves whose μ-vectors are trivial.
 
-If `net1` and `net2` have different tip labels, the union of all their labels
-is considered to build μ-vectors, and the resulting distance must be positive.
-
-Consider pruning leaves that are not shared between the two networks beforehand,
-using [`deleteleaf!`](@ref), to compare the subnetworks on their shared leaf set.
-
 Assumption: networks have a single root.
+
+## keyword arguments
+
+- `preorder` indicates whether to preprocess each network with
+  [`directedges!`](@ref) and [`preorder!`](@ref).
+- `labels`: tip labels that each μ-vector will track, by default the union of
+  taxon labels across both networks. If a taxon is absent from `net1` (say) but
+  tracked because present in `net2`, then there are 0 paths from any node in
+  `net1` to that taxon.
+
+If the networks have different tip labels, consider pruning leaves that are
+not shared between them beforehand, using [`deleteleaf!`](@ref),
+to compare the subnetworks on their shared leaf set.
+
+If a non-default `label` set is used, such as the shared taxon set
+`intersect(tiplabels(net1), tiplabels(net2))`, then the distance may drop,
+because the number of paths to non-shared taxa will be ignored.
+But *all* nodes still count towards the distance, including degree-2 nodes
+that would be suppressed in subnetworks.
 """
 function mudistance_rooted(
     net1::HybridNetwork,
     net2::HybridNetwork;
-    preorder::Bool=true
+    labels::AbstractVector{<:AbstractString}=union(tiplabels(net1), tiplabels(net2)),
+    preorder::Bool=true,
 )
-    labels = union(tiplabels(net1), tiplabels(net2))
     nodemu1 = node_murepresentation(net1, labels; preorder=preorder)
     nodemu2 = node_murepresentation(net2, labels; preorder=preorder)
     return mudistance(nodemu1, nodemu2)
@@ -529,12 +562,12 @@ function mudistance(
 end
 
 """
-    mudistance_semidirected(net1::HybridNetwork, net2::HybridNetwork;
-                            preorder::Bool=true, userootμ::Bool=false)
+    mudistance_semidirected(net1::HybridNetwork, net2::HybridNetwork; ...)
+    mudistance_semidirected(nets::AbstractVector{HybridNetwork}; ...)
 
-Distance between two networks, considered as semidirected, based on their
-edge-based μ-representation: number of edges in one network whose μ-entry does
-not match with that of an edge in the other network.
+Distance or matrix of distances between the networks, considered as semidirected,
+based on their edge-based μ-representation: number of edges in one network
+whose μ-entry does not match with that of an edge in the other network.
 
 The μ-vector of an edge, assigned some specific direction, has n+1 coordinates:
 one for each tip taxon, and one for hybrids. Each value counts the number of
@@ -549,43 +582,61 @@ Each μ-entry includes 1 or 2 μ-vector(s) and tag(s) indicating the edge type
 (e.g. hybrid). The number of μ-vector(s) depends on the direction(s) that an
 edge may have under different rootings.
 
-If `net1` and `net2` have different tip labels, the union of all their labels
+If the networks have different tip labels, the union of all their labels
 is considered to build μ-vectors, and the resulting distance must be positive.
 Consider pruning leaves that are not shared between the two networks beforehand,
 using [`deleteleaf!`](@ref), to compare the subnetworks on their shared leaf set.
 
-# keyword options
+Assumption: networks have a single root.
 
-- `preorder` indicates whether to preprocess each network with
+# keyword arguments
+
+- `preorder=true` indicates whether to preprocess each network with
   [`directedges!`](@ref) and [`preorder!`](@ref).
-- `userootμ` controls whether the root μ-vector in included in the set of
+- `userootμ=false` controls whether the root μ-vector in included in the set of
   μ-entries being compared. It is ignored by default (departing from
   [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780))
   because different root μ-vectors for networks with a single root would cause
   all μ-entries in their root components to be different.
+- `suppressroot=true` to exclude one internal tree edge incident to the root,
+  in case the root is incident to exactly 2 edges which are not both hybrid edges.
+  In that case, re-rooting the network would suppress that internal tree edge,
+  hence its associated μ-entry. This option does *not* modify the network.
+- `labels`: tip labels that each μ-vector will track, by default the union of
+  taxon labels across both networks. If a taxon is absent from `net1` (say) but
+  tracked because present in `net2`, then there are 0 paths from any edge in
+  `net1` to that taxon.
 
-Assumption: networks have a single root.
+If the networks have different tip labels, consider pruning leaves that are
+not shared between them beforehand, using [`deleteleaf!`](@ref),
+to compare the subnetworks on their shared leaf set.
+
+If a non-default `label` set is used, such as the shared taxon set
+`intersect(tiplabels(net1), tiplabels(net2))`, then the distance may drop,
+as the number of paths to non-shared taxa will be ignored. But *all* edges still
+count towards the distance, whereas edges below degree-2 nodes would be
+suppressed in subnetworks.
 """
 function mudistance_semidirected(
     net1::HybridNetwork,
     net2::HybridNetwork;
-    preorder::Bool=true,
+    labels::AbstractVector{<:AbstractString}=union(tiplabels(net1), tiplabels(net2)),
     userootμ::Bool=false,
+    kwargs...
 )
-    labels = union(tiplabels(net1), tiplabels(net2))
-    m1 = edge_murepresentation(net1, labels; preorder=preorder)
-    m2 = edge_murepresentation(net2, labels; preorder=preorder)
+    m1 = edge_murepresentation(net1, labels; kwargs...)
+    m2 = edge_murepresentation(net2, labels; kwargs...)
     return mudistance(m1, m2, userootμ)
 end
 function mudistance_semidirected(
     nets::AbstractVector{HybridNetwork};
-    preorder::Bool=true,
+    labels::AbstractVector{<:AbstractString}=tiplabels(nets),
     userootμ::Bool=false,
+    kwargs...
 )
-    labs = tiplabels(nets) # union
     nn = length(nets)
     M = zeros(Int, nn, nn)
-    mr = [edge_murepresentation(n, labs; preorder=preorder) for n in nets]
+    mr = [edge_murepresentation(n, labels; kwargs...) for n in nets]
     for (i1, m1) in enumerate(mr)
         for i2 in 1:(i1-1)
             d = mudistance(m1, mr[i2], userootμ)

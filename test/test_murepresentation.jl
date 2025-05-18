@@ -18,16 +18,17 @@ labels = ["D","A","B","C"] # different order than from both net1 & net2
 μ2 = (@test_logs PN.node_murepresentation(net2, labels))
 @test μ1 != μ2
 @test PN.mudistance(μ1, μ2) == 2 # root and degree-2 node above D
+@test ((@test_logs (:warn,r"leaf") (:warn,r"leaf") (:warn,r"leaf") mudistance_semidirected(
+    net1, net2; preorder=false, labels=["A","B"]))) == 2
 
 μ2o = PN.edge_murepresentation(net2, labels; preorder=false)
 @test string(μ2o) == """PhyloNetworks.EdgeMuRepresentation
 4 taxa in μ-vectors: ["D", "A", "B", "C"]
 root μ-vector: μ0=2 μ=[1, 1, 2, 1]
 maps edge number => μ-entry:
-4 tree edges in the root component
+3 tree edges in the root component
   4 => μ0=1 μ=[0, 1, 1, 0]; μ0=1 μ=[1, 0, 1, 1]
   7 => μ0=1 μ=[0, 0, 1, 1]; μ0=1 μ=[1, 1, 1, 0]
-  10 => μ0=0 μ=[1, 0, 0, 0]; μ0=2 μ=[0, 1, 2, 1]
   8 => μ0=2 μ=[0, 1, 2, 1]; μ0=0 μ=[1, 0, 0, 0]
 2 edges in the directed part:
   5 => incident; μ0=1 μ=[0, 0, 1, 0]
@@ -48,8 +49,8 @@ end
 
 net1 = readnewick("((((b,a))#H1,#H1)h2,c,d)R;")
 net2 = readnewick("(((((a,b))#H1,c)h2,#H1),d)R;")
-@test mudistance_rooted([net1, net2]; preorder=false) == [0 3; 3 0]
-@test mudistance_semidirected([net1, net2]; preorder=false, userootμ=true) == [0 3; 3 0]
+@test mudistance_rooted([net1, net2]) == [0 3; 3 0]
+@test mudistance_semidirected([net1, net2]; preorder=false, userootμ=true) == [0 2; 2 0]
 
 labs = ["a","b","c","d"]
 μ1  = PN.edge_murepresentation(net1, labs; preorder=false)
@@ -67,12 +68,12 @@ maps edge number => μ-entry:
 net1r = deepcopy(net1); rootatnode!(net1r, 4);
 μ1r = PN.edge_murepresentation(net1r, labs)
 @test string(μ1r.mumap_rootcomp[6]) == "(μ0=0 μ=[0, 0, 1, 1], μ0=2 μ=[2, 2, 0, 0])"
-@test mudistance_semidirected([net1, net1r]; preorder=false, userootμ=true) == [0 0; 0 0]
+@test mudistance_semidirected([net1, net1r]; userootμ=true) == [0 0; 0 0]
 
 # networks with differen leaf sets
 deleteleaf!(net1r,"c")
 @test mudistance_rooted(net1, net1r) == 3
-@test mudistance_semidirected(net1, net1r; preorder=false) == 1
+@test mudistance_semidirected(net1, net1r) == 1
 @test mudistance_semidirected(net1, net1r; preorder=false, userootμ=true) == 2
 
 # non-orchard network, with all tag types

@@ -210,7 +210,8 @@ The "true" network is shown below, correctly rooted at the outgroup O,
 and plotted with branch lengths proportional to their
 values in coalescence units:
 ```@repl dist_reroot
-truenet = readnewick("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
+truenet = readnewick("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,
+(#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 ```
 ```@example dist_reroot
 R"svg(name('truenet_sim.svg'), width=4, height=4)" # hide
@@ -244,17 +245,79 @@ We can compare two networks using the hardwired-cluster dissimilarity.
     ([Cardona et al. 2014](https://doi.org/10.1155/2014/254279)).
 
 ```@repl dist_reroot
-hardwiredclusterdistance(net1, truenet, true) # true: yes consider these networks as rooted
+hardwiredclusterdistance(net1, truenet, true) # true: nets considered as rooted
 ```
 Our estimated network is at distance 4 (not 0), so it is *different* from the
-true network (there was estimation error). From the plots, we see that:
+true network (there was estimation error).
+The 4 cluster differences correspond to the hybrid edges in `net1` (whose
+cluster is A), the hybrid edges in `truenet` (whose cluster is AB);
+and the parent of their minor hybrid edges:
+with cluster EA in `net1` versus EAB in `truenet`.
+
+From the plots, we see that:
 - the underlying tree is correctly estimated
 - the origin of gene flow is correctly estimated: E
 - the target of gene flow is *not* correctly estimated: it was
   the lineage ancestral to (A,B), but it is estimated to be A only.
 
-The 4 cluster differences correspond to the 2 hybrid edges in `net1` (whose
-cluster is A) plus the 2 hybrid edges in `truenet` (whose cluster is AB).
+## μ distances
+
+The node-based μ-representation of rooted networks and the
+edge-based μ-representation of semidirected networks lead to μ-distances,
+which generalize the RF-distance on trees.
+
+Each μ-representation lists a number of counts: counting the number of paths
+from each node / edge to each leaf (and to some/any hybrid node).
+From these path numbers, we can get the hardwired cluster associated to
+node or leaf: the tips that can be reached via 1 or more paths.  
+So then the μ-distance is more discriminant (larger) than the hardwired-cluster
+distance.
+
+For semidirected networks, the calculation of the μ-distance is much faster
+than the calculation of the hardwired-cluster distance, because it requires a
+single traversal of the network.
+
+!!! info "distance versus dissimilarity"
+    Again, the μ-distances are only dissimilarities generally. They are known
+    to provided a distance, with d(N, N') = 0 exactly when N and N' share the
+    same topology, when N and N' are tree-child rooted or semidirected networks.
+
+```@repl dist_reroot
+mudistance_rooted(net1, truenet)
+```
+
+Here both networks have an edge leading to the cluster ABCDE (the stem of
+the clade), but these edges have different number of paths to B: only 1 path
+in `net1` versus 2 paths in `truenet`. So these edges did not count towards
+the hardwired-cluster distance, but do count towards the rooted μ-distance now.
+
+```@repl dist_reroot
+mudistance_semidirected(net1, truenet)
+```
+
+When considered as undirected, the μ-distance is greater here: this is because
+each edge is considered in each direction it can take if its direction may
+change depending on the root. To math edges between 2 networks,
+the edges' number of paths to taxa need to match -- in both directions (unlike
+when the networks are considered rooted).
+Here, each network has 6 internal edges (after suppressing the root) and none
+of them match between the 2 networks.
+
+But the distance does not depend on the root position (which may be unknown):
+
+```@repl dist_reroot
+net1_E = deepcopy(net1); rootatnode!(net1_E, "E");
+mudistance_semidirected(net1_E, truenet) # same as with net1
+```
+
+and if we ignore B the μ-distance drops to 0, consistent with the 2 subnetworks
+being equal:
+
+```@repl dist_reroot
+net1_noB    = deepcopy(net1);    deleteleaf!(net1_noB, "B");
+truenet_noB = deepcopy(truenet); deleteleaf!(truenet_noB, "B");
+mudistance_semidirected(net1_noB, truenet_noB)
+```
 
 ## Displayed trees and subnetworks
 
