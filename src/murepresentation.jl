@@ -269,7 +269,7 @@ end
 
 """
     node_murepresentation(net::HybridNetwork,
-        labels::AbstractVector{<:AbstractString}=tiplabels(net),
+        labels::AbstractVector{<:AbstractString}=tiplabels(net);
         preorder::Bool=true)
 
 [`NodeMuRepresentation`](@ref) object for network `net` considered as rooted,
@@ -292,7 +292,7 @@ Assumptions about tip labels:
 """
 function node_murepresentation(
     net::HybridNetwork,
-    labels::AbstractVector{<:AbstractString}=tiplabels(net),
+    labels::AbstractVector{<:AbstractString}=tiplabels(net);
     preorder::Bool=true
 )
     allunique(labels) || error("some input tip labels are repeated.")
@@ -347,7 +347,7 @@ end
 
 """
     edge_murepresentation(net::HybridNetwork,
-        labels::AbstractVector{<:AbstractString}=tiplabels(net),
+        labels::AbstractVector{<:AbstractString}=tiplabels(net);
         preorder::Bool=true)
 
 [`EdgeMuRepresentation`](@ref) object for network `net`, considered as a
@@ -370,10 +370,10 @@ in `net`.
 """
 function edge_murepresentation(
     net::HybridNetwork,
-    labels::AbstractVector{<:AbstractString}=tiplabels(net),
+    labels::AbstractVector{<:AbstractString}=tiplabels(net);
     preorder::Bool=true
 )
-    nodemu = node_murepresentation(net, labels, preorder).mu_map
+    nodemu = node_murepresentation(net, labels; preorder=preorder).mu_map
     rho = nodemu[getroot(net).number]
     rμ0 = rho.mu_hybs
     rμv = rho.mu_tips
@@ -445,7 +445,8 @@ function mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
 end
 
 """
-    mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork, preorder::Bool=true)
+    mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork;
+                      preorder::Bool=true)
 
 Distance between two networks, considered as rooted networks, based on their
 node-based μ-representation: number of nodes in one network whose μ-vector does
@@ -473,13 +474,29 @@ Assumption: networks have a single root.
 """
 function mudistance_rooted(
     net1::HybridNetwork,
-    net2::HybridNetwork,
+    net2::HybridNetwork;
     preorder::Bool=true
 )
     labels = union(tiplabels(net1), tiplabels(net2))
-    nodemu1 = node_murepresentation(net1, labels, preorder)
-    nodemu2 = node_murepresentation(net2, labels, preorder)
+    nodemu1 = node_murepresentation(net1, labels; preorder=preorder)
+    nodemu2 = node_murepresentation(net2, labels; preorder=preorder)
     return mudistance(nodemu1, nodemu2)
+end
+function mudistance_rooted(
+    nets::AbstractVector{HybridNetwork};
+    preorder::Bool=true,
+)
+    labs = tiplabels(nets) # union
+    nn = length(nets)
+    M = zeros(Int, nn, nn)
+    mr = [node_murepresentation(n, labs; preorder=preorder) for n in nets]
+    for (i1, m1) in enumerate(mr)
+        for i2 in 1:(i1-1)
+            d = mudistance(m1, mr[i2])
+            M[i1,i2] = d; M[i2,i1] = d
+        end
+    end
+    return M
 end
 
 """
@@ -556,7 +573,24 @@ function mudistance_semidirected(
     userootμ::Bool=false,
 )
     labels = union(tiplabels(net1), tiplabels(net2))
-    m1 = edge_murepresentation(net1, labels, preorder)
-    m2 = edge_murepresentation(net2, labels, preorder)
+    m1 = edge_murepresentation(net1, labels; preorder=preorder)
+    m2 = edge_murepresentation(net2, labels; preorder=preorder)
     return mudistance(m1, m2, userootμ)
+end
+function mudistance_semidirected(
+    nets::AbstractVector{HybridNetwork};
+    preorder::Bool=true,
+    userootμ::Bool=false,
+)
+    labs = tiplabels(nets) # union
+    nn = length(nets)
+    M = zeros(Int, nn, nn)
+    mr = [edge_murepresentation(n, labs; preorder=preorder) for n in nets]
+    for (i1, m1) in enumerate(mr)
+        for i2 in 1:(i1-1)
+            d = mudistance(m1, mr[i2], userootμ)
+            M[i1,i2] = d; M[i2,i1] = d
+        end
+    end
+    return M
 end
