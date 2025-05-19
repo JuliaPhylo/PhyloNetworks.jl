@@ -292,6 +292,24 @@ Assumptions about tip labels:
   at index `i`, with no warning.
 
 Used by [`mudistance_rooted`](@ref), and [`edge_murepresentation`](@ref).
+
+## example
+
+```jldoctest
+julia> net = readnewick("(((C,(A)#H1),(#H1,E)),O);");
+
+julia> # using PhyloPlots; plot(net, shownodenumber=true);
+
+julia> PhyloNetworks.node_murepresentation(net)
+PhyloNetworks.NodeMuRepresentation
+4 taxa in μ-vectors: ["C", "A", "E", "O"]
+5 nodes, map node number => μ0 to hybrids and μ-vector to taxa:
+  -3 => μ0=2 μ=[1, 2, 1, 0]
+  -6 => μ0=1 μ=[0, 1, 1, 0]
+  -4 => μ0=1 μ=[1, 1, 0, 0]
+  -2 => μ0=2 μ=[1, 2, 1, 1]
+  3 => μ0=1 μ=[0, 1, 0, 0]
+```
 """
 function node_murepresentation(
     net::HybridNetwork,
@@ -377,6 +395,26 @@ See [`node_murepresentation`](@ref) for assumptions about `labels` and tip label
 in `net`.
 
 Used by [`mudistance_semidirected`](@ref).
+
+## example
+
+```jldoctest
+julia> net = readnewick("(((C,(A)#H1),(#H1,E)),O);");
+
+julia> # using PhyloPlots; plot(net, showedgenumber=true);
+
+julia> PhyloNetworks.edge_murepresentation(net)
+PhyloNetworks.EdgeMuRepresentation
+4 taxa in μ-vectors: ["C", "A", "E", "O"]
+root μ-vector: μ0=2 μ=[1, 2, 1, 1]
+maps edge number => μ-entry:
+2 tree edges in the root component
+  4 => μ0=1 μ=[1, 1, 0, 0]; μ0=1 μ=[0, 1, 1, 1]
+  7 => μ0=1 μ=[0, 1, 1, 0]; μ0=1 μ=[1, 1, 0, 1]
+2 edges in the directed part:
+  5 => incident; μ0=1 μ=[0, 1, 0, 0]
+  3 => incident; μ0=1 μ=[0, 1, 0, 0]
+```
 """
 function edge_murepresentation(
     net::HybridNetwork,
