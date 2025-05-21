@@ -101,6 +101,11 @@ net2 = readnewick(nwkstr2)
 # @test hardwiredclusterdistance(net1, net2, true) == 0
 @test mudistance_rooted(net1, net2) == 0
 @test mudistance_semidirected(net1, net2) == 0
-
+# test networks with different leaf sets
+net2 = readnewick("(((A,(B)#H1),(#H1,C)),(D));")
+μ1 = (@test_logs PN.node_murepresentation(net1, tiplabels(net1)))
+μ2 = (@test_logs PN.node_murepresentation(net2, tiplabels(net2)))
+@test μ1 != μ2
+@test µ2 != μ1
 end
 end

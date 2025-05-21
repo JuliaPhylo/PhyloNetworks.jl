@@ -107,7 +107,7 @@ function indexin_check0μentries(m1::MuRepresentation, m2::MuRepresentation)
     # if a label is in l1 but not in m2: all its entries should be 0 in m1
     in1not2_i = findall(isnothing, o2) # indices in o2 and in m1
     if !isempty(in1not2_i)
-        has_0μentries_at(m1, in1not1_i) || return nothing
+        has_0μentries_at(m1, in1not2_i) || return nothing
         deleteat!(o2, in1not2_i)
     end
     o1 = collect(1:length(l1))
