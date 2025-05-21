@@ -127,5 +127,17 @@ net2 = readnewick("(((C,(B)#H1),(#H1,A)),(D));")
 @test μ1 != μ2
 @test µ2 != μ1
 
+net1 = readnewick("(((C,(B)#H1),(#H1,D)),(A));")
+net2 = readnewick("(((C,(B)#H1),(#H1,A)),(D));")
+μ1 = (@test_logs PN.node_murepresentation(net1, tiplabels(net1)))
+μ2 = (@test_logs PN.node_murepresentation(net2, tiplabels(net2)))
+@test μ1 != μ2
+@test µ2 != μ1
+
+μ1 = (@test_logs PN.edge_murepresentation(net1, tiplabels(net1)))
+μ2 = (@test_logs PN.edge_murepresentation(net2, tiplabels(net2)))
+@test μ1 != μ2
+@test µ2 != μ1
+
 end
 end
