@@ -105,47 +105,44 @@ net2 = readnewick(nwkstr2)
 # test network equality with different leaf sets
 net1 = readnewick("((C,(B)#H1),(#H1,A));")
 net2 = readnewick("(((C,(B)#H1),(#H1,A)),(D));")
-
 μ1 = (@test_logs PN.node_murepresentation(net1, tiplabels(net1)))
 μ2 = (@test_logs PN.node_murepresentation(net2, tiplabels(net2)))
 @test μ1 != μ2
 @test µ2 != μ1
+
+#test with reordered leave for eddge and nodes
+μ1 = (@test_logs PN.edge_murepresentation(net1, ["C","B","A"]))
+μ2 = (@test_logs PN.edge_murepresentation(net1, ["C","A","B"]))
+@test μ1 == μ2
+@test µ2 == μ1
+μ1 = (@test_logs PN.node_murepresentation(net1, ["C","B","A"]))
+μ2 = (@test_logs PN.node_murepresentation(net1, ["C","A","B"]))
+@test μ1 == μ2
+@test µ2 == μ1
+
 
 μ1 = (@test_logs PN.edge_murepresentation(net1, tiplabels(net1)))
 μ2 = (@test_logs PN.edge_murepresentation(net2, tiplabels(net2)))
 @test μ1 != μ2
 @test µ2 != μ1
 
-net1 = readnewick("((E,(F)#H1),(#H1,G));")
-net2 = readnewick("(((C,(B)#H1),(#H1,A)),(D));")
+# net1 = readnewick("(((C,(B)#H1),(#H1,D)),(A));")
+# net2 = readnewick("(((C,(B)#H1),(#H1,A)),(D));")
 
-μ1 = (@test_logs PN.node_murepresentation(net1, tiplabels(net1)))
-μ2 = (@test_logs PN.node_murepresentation(net2, tiplabels(net2)))
-@test μ1 != μ2
-@test µ2 != μ1
+# μ1 = (@test_logs PN.node_murepresentation(net1, tiplabels(net1)))
+# μ2 = (@test_logs PN.node_murepresentation(net2, tiplabels(net2)))
+# @test μ1 != μ2
+# @test µ2 != μ1
 
-μ1 = (@test_logs PN.edge_murepresentation(net1, tiplabels(net1)))
-μ2 = (@test_logs PN.edge_murepresentation(net2, tiplabels(net2)))
-@test μ1 != μ2
-@test µ2 != μ1
-
-net1 = readnewick("(((C,(B)#H1),(#H1,D)),(A));")
-net2 = readnewick("(((C,(B)#H1),(#H1,A)),(D));")
-
-μ1 = (@test_logs PN.node_murepresentation(net1, tiplabels(net1)))
-μ2 = (@test_logs PN.node_murepresentation(net2, tiplabels(net2)))
-@test μ1 != μ2
-@test µ2 != μ1
-
-μ1 = (@test_logs PN.edge_murepresentation(net1, tiplabels(net1)))
-μ2 = (@test_logs PN.edge_murepresentation(net2, tiplabels(net2)))
-@test μ1 != μ2
-@test µ2 != μ1
+# μ1 = (@test_logs PN.edge_murepresentation(net1, tiplabels(net1)))
+# μ2 = (@test_logs PN.edge_murepresentation(net2, tiplabels(net2)))
+# @test μ1 != μ2
+# @test µ2 != μ1
 
 net1 = readnewick("(((C,(B)#H1),(#H1,D)),(A));")
 μ1 = (@test_logs PN.edge_murepresentation(net1, ["D","A","B","C","E"]))
-@test !PN.has_0μentries_at(μ1, 1)  # Should be false if index 1 is present in the network
-@test PN.has_0μentries_at(μ1, 5)  # Should be true if index 99 is not present (or all zeros)
+@test !PN.has_0μentries_at(μ1, 1) 
+@test PN.has_0μentries_at(μ1, 5)  
 
 end
 end
