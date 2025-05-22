@@ -38,6 +38,9 @@ deleteleaf!(net2, "D")
 μ2 = (@test_logs PN.node_murepresentation(net2, labels))
 @test μ1 == μ2
 @test PN.mudistance(μ1, μ2) == 0
+μ1s = PN.node_murepresentation(net1; preorder=false) # smaller label set: A,B,C
+@test_broken μ1s == μ1
+@test_broken μ1 == μ1s
 
 μ1 = PN.edge_murepresentation(net1, labels; preorder=false)
 μ2 = PN.edge_murepresentation(net2, labels; preorder=false)

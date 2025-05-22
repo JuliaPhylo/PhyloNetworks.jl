@@ -101,21 +101,30 @@ function has_0μentries_at(m::NodeMuRepresentation, i)
     return true
 end
 
+"""
+    indexin_check0μentries(m1::MuRepresentation, m2::MuRepresentation)
+
+Check that for any label in `m1` that is missing in `m2`, the corresponding
+number of paths in `m1`'s entries are all 0 -- and vice versa, then return
+- `nothing` if the check failed,
+- otherwise if the check passed: two vectors of indices `(o1,o2)` such that
+  `tiplabels(m1)[o1] == tiplabels(m2)[o2]` is the intersection of the label sets.
+"""
 function indexin_check0μentries(m1::MuRepresentation, m2::MuRepresentation)
     l1 = tiplabels(m1); l2 = tiplabels(m2)
+    o1 = collect(1:length(l1))
     o2 = indexin(l1, l2) # order to use for μ-vectors in m2: l2[o2] == l1
     # if a label is in l1 but not in m2: all its entries should be 0 in m1
     in1not2_i = findall(isnothing, o2) # indices in o2 and in m1
     if !isempty(in1not2_i)
         has_0μentries_at(m1, in1not2_i) || return nothing
         deleteat!(o2, in1not2_i)
+        deleteat!(o1, in1not2_i)
     end
-    o1 = collect(1:length(l1))
     if length(l2) + length(in1not2_i) > length(l1)
         # then some labels in are l2 but not in l1: find their indices in l2
         in2not1_i = findall(!in(l1), l2)
         has_0μentries_at(m2, in2not1_i) || return nothing
-        deleteat!(o1, in2not1_i)
     end
     return (o1, o2)
 end
