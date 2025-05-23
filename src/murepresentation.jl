@@ -147,6 +147,8 @@ function ==(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
     isnothing(o12) && return false
     o1, o2 = o12
     length(m1.mu_vec) == length(m2.mu_vec) || return false
+    # below: assumes that labels are sorted in both m1 and m2, such that
+    # lexicographic sorting of mu-vectors gives the same order in m1 and m2
     for (μ1, μ2) in zip(m1.mu_vec, m2.mu_vec)
         μ1.mu_hybs == μ2.mu_hybs || return false
         μ1.mu_tips[o1] == μ2.mu_tips[o2] || return false
@@ -262,6 +264,8 @@ function ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
     m1.mu_root.mu_tips[o1] == m2.mu_root.mu_tips[o2] || return false
     length(m1.muvec_rootcomp) == length(m2.muvec_rootcomp) || return false
     length(m1.muvec_directed) == length(m2.muvec_directed) || return false
+    # below: assumes that labels are sorted in both m1 and m2, such that
+    # lexicographic sorting of mu-vectors gives the same order in m1 and m2
     for (ms1, ms2) in zip(m1.muvec_rootcomp, m2.muvec_rootcomp)
         ms1[1].mu_hybs == ms2[1].mu_hybs || return false
         ms1[1].mu_tips[o1] == ms2[1].mu_tips[o2] || return false
@@ -279,7 +283,7 @@ end
 
 """
     node_murepresentation(net::HybridNetwork,
-        labels::AbstractVector{<:AbstractString}=tiplabels(net);
+        labels::AbstractVector{<:AbstractString}=sort!(tiplabels(net));
         preorder::Bool=true)
 
 [`NodeMuRepresentation`](@ref) object for network `net` considered as rooted,
@@ -293,6 +297,7 @@ with leaves ordered as in `labels`.
 [`preorder!`](@ref).
 
 Assumptions about tip labels:
+- technical: `labels` should be sorted alphabetically
 - `labels` should have no repeats, otherwise an error is thrown
 - `net` should have unique tip labels, otherwise an error is thrown
 - tip labels in `net` should all appear in `labels`, otherwise a warning is sent
@@ -322,9 +327,10 @@ PhyloNetworks.NodeMuRepresentation
 """
 function node_murepresentation(
     net::HybridNetwork,
-    labels::AbstractVector{<:AbstractString}=tiplabels(net);
+    labels::AbstractVector{<:AbstractString}=sort!(tiplabels(net));
     preorder::Bool=true
 )
+    issorted(labels) || error("labels should be sorted. consider using sort() or sort!().")
     allunique(labels) || error("some input tip labels are repeated.")
     # map: label => index in μ-vectors, for quick access later
     label_map = Dict{String, Int}(l => i for (i,l) in enumerate(labels))
@@ -377,7 +383,7 @@ end
 
 """
     edge_murepresentation(net::HybridNetwork,
-        labels::AbstractVector{<:AbstractString}=tiplabels(net);
+        labels::AbstractVector{<:AbstractString}=sort!(tiplabels(net));
         preorder::Bool=true,
         suppressroot::Bool=true)
 
@@ -427,7 +433,7 @@ maps edge number => μ-entry:
 """
 function edge_murepresentation(
     net::HybridNetwork,
-    labels::AbstractVector{<:AbstractString}=tiplabels(net);
+    labels::AbstractVector{<:AbstractString}=sort!(tiplabels(net));
     preorder::Bool=true,
     suppressroot::Bool=true,
 )
@@ -516,7 +522,7 @@ end
 
 """
     mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork;
-        labels::AbstractVector{<:AbstractString}=union(tiplabels(net1), tiplabels(net2)),
+        labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
         preorder::Bool=true)
 
 Distance or matrix of distances between the networks, considered as rooted,
@@ -552,8 +558,8 @@ If the networks have different tip labels, consider pruning leaves that are
 not shared between them beforehand, using [`deleteleaf!`](@ref),
 to compare the subnetworks on their shared leaf set.
 
-If a non-default `label` set is used, such as the shared taxon set
-`intersect(tiplabels(net1), tiplabels(net2))`, then the distance may drop,
+If a non-default `label` set is used, such as the sorted shared taxon set
+`sort!(intersect(tiplabels(net1), tiplabels(net2)))`, then the distance may drop,
 because the number of paths to non-shared taxa will be ignored.
 But *all* nodes still count towards the distance, including degree-2 nodes
 that would be suppressed in subnetworks.
@@ -561,7 +567,7 @@ that would be suppressed in subnetworks.
 function mudistance_rooted(
     net1::HybridNetwork,
     net2::HybridNetwork;
-    labels::AbstractVector{<:AbstractString}=union(tiplabels(net1), tiplabels(net2)),
+    labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
     preorder::Bool=true,
 )
     nodemu1 = node_murepresentation(net1, labels; preorder=preorder)
@@ -572,7 +578,7 @@ function mudistance_rooted(
     nets::AbstractVector{HybridNetwork};
     preorder::Bool=true,
 )
-    labs = tiplabels(nets) # union
+    labs = sort!(tiplabels(nets)) # union
     nn = length(nets)
     M = zeros(Int, nn, nn)
     mr = [node_murepresentation(n, labs; preorder=preorder) for n in nets]
@@ -658,16 +664,16 @@ See also [`edge_murepresentation`](@ref).
   In that case, re-rooting the network would suppress that internal tree edge,
   hence its associated μ-entry. This option does *not* modify the network.
 - `labels`: tip labels that each μ-vector will track, by default the union of
-  taxon labels across both networks. If a taxon is absent from `net1` (say) but
-  tracked because present in `net2`, then there are 0 paths from any edge in
-  `net1` to that taxon.
+  taxon labels across both networks, sorted alphabetically.
+  If a taxon is absent from `net1` (say) but tracked because present in `net2`,
+  then there are 0 paths from any edge in `net1` to that taxon.
 
 If the networks have different tip labels, consider pruning leaves that are
 not shared between them beforehand, using [`deleteleaf!`](@ref),
 to compare the subnetworks on their shared leaf set.
 
-If a non-default `label` set is used, such as the shared taxon set
-`intersect(tiplabels(net1), tiplabels(net2))`, then the distance may drop,
+If a non-default `label` set is used, such as the sorted shared taxon set
+`sort!(intersect(tiplabels(net1), tiplabels(net2)))`, then the distance may drop,
 as the number of paths to non-shared taxa will be ignored. But *all* edges still
 count towards the distance, whereas edges below degree-2 nodes would be
 suppressed in subnetworks.
@@ -675,7 +681,7 @@ suppressed in subnetworks.
 function mudistance_semidirected(
     net1::HybridNetwork,
     net2::HybridNetwork;
-    labels::AbstractVector{<:AbstractString}=union(tiplabels(net1), tiplabels(net2)),
+    labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
     userootμ::Bool=false,
     kwargs...
 )
@@ -685,7 +691,7 @@ function mudistance_semidirected(
 end
 function mudistance_semidirected(
     nets::AbstractVector{HybridNetwork};
-    labels::AbstractVector{<:AbstractString}=tiplabels(nets),
+    labels::AbstractVector{<:AbstractString}=sort!(tiplabels(nets)),
     userootμ::Bool=false,
     kwargs...
 )
