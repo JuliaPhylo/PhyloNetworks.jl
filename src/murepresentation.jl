@@ -316,13 +316,13 @@ julia> # using PhyloPlots; plot(net, shownodenumber=true);
 
 julia> PhyloNetworks.node_murepresentation(net)
 PhyloNetworks.NodeMuRepresentation
-4 taxa in μ-vectors: ["C", "A", "E", "O"]
+4 taxa in μ-vectors: ["A", "C", "E", "O"]
 5 nodes, map node number => μ0 to hybrids and μ-vector to taxa:
-  -3 => μ0=2 μ=[1, 2, 1, 0]
-  -6 => μ0=1 μ=[0, 1, 1, 0]
+  -3 => μ0=2 μ=[2, 1, 1, 0]
+  -6 => μ0=1 μ=[1, 0, 1, 0]
   -4 => μ0=1 μ=[1, 1, 0, 0]
-  -2 => μ0=2 μ=[1, 2, 1, 1]
-  3 => μ0=1 μ=[0, 1, 0, 0]
+  -2 => μ0=2 μ=[2, 1, 1, 1]
+  3 => μ0=1 μ=[1, 0, 0, 0]
 ```
 """
 function node_murepresentation(
@@ -331,7 +331,7 @@ function node_murepresentation(
     preorder::Bool=true
 )
     issorted(labels) || error("labels should be sorted. consider using sort() or sort!().")
-    allunique(labels) || error("some input tip labels are repeated.")
+    allunique_sorted(labels) || error("some input tip labels are repeated.")
     # map: label => index in μ-vectors, for quick access later
     label_map = Dict{String, Int}(l => i for (i,l) in enumerate(labels))
     net_labels = tiplabels(net)
@@ -420,15 +420,15 @@ julia> # using PhyloPlots; plot(net, showedgenumber=true);
 
 julia> PhyloNetworks.edge_murepresentation(net)
 PhyloNetworks.EdgeMuRepresentation
-4 taxa in μ-vectors: ["C", "A", "E", "O"]
-root μ-vector: μ0=2 μ=[1, 2, 1, 1]
+4 taxa in μ-vectors: ["A", "C", "E", "O"]
+root μ-vector: μ0=2 μ=[2, 1, 1, 1]
 maps edge number => μ-entry:
 2 tree edges in the root component
-  4 => μ0=1 μ=[1, 1, 0, 0]; μ0=1 μ=[0, 1, 1, 1]
-  7 => μ0=1 μ=[0, 1, 1, 0]; μ0=1 μ=[1, 1, 0, 1]
+  4 => μ0=1 μ=[1, 1, 0, 0]; μ0=1 μ=[1, 0, 1, 1]
+  7 => μ0=1 μ=[1, 0, 1, 0]; μ0=1 μ=[1, 1, 0, 1]
 2 edges in the directed part:
-  5 => incident; μ0=1 μ=[0, 1, 0, 0]
-  3 => incident; μ0=1 μ=[0, 1, 0, 0]
+  5 => incident; μ0=1 μ=[1, 0, 0, 0]
+  3 => incident; μ0=1 μ=[1, 0, 0, 0]
 ```
 """
 function edge_murepresentation(
@@ -479,7 +479,7 @@ Symmetric distance between two vectors, assumed sorted in ascending order:
 number of elements in one vector but not in the order, each element considered
 as many times as it appears (with multiplicity). The vectors are *not* mutated.
 """
-function symmetricdistance_insorted(v1::Vector{T}, v2::Vector{T}) where T
+function symmetricdistance_sorted(v1::Vector{T}, v2::Vector{T}) where T
     d = 0
     l1 = length(v1); l2 = length(v2)
     l1==0 && return l2
@@ -506,6 +506,17 @@ function symmetricdistance_insorted(v1::Vector{T}, v2::Vector{T}) where T
     return d + l1 + l2 # at least one of them is 0
 end
 
+function allunique_sorted(v::AbstractVector)
+    length(v) < 2 && return true
+    x1 = v[1]
+    for i in 2:length(v)
+        x2 = v[i]
+        x2 == x1 && return false
+        x1 = x2
+    end
+    return true
+end
+
 """
     mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
 
@@ -517,7 +528,7 @@ labels (and in the same order), for efficiency.
 """
 function mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
     # algorithm based on `mu_vec` being already sorted, in ascending order
-    return symmetricdistance_insorted(m1.mu_vec, m2.mu_vec)
+    return symmetricdistance_sorted(m1.mu_vec, m2.mu_vec)
 end
 
 """
@@ -610,8 +621,8 @@ function mudistance(
     m2::EdgeMuRepresentation,
     userootμ::Bool
 )
-    d  = symmetricdistance_insorted(m1.muvec_directed, m2.muvec_directed)
-    d += symmetricdistance_insorted(m1.muvec_rootcomp, m2.muvec_rootcomp)
+    d  = symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed)
+    d += symmetricdistance_sorted(m1.muvec_rootcomp, m2.muvec_rootcomp)
     if userootμ
         if m1.mu_root != m2.mu_root
             d += 1
