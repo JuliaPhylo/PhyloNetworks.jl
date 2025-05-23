@@ -132,13 +132,17 @@ To calibrate a network (modify its edge lengths):
   about calibration so far, but see this
   [tutorial](https://cecileane.github.io/networkPCM-workshop/topic1-netcalibration.html)
 
-## Comparing two networks
+## Comparing networks
 
 - [`hardwiredclusterdistance`](@ref): extends the Robinson-Foulds distance.
   It's a dissimilarity measure on networks: a dissimilarity of 0 does not
   guarantee that the 2 networks have the same topology in general.
   But it does if the networks are in some classes (e.g. trees, level-1,
   tree-child, and others).
+- μ-distances [`mudistance_rooted`](@ref) and [`mudistance_semidirected`](@ref):
+  they also extend the Robinson-Foulds distance on trees.
+  They are dissimilarities on general networks, but distances on some classes
+  (including tree-child).
 
 ## Comparing taxa
 

@@ -22,13 +22,13 @@ module PhyloNetworks
     using DataFrames # innerjoin new in v0.21
     using DataStructures # for updateInCycle with priority queue
     using Distributions #for RateVariationAcrossSites
-    using StaticArrays # for quartets
     using FASTX
     using Functors: fmap
     using NLopt # for branch lengths optimization
+    using StaticArrays # for quartets
     using StatsBase # cov2cor! for vcv
 
-    import Base: show
+    import Base: show, ==, isless
 
     const DEBUGC = false # even more debug messages
     global CHECKNET = false # for debugging only
@@ -99,6 +99,8 @@ module PhyloNetworks
         hardwiredcluster,
         hardwiredcluster!,
         hardwiredclusterdistance,
+        mudistance_semidirected,
+        mudistance_rooted,
         biconnectedcomponents,
         blobdecomposition!,
         blobdecomposition,
@@ -157,5 +159,6 @@ module PhyloNetworks
     include("deprecated.jl")
     include("nj.jl")
     include("quartets.jl")
+    include("murepresentation.jl")
 
 end #module

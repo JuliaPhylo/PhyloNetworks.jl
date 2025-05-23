@@ -7,6 +7,8 @@ using LinearAlgebra: diag, Diagonal # LinearAlgebra.rotate! not brought into sco
 using Random
 using StableRNGs
 
+const PN = PhyloNetworks
+
 tests = [
     "test_deprecated.jl",
     "test_quartet.jl",
@@ -25,7 +27,8 @@ tests = [
     "test_relaxed_reading.jl",
     "test_isMajor.jl",
     "test_interop.jl",
-    "test_nj.jl"
+    "test_nj.jl",
+    "test_murepresentation.jl"
 ]
 
 anyerrors = false
@@ -39,11 +42,13 @@ for t in tests
     catch
         anyerrors = true
         println("\033[1m\033[31mFAILED\033[0m: $t")
+        @error "Error in $t" exception=(err, catch_backtrace())
     end
 end
 println("-------------------------------------")
 
 if anyerrors
+    
     throw("Tests failed")
 else
     println("\033[1m\033[32mTests passed")
