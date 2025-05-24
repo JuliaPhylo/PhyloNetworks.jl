@@ -1,6 +1,6 @@
 [![doc stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/stable)
 [![doc dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaphylo.github.io/PhyloNetworks.jl/dev)
-[![Build status](https://github.com/juliaphylo/PhyloNetworks.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaphylo/PhyloNetworks.jl/actions/workflows/ci.yml)
+[![Build status](https://github.com/juliaphylo/PhyloNetworks.jl/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/juliaphylo/PhyloNetworks.jl/actions/workflows/ci.yml)
 [![coverage](https://codecov.io/gh/juliaphylo/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/juliaphylo/PhyloNetworks.jl)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
