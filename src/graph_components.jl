@@ -701,7 +701,7 @@ blob (2-edge connected component) that is not trivial (more than 1 edge) into
 a single node. The remaining edges are cut-edges (or bridges): they disconnect
 the network if removed. After shrinking blobs, only these cut-edges remain (with
 their edge length if any) and the graph forms a tree: the tree-of-blobs.
-It typically has polytomies.
+It typically has polytomies, and may have degree-2 nodes.
 See [Allman et al. (2022)](https://doi.org/10.1007/s00285-022-01838-9)
 (on binary networks) and
 [Xu & Ané (2023)](https://doi.org/10.1007/s00285-022-01847-8).
@@ -713,6 +713,8 @@ shrunk into the same node.
 The network is not modified. `PhyloNetworks.treeofblobs!(net)` modifies `net`,
 but is unsafe to use, in the sense that it assumes that the network is already
 preordered and preprocessed to get its biconnected component.
+
+In the output tree, the biconnected component information is stored.
 
 Arguments:
 - `preorder` to direct edges according to the root and store a pre-ordering of
@@ -782,9 +784,10 @@ function treeofblobs!(net::HybridNetwork)
             # nofuse, ...., simplify=false, keeporiginalroot=true
             deleteat!(blob.edges, i)
         end
-        # step 2: shrink all other edges
+        # step 2: shrink all other edges, not already removed (non-tree-child)
         for e in blob.edges
-            shrinkedge!(net, e)
+            isnothing(findfirst(isequal(e), net.edge)) ||
+                shrinkedge!(net, e)
         end
         empty!(blob)
         deleteat!(bcc, ib)

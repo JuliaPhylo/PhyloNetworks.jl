@@ -112,7 +112,9 @@ To remove components from a network:
 - [`removedegree2nodes!`](@ref) to suppress degree-2 nodes
 - [`shrink3cycles!`](@ref) and [`shrink2cycles!`](@ref) to contract "cycles"
   of 2 or 3 edges, which deletes 1 reticulation
-- [`PhyloNetworks.deletehybridedge!`](@ref) to remove one hybrid edge.
+- [`PhyloNetworks.deletehybridedge!`](@ref) to remove one hybrid edge
+- [`treeofblobs`](@ref) to shrink blobs and get the strict tree-like part of
+  the network
 
 To add components to a network:
 

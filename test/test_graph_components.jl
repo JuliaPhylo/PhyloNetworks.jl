@@ -185,4 +185,18 @@ end
         @test occursin("Undirected cycle", sprint(showerror, e))
     end
 
+@testset "ToB" begin
+# binary, with 2-cycle -> degree-2 node
+net = readnewick("((S1:0.1,(((S2,(S3)#H1),(#H1,S4:0.4)):0.2)#H2:0.2),(#H2,(#H3,(S5)#H3)));");
+@test writenewick(treeofblobs(net)) == "((S5),S1:0.1,(S4:0.4,S2,S3):0.2);"
+# rooted, chain of 2 degree-2 blobs to 1 taxon
+net = readnewick("((((b)#H1,#H1))#H2,#H2);")
+@test writenewick(treeofblobs(net)) == "((b));"
+# extra root edge; non-binary: 1 block's entry = side of other
+net = readnewick("((#H3,((a)#H3,(b1,#H1),(b2)#H1)));")
+@test writenewick(treeofblobs(net)) == "(b2,b1,a);"
+# unrooted, 2 blocks at root
+net = readnewick("(((a1)#H2,(((#H2),a2))#H1),#H1,#H3,((b1)#H3,b2));")
+@test writenewick(treeofblobs(net)) == "(b2,b1,a2,a1);"
+end
 end
