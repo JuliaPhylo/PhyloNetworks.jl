@@ -107,6 +107,7 @@ module PhyloNetworks
         nni!,
         checkroot!,
         treeedgecomponents,
+        treeofblobs,
         ## Network support
         treeedges_support,
         hybridclades_support,

@@ -394,7 +394,7 @@ function process_biconnectedcomponents!(net::HybridNetwork, preorder=true)
         directedges!(net)
         preorder!(net)
     end
-    isempty(net.partition) || @warn("will erase and re-calculate biconnected components")
+    # isempty(net.partition) || @warn("will erase and re-calculate biconnected components")
     empty!.(net.partition)
     empty!(net.partition)
     bcc = biconnectedcomponents(net, false) # false: don't ignore trivial blobs
@@ -402,7 +402,6 @@ function process_biconnectedcomponents!(net::HybridNetwork, preorder=true)
     entryindex = indexin(entry, net.vec_node)
     exitnodes = biconnectedcomponent_exitnodes(net, bcc, false)
     bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
-    # fixithere. todo: store, reset .inte1
     for (ii, ib) in enumerate(bloborder)
         bicomp = bcc[ib]
         for e in bicomp e.inte1 = ii; end
@@ -694,3 +693,116 @@ function checkroot!(net::HybridNetwork, membership::Dict{Node,Int})
     return tec_root # return rootcomp
 end
 
+"""
+    treeofblobs(net::HybridNetwork; preorder::Bool=true, preprocess::Bool=true)
+
+Tree of blobs for `net`. This tree is obtained from the network by shrinking any
+blob (2-edge connected component) that is not trivial (more than 1 edge) into
+a single node. The remaining edges are cut-edges (or bridges): they disconnect
+the network if removed. After shrinking blobs, only these cut-edges remain (with
+their edge length if any) and the graph forms a tree: the tree-of-blobs.
+It typically has polytomies.
+See [Allman et al. (2022)](https://doi.org/10.1007/s00285-022-01838-9)
+(on binary networks) and
+[Xu & Ané (2023)](https://doi.org/10.1007/s00285-022-01847-8).
+
+If the network is binary, each blob is a block (biconnected component).
+If the network is not binary, then multiple blocks forming a single blob are
+shrunk into the same node.
+
+The network is not modified. `PhyloNetworks.treeofblobs!(net)` modifies `net`,
+but is unsafe to use, in the sense that it assumes that the network is already
+preordered and preprocessed to get its biconnected component.
+
+Arguments:
+- `preorder` to direct edges according to the root and store a pre-ordering of
+  nodes in `net.vec_node`, if not done earlier on the network (e.g. after
+  a topology modification)
+- `preprocess` to recalculate & store the biconnected components with
+  [`process_biconnectedcomponents!`](@ref), assuming the preordering was done.
+
+# examples
+
+In this first example, the network is binary (no polytomies of any kind)
+and has 2 blobs.
+
+```jldoctest
+julia> net = readnewick("((S1:0.1,(((S2,(S3)#H1),(#H1,S4:0.4)):0.2)#H2:0.2),(#H2,S5));");
+
+julia> tob = treeofblobs(net);
+
+julia> writenewick(tob) # 2 polytomies: at root, and to S2,S3,S4
+"(S5,S1:0.1,(S4:0.4,S2,S3):0.2);"
+```
+
+Now we use the same network but without the edge connecting the 2 blobs:
+there are now 2 blocks sharing one node, so 1 blob only.
+
+```jldoctest
+julia> net = readnewick("((S1:0.1,((S2,(S3)#H1),(#H1,S4:0.4))#H2:0.2),(#H2,S5));");
+
+julia> # using PhyloPlots; plot(net, style=:majortree, arrowlen=0.1);
+
+julia> tob = treeofblobs(net);
+
+julia> writenewick(tob) # star tree: 1 big polytomy
+"(S5,S1:0.1,S4:0.4,S2,S3);"
+```
+"""
+function treeofblobs(
+    net::HybridNetwork;
+    preorder::Bool=true,
+    preprocess::Bool=true
+)
+    if preorder
+        directedges!(net)
+        preorder!(net)
+    end
+    if preprocess
+        process_biconnectedcomponents!(net, false)
+    elseif isempty(net.partition)
+        error("no biconnected components stored in the network: re-run with preprocessing")
+    end
+    return treeofblobs!(deepcopy(net))
+end
+function treeofblobs!(net::HybridNetwork)
+    bcc = net.partition
+    # shrink non-trivial blobs & delete them from blob list
+    for ib in reverse(1:length(bcc))
+        blob = bcc[ib]
+        istrivial(blob) && continue
+        # step 1: delete minor hybrid edges
+        for i in reverse(1:length(blob.edges))
+            e = blob.edges[i]
+            e.ismajor && continue
+            # check that e is still in net: not already deleted as part of a stack
+            ii = findfirst(isequal(e), net.edge)
+            isnothing(ii) && continue
+            deletehybridedge!(net, e, true, false, false, false, true)
+            # nofuse, ...., simplify=false, keeporiginalroot=true
+            deleteat!(blob.edges, i)
+        end
+        # step 2: shrink all other edges
+        for e in blob.edges
+            shrinkedge!(net, e)
+        end
+        empty!(blob)
+        deleteat!(bcc, ib)
+    end
+    net.numhybrids == 0 ||
+        error("$(net.numhybrids) hybrids after deleting all non-trivial blobs' minor edges")
+    # update .inte1 to correct trivial blob index
+    for (ib, blob) in enumerate(bcc)
+        blob.edges[1].inte1 = ib
+        empty!(blob.cycle) # nodes preorder indices are now obsolete
+    end
+    preorder!(net)
+    # update each blob's nodes' preorder indices
+    for (i,n) in enumerate(net.vec_node)
+        for e in n.edge
+            # entry node first in .cycle: achieved by preorder traversal
+            push!(bcc[e.inte1].cycle, i)
+        end
+    end
+    return net
+end
