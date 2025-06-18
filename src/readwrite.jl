@@ -1440,13 +1440,11 @@ function readphylip(file::AbstractString, sequencetype=BioSequences.LongDNA{4})
                 end
                 ind = split(line)
 
-                for record in reader
-                    record=FASTARecord(ind[1],ind[2])
-                    push!(sequences, FASTX.sequence(sequencetype, record))
-                    push!(species, FASTX.identifier(record))
-                end
+                record=FASTARecord(ind[1],ind[2])
+                push!(sequences, FASTX.sequence(sequencetype, record))
+                push!(species, FASTX.identifier(record))
             end
         end
     end
-    return(gen)
+    return((species,sequences))
 end

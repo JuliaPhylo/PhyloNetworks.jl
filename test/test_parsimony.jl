@@ -13,6 +13,19 @@ dna_dat, dna_weights = readfastatodna(fasta8sites, true) # 22 species
 @test dna_weights == repeat([1], 8)
 end
 
+@testset "utility: readphylip" begin
+  fastafile = "../examples/Ae_bicornis_truncated_names.aln"
+  species, sequences = PhyloNetworks.readfastatoarray(fastafile);
+
+  phylipfile = "../examples/Ae_bicornis_truncated_names.phylip"
+  species2, sequences2 = PhyloNetworks.readphylip(phylipfile);
+
+  dat1 = collect(zip(species , sequences ))
+  dat2 = collect(zip(species2, sequences2))
+
+  @test sort(dat1) == sort(dat2)
+end
+
 @testset "Fitch" begin
 # on a tree:
 net = readnewick("(A,(B,(C,D)));")
@@ -75,7 +88,11 @@ fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln")
 species, sequences = PhyloNetworks.readfastatoarray(fastafile);
 @test parsimonysoftwired(net, species, sequences) == 11.0
 
+
 end # of test set for softwired parsimony
+
+
+
 
 if extrarun
   fastafile = "../examples/Ae_bicornis_Tr406_Contig10132.aln"
