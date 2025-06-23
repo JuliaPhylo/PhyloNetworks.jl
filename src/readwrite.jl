@@ -1418,6 +1418,10 @@ end
 """
     readphylip(file::AbstractString)
 Reads a PHYLIP-formatted DNA sequence alignment.
+Currently, only sequential PHYLIP alignments are supported,
+ i.e., each sequence appears on one line.
+Further, the reader makes no assumptions about the length
+of the sequence identifier so IDs may be longer than 10 characters.
 Output: Return a tuple `species, sequences`
 where `species` is a vector of Strings with identifier names, and
 `sequences` is a vector of BioSequences, each of type `sequencetype`
