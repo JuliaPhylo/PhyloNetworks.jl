@@ -16,9 +16,9 @@ The data table may have missing data, and may contain extra taxa
 that we might want to exclude.
 
 An example file comes with the package, available
-[here](https://github.com/juliaphylo/PhyloNetworks/blob/master/examples/Swadesh.csv)
+[here](https://github.com/juliaphylo/PhyloNetworks.jl/blob/master/examples/Swadesh.csv)
 or
-[here](https://raw.githubusercontent.com/juliaphylo/PhyloNetworks/master/examples/Swadesh.csv).
+[here](https://raw.githubusercontent.com/juliaphylo/PhyloNetworks.jl/master/examples/Swadesh.csv).
 
 ```@setup parsimony
 using PhyloNetworks
