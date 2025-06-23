@@ -1416,7 +1416,7 @@ end
 
 
 """
-    readPhylip(file::AbstractString)
+    readphylip(file::AbstractString)
 Reads a PHYLIP-formatted DNA sequence alignment.
 Output: Return a tuple `species, sequences`
 where `species` is a vector of Strings with identifier names, and
@@ -1425,25 +1425,22 @@ where `species` is a vector of Strings with identifier names, and
 """
 
 function readphylip(file::AbstractString, sequencetype=BioSequences.LongDNA{4})
-    firstline = true
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
+
     open(file) do f
+        readline(f)  #skip header information
         while !eof(f)
             line = readline(f)
-            if firstline #skip header information
-                firstline = false
-            else
-                line = strip(line)
-                if isempty(line)
-                    continue
-                end
-                ind = split(line)
-
-                record=FASTARecord(ind[1],ind[2])
-                push!(sequences, FASTX.sequence(sequencetype, record))
-                push!(species, FASTX.identifier(record))
+            line = strip(line)
+            if isempty(line)
+                continue
             end
+            ind = split(line)
+
+            record=FASTARecord(ind[1],ind[2])
+            push!(sequences, FASTX.sequence(sequencetype, record))
+            push!(species, FASTX.identifier(record))
         end
     end
     return((species,sequences))

@@ -50,6 +50,7 @@ module PhyloNetworks
         printedges,
         printnodes,
         readnexus_treeblock,
+        readphylip,
 
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
