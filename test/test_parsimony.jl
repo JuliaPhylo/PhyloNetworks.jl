@@ -18,7 +18,7 @@ end
   species, sequences = PhyloNetworks.readfastatoarray(fastafile);
 
   phylipfile = "../examples/Ae_bicornis_truncated_names.phylip"
-  species2, sequences2 = PhyloNetworks.readphylip(phylipfile);
+  species2, sequences2 = readphylip(phylipfile);
 
   dat1 = collect(zip(species , sequences ))
   dat2 = collect(zip(species2, sequences2))
@@ -88,10 +88,7 @@ fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_8sites.aln")
 species, sequences = PhyloNetworks.readfastatoarray(fastafile);
 @test parsimonysoftwired(net, species, sequences) == 11.0
 
-
 end # of test set for softwired parsimony
-
-
 
 
 if extrarun

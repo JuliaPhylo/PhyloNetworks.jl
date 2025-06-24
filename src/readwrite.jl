@@ -1417,21 +1417,27 @@ end
 
 """
     readphylip(file::AbstractString)
-Reads a PHYLIP-formatted DNA sequence alignment.
+
+Read a PHYLIP-formatted DNA sequence alignment (see for example
+[wikipedia](https://en.wikipedia.org/wiki/PHYLIP#File_format)).
 Currently, only sequential PHYLIP alignments are supported,
- i.e., each sequence appears on one line.
-Further, the reader makes no assumptions about the length
-of the sequence identifier so IDs may be longer than 10 characters.
-Output: Return a tuple `species, sequences`
+i.e., each sequence appears on one line.
+The reader makes no assumption about the length of the sequence identifier
+so IDs (or taxon names) may be longer than 10 characters. However:
+- at least one space is required between the sequence ID and the sequence itself
+- spaces are not allowed inside the sequence.
+
+Output: tuple `(species, sequences)`
 where `species` is a vector of Strings with identifier names, and
 `sequences` is a vector of BioSequences, each of type `sequencetype`
 (DNA by default)
 """
-
-function readphylip(file::AbstractString, sequencetype=BioSequences.LongDNA{4})
+function readphylip(
+    file::AbstractString,
+    sequencetype=BioSequences.LongDNA{4}
+)
     sequences = Array{BioSequences.BioSequence}(undef, 0)
     species = String[]
-
     open(file) do f
         readline(f)  #skip header information
         while !eof(f)
@@ -1441,7 +1447,6 @@ function readphylip(file::AbstractString, sequencetype=BioSequences.LongDNA{4})
                 continue
             end
             ind = split(line)
-
             record=FASTARecord(ind[1],ind[2])
             push!(sequences, FASTX.sequence(sequencetype, record))
             push!(species, FASTX.identifier(record))
