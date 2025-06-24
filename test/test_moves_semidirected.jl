@@ -338,6 +338,11 @@ newnode, newedge = PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s);
 @test newnode.edge[2].number == 21
 @test PhyloNetworks.getparent(net_level1_s.edge[4]) === newnode
 @test getchild(newedge) === newnode
+@test_logs (:error, r"^new length -0.1 should be ≥ 0") PhyloNetworks.breakedge!(
+    net_level1_s.edge[19], net_level1_s; lengths=(2,-0.1));
+@test_logs (:error, "length ratio 1.1 should be in [0,1]") PhyloNetworks.breakedge!(
+    net_level1_s.edge[22], net_level1_s; lengthratio=1.1);
+@test net_level1_s.edge[22].length ≈ -0.2
 
 # test addleaf! function
 net_level1_s = readnewick(str_level1_s)
