@@ -36,8 +36,8 @@ It is used by other packages for more specialized tasks, such as
   step-by-step tutorial with background on networks
   (done for the MBL workshop, last revised 2022) and associated
   [scripts](https://github.com/JuliaPhylo/PhyloUtilities/tree/main/scripts)
-- [tutorial](https://cecileane.github.io/networkPCM-workshop/) for
-  comparative methods, including network calibration (2023 workshop)
+- [tutorial](https://juliaphylo.github.io/networkPCM-tutorial/) for
+  comparative methods, including network calibration
 - the [google group](https://groups.google.com/forum/#!forum/juliaphylo-users)
   has answers to common questions.
 - the [Manual](@ref) and below has a quick tutorial (navigation on the left).

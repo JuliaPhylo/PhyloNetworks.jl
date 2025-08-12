@@ -132,7 +132,7 @@ To calibrate a network (modify its edge lengths):
 
 - [`calibratefrompairwisedistances!`](@ref). This documentation has little
   about calibration so far, but see this
-  [tutorial](https://cecileane.github.io/networkPCM-workshop/topic1-netcalibration.html)
+  [tutorial](https://juliaphylo.github.io/networkPCM-tutorial/topic4-netcalibration.html)
 
 ## Comparing networks
 
