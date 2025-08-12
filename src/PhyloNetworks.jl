@@ -50,7 +50,6 @@ module PhyloNetworks
         printedges,
         printnodes,
         readnexus_treeblock,
-        readphylip,
 
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
@@ -128,6 +127,7 @@ module PhyloNetworks
         parsimonyGF,
         #maxParsimonyNet # broken after v0.17 refactoring: fix network search
         readfastatodna,
+        readphylip,
         # neighbor joining
         nj,
         # quartets

@@ -514,6 +514,8 @@ after (or instead) of a node name, and before/after an edge length.
 
 A root edge, not enclosed within a pair a parentheses, is ignored.
 If the root node has a single edge, this one edge is removed.
+
+See also: [`readnexus_treeblock`](@ref)
 """
 readnewick(input::AbstractString) = readnewick(input,true)
 
@@ -1431,6 +1433,8 @@ Output: tuple `(species, sequences)`
 where `species` is a vector of Strings with identifier names, and
 `sequences` is a vector of BioSequences, each of type `sequencetype`
 (DNA by default)
+
+See also: [`PhyloNetworks.readfastatoarray`](@ref)
 """
 function readphylip(
     file::AbstractString,

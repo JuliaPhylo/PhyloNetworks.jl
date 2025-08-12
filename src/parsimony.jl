@@ -391,6 +391,8 @@ where `species` is a vector of Strings with identifier names, and
   each taxon name should appear only once. For this one time, the corresponding
   sequence may be broken across several lines though.
 - fails if all sequences aren't of the same length
+
+See also: [`readphylip`](@ref), [`readfastatodna`](@ref)
 """
 function readfastatoarray(filename::AbstractString, sequencetype=BioSequences.LongDNA{4})
     reader = FASTX.FASTA.Reader(open(filename))
@@ -422,6 +424,8 @@ Return a tuple containing:
 **Warning**: assumes a *semi-sequential* format, *not interleaved*,
 where each taxon name appears only once. For this one time, the corresponding
 sequence may be broken across several lines though.
+
+See also: [`PhyloNetworks.readfastatoarray`](@ref)
 """
 function readfastatodna(fastafile::String, countPatterns::Bool=false)
     reader = FASTX.FASTA.Reader(open(fastafile))
