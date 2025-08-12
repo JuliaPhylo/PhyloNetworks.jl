@@ -1447,9 +1447,7 @@ function readphylip(
         while !eof(f)
             line = readline(f)
             line = strip(line)
-            if isempty(line)
-                continue
-            end
+            isempty(line) && continue
             ind = split(line)
             record=FASTARecord(ind[1],ind[2])
             push!(sequences, FASTX.sequence(sequencetype, record))

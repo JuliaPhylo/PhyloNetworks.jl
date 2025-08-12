@@ -216,7 +216,7 @@ julia> PhyloNetworks.breakedge!(net.edge[1],net; lengthratio=.2);
 julia> writenewick(net, round=true) # now i1 --0.22--> newnode --0.88--> C
 "((A:2.0,(C:0.88):0.22)i1,B);"
 
-julia> PhyloNetworks.breakedge!(net.edge[4],net; lengths=(5,1)); break root-->B
+julia> PhyloNetworks.breakedge!(net.edge[4],net; lengths=(5,1)); # break root->B
 
 julia> writenewick(net, round=true) # now root --5--> newnode --1--> B
 "((A:2.0,(C:0.88):0.22)i1,(B:1.0):5.0);"
