@@ -11,7 +11,7 @@ joining algorithm ([Satou & Nei
 ## calculating distances
 
 To read a DNA sequence alignment, see [`readphylip`](@ref) and
-[`readfastatoarray`](@ref).
+[`PhyloNetworks.readfastatoarray`](@ref).
 Then, to estimate distances from aligned sequences,
 see [`PhyloNetworks.hammingdistancematrix`](@ref) and consider
 [`PhyloNetworks.distancecorrection_JC!`](@ref), with an example given
