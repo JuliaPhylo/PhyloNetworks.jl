@@ -167,7 +167,7 @@ missing also).
 2. `lengths`: 1 length (new) or 2 lengths (new,old), to be assigned to
    `newedge` (first one) and `edge` (second one, if any). If only the new edge
    length is provided, then the length of `edge` is unchanged.
-   If `lengths` is of length 0, then the new length is set to be missing.
+   To ask for an edge length to be missing, use value `missing` (example below).
 
 # examples
 
@@ -211,15 +211,22 @@ Another example, this time with edge lengths:
 ```jldoctest
 julia> net = readnewick("((C:1.1,A:2.0)i1,B);"); # edge 1: i1 --1.1--> C
 
-julia> PhyloNetworks.breakedge!(net.edge[1],net; lengthratio=.2);
+julia> const PN = PhyloNetworks # just to write less later
+
+julia> PN.breakedge!(net.edge[1],net; lengthratio=.2);
 
 julia> writenewick(net, round=true) # now i1 --0.22--> newnode --0.88--> C
 "((A:2.0,(C:0.88):0.22)i1,B);"
 
-julia> PhyloNetworks.breakedge!(net.edge[4],net; lengths=(5,1)); # break root->B
+julia> PN.breakedge!(net.edge[4],net; lengths=(5,1)); # breaks root-->B
 
-julia> writenewick(net, round=true) # now root --5--> newnode --1--> B
+julia> writenewick(net, round=true) # into: root --5--> newnode --1--> B
 "((A:2.0,(C:0.88):0.22)i1,(B:1.0):5.0);"
+
+julia> PN.breakedge!(net.edge[4],net; lengths=[missing]); # breaks --1--> B
+
+julia> writenewick(net, round=true) # into: --?--> newnode --1--> B
+"((A:2.0,(C:0.88):0.22)i1,((B:1.0)):5.0);"
 
 ```
 
@@ -235,10 +242,13 @@ function breakedge!(
     if !useoldlength
         isnothing(lengthratio) ||
             error("cannot use both options lengthratio=$lengthratio and lengths=$lengths")
+        nl = length(lengths)
+        nl > 0 || error("'lengths' needs to be of length 1 or more")
         for ell in lengths
+            ismissing(ell) && continue
             isa(ell, Real) || error("new length $ell must be a real number")
             ell ≥ 0 || ell == -1 ||
-                @error("new length $ell should be ≥ 0 or -1 (for missing)")
+                @error("new length $ell should be ≥ 0 or 'missing' (-1 is interpreted as missing)")
         end
     else
         if isnothing(lengthratio)
@@ -271,12 +281,11 @@ function breakedge!(
             edge.length = oldlen - len_parent
         end
     else
-        nl = length(lengths)
-        if nl > 0
-            newedge.length = lengths[1]
-            if nl > 1
-                edge.length = lengths[2]
-            end
+        ell = lengths[1]
+        newedge.length = (ismissing(ell) ? -1 : ell)
+        if nl > 1
+            ell = lengths[2]
+            edge.length = (ismissing(ell) ? -1 : ell)
         end
     end
     pushEdge!(net,newedge)
