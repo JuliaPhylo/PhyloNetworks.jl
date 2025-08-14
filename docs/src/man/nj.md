@@ -10,7 +10,7 @@ joining algorithm ([Satou & Nei
 
 ## calculating distances
 
-To read a DNA sequence alignment, see [`readphylip`](@ref) and
+To read a DNA sequence alignment, see [`PhyloNetworks.readphylip`](@ref) and
 [`PhyloNetworks.readfastatoarray`](@ref).
 Then, to estimate distances from aligned sequences,
 see [`PhyloNetworks.hammingdistancematrix`](@ref) and consider

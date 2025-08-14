@@ -211,7 +211,7 @@ Another example, this time with edge lengths:
 ```jldoctest
 julia> net = readnewick("((C:1.1,A:2.0)i1,B);"); # edge 1: i1 --1.1--> C
 
-julia> const PN = PhyloNetworks # just to write less later
+julia> const PN = PhyloNetworks; # just to write less later
 
 julia> PN.breakedge!(net.edge[1],net; lengthratio=.2);
 
