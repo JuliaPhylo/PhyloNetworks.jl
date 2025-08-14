@@ -149,7 +149,7 @@ To calibrate a network (modify its edge lengths):
 ## Comparing taxa
 
 - average pairwise distances on a network: [`pairwisetaxondistancematrix`](@ref),  
-  and from data: [`PhyloNetworks.hammingdistancematrix](@ref), that can be
+  and from data: [`PhyloNetworks.hammingdistancematrix`](@ref), that can be
   followed by [`PhyloNetworks.distancecorrection_JC!`](@ref)
 - f2-distances expected from a network: [`expectedf2matrix`](@ref)
   which can be used to get expected f3 and expected f4 statistics:
