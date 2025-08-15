@@ -167,10 +167,10 @@ missing also).
 2. `lengths`: 1 length (new) or 2 lengths (new,old), to be assigned to
    `newedge` (first one) and `edge` (second one, if any). If only the new edge
    length is provided, then the length of `edge` is unchanged.
-   To ask for an edge to be missing, use value `missing` (example below).
+   To ask for a length to be missing, use value `missing` (see example below).
 
 **Note**: If a number outside of [0,1] is used in `lengthratio` or negative values
-are used in `lengths`, an error will be thrown but the network *will*
+are used in `lengths`, an error message will appear but the network *will*
 still be modified according to the values given.
 
 # examples
