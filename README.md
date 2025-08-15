@@ -51,8 +51,10 @@ To get help, check
 - PhyloUtilities: [website](https://juliaphylo.github.io/PhyloUtilities/) for a
   step-by-step tutorial with background on networks, and associated
   [scripts](https://github.com/JuliaPhylo/PhyloUtilities/tree/main/scripts)
-- [tutorial](https://cecileane.github.io/networkPCM-workshop/) for
-  comparative methods, including network calibration (2023 workshop)
+- [tutorial](https://juliaphylo.github.io/networkPCM-tutorial/) for
+  comparative methods, including network calibration.
+  (See this older [2023 workshop](https://cecileane.github.io/networkPCM-workshop/)
+  for a version using the older version 0.16 of PhyloNetworks.)
 - the [google group](https://groups.google.com/forum/#!forum/juliaphylo-users)
   for common questions. Join the group to post/email your questions,
   or to receive information on new versions, bugs fixed, etc.

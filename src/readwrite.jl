@@ -514,6 +514,8 @@ after (or instead) of a node name, and before/after an edge length.
 
 A root edge, not enclosed within a pair a parentheses, is ignored.
 If the root node has a single edge, this one edge is removed.
+
+See also: [`readnexus_treeblock`](@ref)
 """
 readnewick(input::AbstractString) = readnewick(input,true)
 
@@ -1412,4 +1414,45 @@ function nameinternalnodes!(net::HybridNetwork, prefix="i")
     nexti += 1
   end
   return net
+end
+
+
+"""
+    readphylip(file::AbstractString)
+
+Read a PHYLIP-formatted DNA sequence alignment (see for example
+[wikipedia](https://en.wikipedia.org/wiki/PHYLIP#File_format)).
+Currently, only sequential PHYLIP alignments are supported,
+i.e., each sequence appears on one line.
+The reader makes no assumption about the length of the sequence identifier
+so IDs (or taxon names) may be longer than 10 characters. However:
+- at least one space is required between the sequence ID and the sequence itself
+- spaces are not allowed inside the sequence.
+
+Output: tuple `(species, sequences)`
+where `species` is a vector of Strings with identifier names, and
+`sequences` is a vector of BioSequences, each of type `sequencetype`
+(DNA by default)
+
+See also: [`PhyloNetworks.readfastatoarray`](@ref)
+"""
+function readphylip(
+    file::AbstractString,
+    sequencetype=BioSequences.LongDNA{4}
+)
+    sequences = Array{BioSequences.BioSequence}(undef, 0)
+    species = String[]
+    open(file) do f
+        readline(f)  #skip header information
+        while !eof(f)
+            line = readline(f)
+            line = strip(line)
+            isempty(line) && continue
+            ind = split(line)
+            record=FASTARecord(ind[1],ind[2])
+            push!(sequences, FASTX.sequence(sequencetype, record))
+            push!(species, FASTX.identifier(record))
+        end
+    end
+    return((species,sequences))
 end

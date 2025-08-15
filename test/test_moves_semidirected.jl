@@ -330,7 +330,11 @@ end # of testset on unconstrained NNIs
 str_level1_s = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));" # indviduals S1A S1B S1C go on leaf 1
 net_level1_s = readnewick(str_level1_s)
 
-# test breakedge! function
+# test breakedge!
+@test_throws "length 1 or more" PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s,
+    lengths=Float64[])
+@test_throws "cannot use both options" PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s,
+    lengths=(1,2), lengthratio=0.5)
 newnode, newedge = PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s);
 @test length(net_level1_s.node) == 20
 @test length(net_level1_s.edge) == 21
@@ -338,6 +342,11 @@ newnode, newedge = PhyloNetworks.breakedge!(net_level1_s.edge[4], net_level1_s);
 @test newnode.edge[2].number == 21
 @test PhyloNetworks.getparent(net_level1_s.edge[4]) === newnode
 @test getchild(newedge) === newnode
+@test_logs (:error, r"^new length -0.1 should be ≥ 0") PhyloNetworks.breakedge!(
+    net_level1_s.edge[19], net_level1_s; lengths=(2,-0.1));
+@test_logs (:error, "length ratio 1.1 should be in [0,1]") PhyloNetworks.breakedge!(
+    net_level1_s.edge[22], net_level1_s; lengthratio=1.1);
+@test net_level1_s.edge[22].length ≈ -0.2
 
 # test addleaf! function
 net_level1_s = readnewick(str_level1_s)

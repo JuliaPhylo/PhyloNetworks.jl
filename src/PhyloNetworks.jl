@@ -127,6 +127,7 @@ module PhyloNetworks
         parsimonyGF,
         #maxParsimonyNet # broken after v0.17 refactoring: fix network search
         readfastatodna,
+        readphylip,
         # neighbor joining
         nj,
         # quartets

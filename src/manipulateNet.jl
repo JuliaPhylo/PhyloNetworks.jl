@@ -132,25 +132,46 @@ function rootonedge!(net::HybridNetwork, edgeNumber::Integer; index::Bool=false)
 end
 
 """
-    breakedge!(edge::Edge, net::HybridNetwork)
+    breakedge!(edge::Edge, net::HybridNetwork;
+               lengthratio::Union{Nothing,Real}=nothing,
+               lengths=nothing)
 
-Break an edge into 2 edges, each of length half that of original edge,
-creating a new node of degree 2. Useful to root network along an edge.
-Return the new node and the new edge, which is the "top" half of the
-original starting edge.
-These new node & edge are pushed last in `net.node` and `net.edge`.
-
+Break an edge into 2 edges, creating a new node of degree 2.
 If the starting edge was:
 ```
-n1  --edge-->  n2
+n0  --edge-->  n1
 ```
-then we get this:
+then we get this, where the newly-created edge `newedge` is the "top" portion
+of the original starting edge:
 ```
-n1  --newedge-->  newnode  --edge-->  n2
+n0  --newedge-->  newnode  --edge-->  n1
 ```
+These new node & edge are pushed last in `net.node` and `net.edge`.
+
+Output: `(newnode, newedge)`.
 
 `ischild1` and `containroot` are updated, but not internal fields
 (e.g. not those used by SNaQ for level-1 networks).
+
+Branch lengths are assigned with either one of 2 options. The default is
+`lengthratio=0.5`, which means that `edge` is broken into 2 equal halves (unless
+its original length is missing, in which case the new edge length is set to be
+missing also).
+
+1. `lengthratio`: number in [0,1]. If the original length of `edge` was `l`,
+   the `newedge` is assigned length `lengthratio × l` and
+   `edge` has its length updated to be `(1-lengthratio) × l`. In other words:
+   - the original distance between `n0` and `n1` is preserved,
+   - a length ratio of 0 corresponds to placing `newnode` close to `n0`, and
+   - a length ratio of 1 corresponds to placing `newnode` close to `n1`.
+2. `lengths`: 1 length (new) or 2 lengths (new,old), to be assigned to
+   `newedge` (first one) and `edge` (second one, if any). If only the new edge
+   length is provided, then the length of `edge` is unchanged.
+   To ask for a length to be missing, use value `missing` (see example below).
+
+**Note**: If a number outside of [0,1] is used in `lengthratio` or negative values
+are used in `lengths`, an error message will appear but the network *will*
+still be modified according to the values given.
 
 # examples
 
@@ -190,30 +211,87 @@ julia> writenewick(net) # note extra pair of parentheses around S1
 "(((S8,S9),((((S4,(S1)),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 ```
 
+Another example, this time with edge lengths:
+```jldoctest
+julia> net = readnewick("((C:1.1,A:2.0)i1,B);"); # edge 1: i1 --1.1--> C
+
+julia> const PN = PhyloNetworks; # just to write less later
+
+julia> PN.breakedge!(net.edge[1],net; lengthratio=.2);
+
+julia> writenewick(net, round=true) # now i1 --0.22--> newnode --0.88--> C
+"((A:2.0,(C:0.88):0.22)i1,B);"
+
+julia> PN.breakedge!(net.edge[4],net; lengths=(5,1)); # breaks root-->B
+
+julia> writenewick(net, round=true) # into: root --5--> newnode --1--> B
+"((A:2.0,(C:0.88):0.22)i1,(B:1.0):5.0);"
+
+julia> PN.breakedge!(net.edge[4],net; lengths=[missing]); # breaks --1--> B
+
+julia> writenewick(net, round=true) # into: --?--> newnode --1--> B
+"((A:2.0,(C:0.88):0.22)i1,((B:1.0)):5.0);"
+
+```
+
 See also: [`fuseedgesat!`](@ref)
 """
-function breakedge!(edge::Edge, net::HybridNetwork)
+function breakedge!(
+    edge::Edge,
+    net::HybridNetwork;
+    lengthratio::Union{Nothing,Real}=nothing,
+    lengths=nothing,
+)
+    useoldlength = isnothing(lengths)
+    if !useoldlength
+        isnothing(lengthratio) ||
+            error("cannot use both options lengthratio=$lengthratio and lengths=$lengths")
+        nl = length(lengths)
+        nl > 0 || error("'lengths' needs to be of length 1 or more")
+        for ell in lengths
+            ismissing(ell) && continue
+            isa(ell, Real) || error("new length $ell must be a real number")
+            ell ≥ 0 || ell == -1 ||
+                @error("new length $ell should be ≥ 0 or 'missing' (-1 is interpreted as missing)")
+        end
+    else
+        if isnothing(lengthratio)
+            lengthratio = 1/2
+        else
+            0 ≤ lengthratio ≤ 1 ||
+                @error "length ratio $lengthratio should be in [0,1]"
+        end
+    end
     pn = getparent(edge) # parent node
     # new child edge = old edge, same hybrid attribute
     removeEdge!(pn,edge)
     removeNode!(pn,edge)
     max_edge = maximum(e.number for e in net.edge)
     max_node = maximum(n.number for n in net.node)
-    newedge = Edge(max_edge+1) # create new parent (tree) edge
+    # new parent edge: length=-1,hybrid=false,y=0,z=1,γ=1, ischild1=true,
+    newedge = Edge(max_edge+1, -1., false, 0.,1., 1., Node[],true,
+                   true,-1, edge.containroot, true,false)
     newnode = Node(max_node+1,false,false,[edge,newedge]) # tree node
     setNode!(edge,newnode) # newnode comes 2nd, and parent node along 'edge'
     edge.ischild1 = true
-    setNode!(newedge,newnode) # newnode comes 1st in newedge, but child node
-    newedge.ischild1 = true
+    setNode!(newedge,newnode) # newnode comes 1st in newedge: ischild1 true
     setEdge!(pn,newedge)
     setNode!(newedge,pn) # pn comes 2nd in newedge
-    if edge.length == -1.0
-        newedge.length = -1.0
+    if useoldlength
+        oldlen = edge.length
+        if oldlen != -1.0
+            len_parent = lengthratio * oldlen
+            newedge.length = len_parent
+            edge.length = oldlen - len_parent
+        end
     else
-        edge.length /= 2
-        newedge.length = edge.length
+        ell = lengths[1]
+        newedge.length = (ismissing(ell) ? -1 : ell)
+        if nl > 1
+            ell = lengths[2]
+            edge.length = (ismissing(ell) ? -1 : ell)
+        end
     end
-    newedge.containroot = edge.containroot
     pushEdge!(net,newedge)
     pushNode!(net,newnode)
     return newnode, newedge
