@@ -117,7 +117,7 @@ julia> include("make.jl")
 
 or, after project & manifest setup:
 ```shell
-julia --project --color=yes -e 'include("make.jl")'
+julia --project --color=yes make.jl
 ```
 
 it will:

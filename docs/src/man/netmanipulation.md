@@ -19,6 +19,8 @@ each hybrid node has exactly 2 parents (never more).
 
 - [`tiplabels`](@ref) for taxon labels
 - [`getroot`](@ref) gives the root node
+- [`leaststableancestor`](@ref) give the least stable ancestor (LSA) of
+  all taxa (their MRCA on a tree), which may be below the root
 - [`pairwisetaxondistancematrix`](@ref) for *average* distances
 - [`vcv`](@ref) for the variance-covariance matrix between taxa under a
   Brownian Motion model along the network, and [`sharedpathmatrix`](@ref)
@@ -68,6 +70,8 @@ To learn about nodes and how some might be related or connected, one can use:
 - [`getchild`](@ref) or [`getchildren`](@ref PhyloNetworks.getchild) if the
   node has more than one child
 - [`isrootof`](@ref)
+- [`leaststableancestor_matrix`](@ref) for the LSA of all pairs of taxa
+  (or MRCA on a tree: most recent common ancestor)
 
 To learn about the edges connected to a given node, one can use:
 - [`getchildedge`](@ref PhyloNetworks.getchild)
