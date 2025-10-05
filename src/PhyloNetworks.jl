@@ -54,6 +54,8 @@ module PhyloNetworks
         ## getters
         # fixit: add ancestors? getsibling? getdescendants (currently descendants)?
         getroot,
+        leaststableancestor,
+        leaststableancestor_matrix,
         istimeconsistent,
         getnodeheights,
         getnodeheights!,

@@ -53,7 +53,7 @@
     net = readnewick("((((t1)#H22:::0.8,#H22))#H10:::0.7,#H10);")
     a = biconnectedcomponents(net,true);
     @test [[e.number for e in b] for b in a] == [[3,2], [6,5]]
-    lsa, lsaind = PhyloNetworks.leaststableancestor(net)
+    lsa, lsaind = leaststableancestor(net)
     @test (lsa.number,lsaind) == (2,4)
 
     # h=3, one level-1 blob above the LSA, one level-2 blob below including a 2-cycle
@@ -68,15 +68,15 @@
 
     # balanced tree + extra root edge
     net = readnewick("((((t1,t2),(t3,t4))));")
-    _, lsaindex = PhyloNetworks.leaststableancestor(net)
+    _, lsaindex = leaststableancestor(net)
     @test net.vec_node[lsaindex].number == -4
     # LSA = root & entry to non-trivial blob
-    lsa, _ = PhyloNetworks.leaststableancestor(readnewick("(#H2:::0.2,((b)#H2,a));"))
+    lsa, _ = leaststableancestor(readnewick("(#H2:::0.2,((b)#H2,a));"))
     @test lsa.number == -2
 
     # level, process_biconnectedcomponents!
     net = readnewick("(((((#H25)#H22:::0.8,#H22),((t2:0.1,t1))#H25:::0.7)));")
-    @test_throws "no biconnected components stored" PhyloNetworks.leaststableancestor(net, false, false)
+    @test_throws "no biconnected components stored" leaststableancestor(net, false, false)
     PhyloNetworks.process_biconnectedcomponents!(net)
     @test length(net.partition) == 5
     checkpart(i) = (net.partition[i].cycle, sort!([e.number for e in net.partition[i].edges]))
@@ -94,9 +94,34 @@
     @test getlevel(net,false,false) == 2
     @test PhyloNetworks.istrivial.(net.partition[[1,2,4]]) == [true, false,true]
     @test PhyloNetworks.ispendent.(net.partition[[1,2,4]]) == [false,false,true]
-    lsa, _ = PhyloNetworks.leaststableancestor(net, false, false)
+    lsa, _ = leaststableancestor(net, false, false)
     @test lsa.number == -8
     PhyloNetworks.empty!.(net.partition)
+end
+
+@testset "lsa matrix" begin
+# extra root edge; non-binary, 1 block's entry = side of other
+net = readnewick("(((#H3,(((a1,a2),a3)#H3,(b1,#H1),(b2)#H1))));");
+M = leaststableancestor_matrix(net);
+@test [n.number for n in net.vec_node] == [-3,-4,-5,-8,6,7,5,1,4,-7,3,2]
+M = map(n -> n.number, M.V)
+@test size(M) == (12,12)
+@test all(M[:,1] .== -3 .&& M[1,:] .== -3)
+@test all(M[2:12,2] .== -4 .&& M[2,2:12] .== -4)
+# b-side (-5 through b1-b2) versus a-side (-1 through a1-a3)
+@test all(M[3:7,8:12] .== -4 .&& M[8:12,3:7] .== -4)
+@test M[3:7,3:7] == [ # b-side
+-5 -5 -5 -5 -5;
+-5 -8 -5 -5 -8;
+-5 -5  6  6 -5;
+-5 -5  6  7 -5;
+-5 -8 -5 -5  5]
+@test M[8:12,8:12] == [ # a-side: subtree
+1 1  1  1  1;
+1 4  1  1  1;
+1 1 -7 -7 -7;
+1 1 -7  3 -7;
+1 1 -7 -7  2]
 end
 
 @testset "tree component" begin

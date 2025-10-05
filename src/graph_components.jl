@@ -447,8 +447,8 @@ getlevel(p::Partition) = sum(!e.ismajor for e in p.edges)
 """
     leaststableancestor(net, preorder=true, preprocess=true)
 
-Tuple `(lsa, lsa_index)` where `lsa` is the least stable ancestor (LSA) node
-in `net`, and `lsa_index` is the index of `lsa` in `net.vec_node`.
+Tuple `(lsa, lsa_index)` where `lsa` is the least stable ancestor (LSA) node of
+the full network `net`, and `lsa_index` is the index of `lsa` in `net.vec_node`.
 The LSA the lowest node `n` with the following property: *any* path
 between *any* leaf and the root must go through `n`. All such nodes with this
 property are ancestral to the LSA (and therefore must have an index that is
@@ -471,7 +471,7 @@ therefore share the same caveats regarding the use of field
 As a positivie side effect, the biconnected components can be recovered
 via the edges' `.inte1` field --including the trivial blobs (cut edges).
 
-See also: [`deleteaboveLSA!`](@ref)
+See also: [`deleteaboveLSA!`](@ref), [`leaststableancestor_matrix`](@ref)
 """
 function leaststableancestor(
     net::HybridNetwork,
@@ -500,6 +500,134 @@ function leaststableancestor(
     isnothing(lsablob_i) && error("strange: couldn't find the LSA...")
     lsa_index = entrynode_preindex(bcc[lsablob_i])
     return net.vec_node[lsa_index], lsa_index
+end
+
+"""
+    leaststableancestor_matrix(net, preorder=true)
+
+Matrix `M` that contains the least stable ancestor (LSA) of each pair of nodes
+(tips and internal nodes). If the network is a tree, the least stable ancestor
+of 2 nodes is just their most recent common ancestor (MRCA).
+Note that the LSA highly depends on the root placement.
+
+`M` is of type [`MatrixTopologicalOrder`](@ref), which allows to access nodes in
+various ways in which they are indexed. For example, to get the matrix of LSAs
+between all pairs tips, with tips ordered as in `tiplabels(net)`, do `M[:tips]`.
+Alternatively, to get the LSA between nodes of topological (pre-order) indices
+`i` and `j`, do `M[:all][i,j]`.
+
+Argument `preorder`: to direct edges according to the root and store a
+pre-ordering of nodes in `net.vec_node`. Use `preorder=false` to skip this,
+if certain that this step was already done earlier on the network.
+
+The algorithm traverses the network once, with complexity O(n²) if the network
+is bicombining (hybrids have 2 parents).
+
+See also: [`leaststableancestor`](@ref), which gets the LSA of the full taxon
+set, using a different algorithm based on a blob decomposition.
+
+# example
+
+```jldoctest
+julia> net = readnewick("(((#H3,(((a1,a2),a3)#H3,(b1,#H1),(b2)#H1))));");
+
+julia> # using PhyloPlots; plot(net, shownodenumber=true, tipoffset=0.2);
+
+julia> M = leaststableancestor_matrix(net);
+
+julia> tipLSAnode = M[:tips]; # tips listed as in taxa below
+
+julia> taxa = tiplabels(net)
+5-element Vector{String}:
+ "a1"
+ "a2"
+ "a3"
+ "b1"
+ "b2"
+
+julia> tipLSAnum = map(n -> n.number, tipLSAnode) # node number of each LSA
+5×5 Matrix{Int64}:
+  2  -7   1  -4  -4
+ -7   3   1  -4  -4
+  1   1   4  -4  -4
+ -4  -4  -4   5  -5
+ -4  -4  -4  -5   7
+
+julia> using DataFrames
+
+julia> DataFrame(:taxon => taxa,
+                 (Symbol(t) => tipLSAnum[:,i] for (i,t) in enumerate(taxa))...)
+5×6 DataFrame
+ Row │ taxon   a1     a2     a3     b1     b2    
+     │ String  Int64  Int64  Int64  Int64  Int64 
+─────┼───────────────────────────────────────────
+   1 │ a1          2     -7      1     -4     -4
+   2 │ a2         -7      3      1     -4     -4
+   3 │ a3          1      1      4     -4     -4
+   4 │ b1         -4     -4     -4      5     -5
+   5 │ b2         -4     -4     -4     -5      7
+
+```
+"""
+function leaststableancestor_matrix(
+    net::HybridNetwork,
+    preorder::Bool=true,
+)
+    if preorder
+        directedges!(net)
+        preorder!(net)
+    end
+    # first: V contains preorder index of each LSA node
+    Vint = traversal_preorder(
+        net.vec_node,
+        init_intmatrix,
+        updateroot_diagonal1ton!,
+        updatetree_lsamatrix!,
+        updatehybrid_lsamatrix!,
+    )
+    Vnode = net.vec_node[Vint]
+    M = MatrixTopologicalOrder(Vnode, net, :b) # nodes in both columns & rows
+    return M
+end
+function init_intmatrix(nodes::Vector{Node},)
+    n = length(nodes)
+    return Matrix{Int}(undef,n,n)
+end
+function updateroot_diagonal1ton!(V::AbstractArray, ::Int, params...)
+    for i in axes(V, 1) # V assumed square
+        V[i,i] = i # node i = LSA of itself
+    end
+    return true
+end
+function updatetree_lsamatrix!(
+    V::Matrix,
+    i::Int,
+    pi::Int,
+    edge::Edge,
+)
+    for j in 1:(i-1)
+        V[i,j] = V[pi,j]
+        V[j,i] = V[i,j]
+    end
+    return true
+end
+function updatehybrid_lsamatrix!(
+    V::Matrix,
+    i::Int,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
+)   #= theorem: LSA(V) = LSA(x,y) for some pair x,y in V
+    1. get LSA(i's parents) with LSA(p1,...,pk) = LSA( LSA(p1,...p{k-1}), pk)
+    2. for each j < i in preorder, LSA(i,j) = LSA( LSA(parents of i), j) =#
+    parentsLSA = parindx[1]
+    for k in 2:length(parindx)
+        parentsLSA = V[parentsLSA, parindx[k]]
+    end
+    for j in 1:(i-1)
+        V[i,j] = V[parentsLSA,j]
+        V[j,i] = V[i,j]
+    end
+    return true
 end
 
 """

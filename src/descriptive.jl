@@ -68,10 +68,8 @@ function Base.show(io::IO, obj::HybridNetwork)
         writesubtree!(s, obj, false,true, true,3,true)
         par = String(take!(s))
     catch err
-        println("ERROR with writesubtree!:")
-        showerror(stdout, err)
-        println("Trying writeTopologyLevel1")
-        par = writeTopologyLevel1(obj)
+        println("error with writesubtree!. perhaps try checkroot! or directedges! on the network")
+        rethrow(err)
     end
     disp *= "\n$par"
     println(io, disp)
