@@ -354,9 +354,9 @@ julia> nt = tablequartetCF(q,t); # named tuple
 
 julia> using DataFrames
 
-julia> df = DataFrame(nt, copycols=false); # convert to a data frame, without copying the column data
+julia> df = DataFrame(nt, copycols=false); # convert to data frame, without copying column data
 
-julia> show(df, allcols=true) # data frames are displayed much more nicely than named tuples
+julia> show(df, allcols=true) # data frames displayed more nicely than named tuples
 5×9 DataFrame
  Row │ qind   t1      t2      t3      t4      CF12_34  CF13_24  CF14_23  ngenes  
      │ Int64  String  String  String  String  Float64  Float64  Float64  Float64 
@@ -367,7 +367,7 @@ julia> show(df, allcols=true) # data frames are displayed much more nicely than 
    4 │     4  A       D       E       O          1.0      0.0       0.0      0.5
    5 │     5  B       D       E       O          0.0      0.0       0.0      0.0
 
-julia> # using CSV; CSV.write(nt, "filename.csv");
+julia> using CSV; CSV.write("quartetCFs_fromgenetrees.csv", nt); # save to file if needed
 ```
 
 Note that `CSV.write` can take a data frame or a named tuple as input, to write
