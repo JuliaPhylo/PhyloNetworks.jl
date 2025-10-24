@@ -268,6 +268,15 @@ end # of testset for rotate
 net0 = readnewick("((((C:0.9)I1:0.1)I3:0.1,((A:1.0)I2:0.4)I3:0.6):1.4,(((B:0.2)H1:0.6)I2:0.5)I3:2.1);");
 removedegree2nodes!(net0, true) # true: to keep the root of degree-2
 @test writenewick(net0, round=true) == "((C:1.1,A:2.0):1.4,B:3.4);"
+suppressroot!(net0)
+@test writenewick(net0, round=true) == "(B:4.8,C:1.1,A:2.0);"
+net0 = readnewick("(((#H2,((a,b))#H2)));")
+suppressroot!(net0)
+@test writenewick(net0) == "(#H2,((a,b))#H2);"
+net0 = (@test_logs (:warn, r"the root's 2 children are leaves") suppressroot!(readnewick("(a,b);")))
+@test writenewick(net0) == "(a,b);"
+net0.rooti = 2
+@test_throws "the root is a leaf" suppressroot!(net0)
 
 #--- delete above least stable ancestor ---#
 # 3 blobs above LSA: cut edge + level-2 blob + cut edge.

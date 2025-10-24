@@ -1,5 +1,3 @@
-PN = PhyloNetworks
-
 @testset "QuartetT basic tests" begin
 # basic tests for QuartetT type
 nCk = PN.nchoose1234(5)

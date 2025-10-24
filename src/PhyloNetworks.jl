@@ -45,6 +45,7 @@ module PhyloNetworks
         deleteleaf!,
         deleteaboveLSA!,
         removedegree2nodes!,
+        suppressroot!,
         shrink2cycles!,
         shrink3cycles!,
         printedges,

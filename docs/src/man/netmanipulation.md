@@ -113,7 +113,8 @@ To remove components from a network:
   from the root
 - [`deletehybridthreshold!`](@ref) to simplify a network by deleting edges with small γ's
 - [`PhyloNetworks.shrinkedge!`](@ref) to contract an edge
-- [`removedegree2nodes!`](@ref) to suppress degree-2 nodes
+- [`removedegree2nodes!`](@ref) to suppress degree-2 nodes,
+  [`suppressroot!`](@ref) to "unroot"
 - [`shrink3cycles!`](@ref) and [`shrink2cycles!`](@ref) to contract "cycles"
   of 2 or 3 edges, which deletes 1 reticulation
 - [`PhyloNetworks.deletehybridedge!`](@ref) to remove one hybrid edge
