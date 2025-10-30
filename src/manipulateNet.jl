@@ -24,7 +24,7 @@ Warnings:
   * the original network is restored with its old root and edges' direction.
   * a RootMismatch error is thrown.
 
-See also: [`rootonedge!`](@ref).
+See also: [`rootonedge!`](@ref), and [`suppressroot!`](@ref) to undo.
 """
 function rootatnode!(net::HybridNetwork, node::Node; kwargs...)
     rootatnode!(net, node.number; kwargs..., index=false)
@@ -94,7 +94,7 @@ Use `plot(net, showedgenumber=true, showedgelength=false)` to
 visualize and identify an edge of interest.
 (see package [PhyloPlots](https://github.com/juliaphylo/PhyloPlots.jl))
 
-See also: [`rootatnode!`](@ref).
+See also: [`rootatnode!`](@ref), and [`suppressroot!`](@ref) to undo.
 """
 function rootonedge!(net::HybridNetwork, edge::Edge; kwargs...)
     rootonedge!(net, edge.number, index=false; kwargs...)
@@ -406,6 +406,67 @@ function removedegree2nodes!(net::HybridNetwork, keeproot::Bool=false)
         # but later its edges turned to be hybrids, so should not be removed
         isnothing(i) || fuseedgesat!(i, net)
     end
+    return net
+end
+
+"""
+    suppressroot!(net::HybridNetwork)
+
+Suppress the root of `net`, in an attempt to convey the interpretation that
+its root is in fact unknown, as in unrooted trees and semidirected networks.
+Namely:
+1. delete the root if has only 1 edge, unless its child is a leaf, and do so
+   recursively until the new root has 2 or more edges (or a single child leaf)
+2. stop if the root is of degree 3 or more or has 2 outgoing hybrid edges,
+3. otherwise fuse its 2 edges, unless its 2 children are leaves
+   (in which case a warning is printed).
+
+An error is thrown if the root is a leaf.
+
+See also [`rootonedge!`](@ref) and [`rootatnode!`](@ref), which do the opposite.
+
+# examples
+
+```jldoctest
+julia> net = readnewick("(((((a,b))#H2,(#H2,c))));"); # extra root edge
+
+julia> suppressroot!(net); writenewick(net) # root with 3 edges
+"(#H2,c,((a,b))#H2);"
+
+julia> deleteleaf!(net, "c"); writenewick(net) # root with 2 hybrid edges
+"(#H2,((a,b))#H2);"
+
+julia> suppressroot!(net); writenewick(net) # root cannot be suppressed more
+"(#H2,((a,b))#H2);"
+```
+
+Below, the resulting network still has a root with only 2 children:
+
+```jldoctest ; filter = r"└ @ PhyloNetworks.*" => s""
+julia> net = readnewick("(((a,(b)i1)));");
+
+julia> # plot(net, shownodelabel=true); # extra: root above LSA, and degree-2 node i1 above b
+
+julia> suppressroot!(net); writenewick(net) # root now at i1: still of degree 2
+"(b,a)i1;"
+```
+"""
+function suppressroot!(net::HybridNetwork)
+    getroot(net).leaf && error("the root is a leaf: it won't be suppressed")
+    if length(getroot(net).edge) == 1
+        deleteleaf!(net, net.rooti; index=true, unroot=false)
+        # recursive. unroot=false to stop when the new root has degree > 1:
+        # otherwise deleteleaf! would remove a root if it starts a 2-cycle
+    end
+    rn = getroot(net) # must be degree > 1, unless net has a single leaf
+    if length(rn.edge) == 2 && !all(e.hybrid for e in rn.edge)
+        if all(getchild(e).leaf for e in rn.edge)
+            @warn "the root's 2 children are leaves: it will not be suppressed"
+        else
+            fuseedgesat!(net.rooti, net)
+        end
+    end
+    net.isrooted = length(getroot(net).edge) < 3 # .isrooted not used, but hey
     return net
 end
 
