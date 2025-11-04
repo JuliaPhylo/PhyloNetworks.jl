@@ -14,7 +14,7 @@ function traverseTree2Matrix!(node::Node, edge::Edge, ie::Vector{Int}, M::Matrix
             grandchild = getOtherNode(e,child)
             if grandchild.leaf
                 indsp = findfirst(isequal(grandchild.name), S)
-                indsp != nothing || error("leaf $(grandchild.name) not in species list $(S)")
+                indsp != nothing || error("leaf $(grandchild.name) not in taxon list $(S)")
                 M[indedge,indsp+1] = 1 #indsp+1 bc first column is edge numbers
             else
                 inde = ie[1];
@@ -72,7 +72,8 @@ Warnings:
 
 Each row corresponds to one internal edge, that is, external edges are excluded.
 If the root is a leaf node, the external edge to that leaf is included (first row).
-Both parent hybrid edges to a given hybrid node only contribute a single row (they share the same hardwired cluster).
+Both parent hybrid edges to a given hybrid node only contribute a single row
+(they share the same hardwired cluster).
 
 - first column: edge number
 - next columns: 0/1. 1=descendant of edge, 0=not a descendant, or missing taxon.
@@ -80,34 +81,46 @@ Both parent hybrid edges to a given hybrid node only contribute a single row (th
 
 See also [`hardwiredclusterdistance`](@ref) and [`hardwiredcluster`](@ref).
 """
-function hardwiredclusters(net::HybridNetwork, S::Union{AbstractVector{String},AbstractVector{Int}})
+function hardwiredclusters(
+    net::HybridNetwork,
+    S::Union{AbstractVector{String},AbstractVector{Int}}
+)
     ne = length(net.edge)-net.numtaxa # number of internal branch lengths
     ne -= length(net.hybrid)          # to remove duplicate rows for the 2 parent edges of each hybrid
-    if (net.node[net.rooti].leaf)     # root is leaf: the 1 edge stemming from the root is an external edge
-        ne += 1                       #               but needs to be included still (rooted clusters).
+    rootnode = getroot(net)
+    if rootnode.leaf # the 1 edge stemming from the root is an external edge
+        ne += 1      # but needs to be included still (rooted clusters).
     end
     M = zeros(Int,ne,length(S)+2)
     ie = [1] # index of next edge to be documented: row index in M
-    for e in net.node[net.rooti].edge
-        hardwiredclusters!(net.node[net.rooti],e,ie,M,S)
+    for e in rootnode.edge
+        hardwiredclusters!(rootnode,e,ie,M,S)
     end
     return M
 end
 
-function hardwiredclusters!(node::Node, edge::Edge, ie::AbstractVector{Int}, M::Matrix{Int},
-                            S::Union{AbstractVector{String},AbstractVector{Int}})
+function hardwiredclusters!(
+    node::Node,
+    edge::Edge,
+    ie::AbstractVector{Int},
+    M::Matrix{Int},
+    S::Union{AbstractVector{String},AbstractVector{Int}}
+)
     child = getOtherNode(edge,node)
 
-    !child.leaf || return 0 # do nothing if child is a leaf.
+    if child.leaf # only check its label ∈ S
+        child.name ∈ S || error("leaf $(child.name) not in taxon list $(S)")
+        return 0 # do nothing else: do *not* update M
+    end
 
-    if (edge.hybrid) # edge is a hybrid. Need to find its partner.
+    if edge.hybrid # edge is a hybrid, need to find its partner
         (edge.ischild1 ? edge.node[1] == child : edge.node[2] == child) || error(
         "inconsistency during network traversal: node $(child.number) supposed to be child of hybrid edge $(edge.number), inconsistent with ischild1.")
         partner = nothing
         partnerVisited = true
         indpartner = 0
         for e in child.edge
-            if (e.hybrid && e != edge && (e.ischild1 ? e.node[1] == child : e.node[2] == child))
+            if e.hybrid && e != edge && (e.ischild1 ? e.node[1] == child : e.node[2] == child)
                 partner = e
                 indpartner = findfirst(isequal(partner.number), M[:,1])
                 if isnothing(indpartner)
@@ -126,11 +139,11 @@ function hardwiredclusters!(node::Node, edge::Edge, ie::AbstractVector{Int}, M::
     ie[1] += 1 # mutable array
 
     for e in child.edge # postorder traversal
-        if (e != edge && (!edge.hybrid || e!=partner)) # do not go back to (either) parent edge.
+        if e !== edge && (!edge.hybrid || e!==partner) # do not go back to (either) parent edge
             grandchild = getOtherNode(e,child)
             if grandchild.leaf
                 indsp = findfirst(isequal(grandchild.name), S)
-                indsp != nothing || error("leaf $(grandchild.name) not in species list $(S)")
+                indsp != nothing || error("leaf $(grandchild.name) not in taxon list $(S)")
                 M[indedge,indsp+1] = 1 #indsp+1 because first column is edge numbers
             else
                 inde = hardwiredclusters!(child,e,ie,M,S)
