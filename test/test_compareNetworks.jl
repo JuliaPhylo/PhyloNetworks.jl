@@ -390,6 +390,14 @@ taxa = tiplabels(net5)
   8 0 0 1 1 0 0 10;
   7 0 0 0 1 0 0 11;
  11 0 0 0 1 1 0 10]
+netr1 = readnewick("(a,b);")   # external edge at root
+netr2 = readnewick("(a,(b));") # degree-2 node
+@test_throws "leaf b not in taxon list" hardwiredclusters(netr1, ["a","c"])
+@test_throws "leaf b not in taxon list" hardwiredclusters(netr2, ["a","c"])
+@test hardwiredclusters(netr1, ["a","b"]) == Matrix{Int}(undef, 0,4)
+@test hardwiredclusters(netr2, ["a","b"]) == [3  0  1  10]
+netr1.rooti = 1 # leaf a = root
+@test hardwiredclusters(netr1, ["a","b"]) == [1 0 1 10]
 
 if doalltests
 trunet = readnewick("(((1,2),((3,4))#H1),(#H1,5),6);"); # unrooted
