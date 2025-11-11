@@ -41,8 +41,8 @@ mutable struct EdgeT{T<:ANode}
     number::Int
     length::Float64 # default 1.0
     hybrid::Bool   # default: false
-    y::Float64     # exp(-length), cannot set in constructor for congruence
-    z::Float64     # 1-y, cannot set in constructor for congruence
+    y::Float64     # default: -1 for missing. here: stores support. in SNaQ: stores exp(-length)
+    z::Float64     # default: -1 for missing. in SNaQ: stores 1-y
     gamma::Float64 # default: 1.0 for tree edges, gamma for hybrid edges
     node::Vector{T}
     ischild1::Bool # default: true. used to fix the direction of hybrid edges.
@@ -54,10 +54,11 @@ mutable struct EdgeT{T<:ANode}
     boole1::Bool   # default: true
     boole2::Bool   # default: false
 end
-# outer constructors: ensure congruence among (length, y, z) and (gamma, hybrid, ismajor), and size(node)=2
+# outer constructors: ensure congruence among (gamma, hybrid, ismajor), and size(node)=2
 function EdgeT{T}(number::Int, length::Float64=1.0) where {T<:ANode}
-    y = exp(-length)
-    EdgeT{T}(number,length,false,y,1.0-y,1.,T[],true,true,-1,true,true,false)
+    # y = exp(-length)
+    EdgeT{T}(number,length,false, -1.0,-1.0, # y,1.0-y,
+      1.,T[],true,true,-1,true,true,false)
 end
 function EdgeT{T}(
   number::Int,
@@ -66,8 +67,9 @@ function EdgeT{T}(
   gamma::Float64,
   ismajor::Bool=(!hybrid || gamma>0.5)
 ) where {T<:ANode}
-    y = exp(-length)
-    EdgeT{T}(number,length,hybrid,y,1.0-y, hybrid ? gamma : 1.,T[],true,ismajor,-1,!hybrid,true,false)
+    # y = exp(-length)
+    EdgeT{T}(number,length,hybrid, -1.0,-1.0, # y,1.0-y,
+      hybrid ? gamma : 1.,T[],true,ismajor,-1,!hybrid,true,false)
 end
 function EdgeT{T}(
   number::Int,
@@ -77,8 +79,8 @@ function EdgeT{T}(
   node::Vector{T}
 ) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
-    y = exp(-length)
-    EdgeT{T}(number,length,hybrid,y,1.0-y,
+    # y = exp(-length)
+    EdgeT{T}(number,length,hybrid, -1.0,-1.0, # y,1.0-y,
         hybrid ? gamma : 1., node,true, !hybrid || gamma>0.5,
         -1,!hybrid,true,false)
 end
@@ -94,8 +96,8 @@ function EdgeT{T}(
   boole1::Bool
 ) where {T<:ANode}
     size(node,1) == 2 || error("vector of nodes must have exactly 2 values")
-    y = exp(-length)
-    EdgeT{T}(number,length,hybrid,y,1.0-y,
+    # y = exp(-length)
+    EdgeT{T}(number,length,hybrid, -1.0,-1.0, # y,1.0-y,
         hybrid ? gamma : 1., node, ischild1, !hybrid || gamma>0.5,
         inte1, containroot, boole1, false)
 end
@@ -183,12 +185,13 @@ function Base.empty!(p::Partition)
     return p
 end
 """
-  entrynode_preindex(biconnected_component::Partition)
+    entrynode_preindex(biconnected_component::Partition)
 
 Preorder index of the entry node of a biconnected component, considering the
 network rooted. It is an articulation node, except if it is the network's root.
 """
 entrynode_preindex(p::Partition) = p.cycle[1]
+
 """
     number_exitnodes(biconnected_component::Partition)
 
@@ -208,6 +211,7 @@ depending on the downstream task
 number_exitnodes(p::Partition) = length(p.cycle)-1
 ispendent(p::Partition) = (length(p.cycle) == 1)
 istrivial(p::Partition) = (length(p.edges) == 1)
+
 """
     exitnodes_preindex(biconnected_component::Partition)
 
@@ -237,7 +241,7 @@ abstract type Network end
     HybridNetwork
 
 Subtype of abstract `Network` type.
-Explicit network or tree with the following attributes:
+Explicit network (which may be a tree) with the following attributes:
 
 - `numtaxa`: number of taxa, that is, number of are leaves (or tips).
   Leaves are required to be attached to a single edge.
@@ -251,7 +255,7 @@ Explicit network or tree with the following attributes:
 - `hybrid`: vector of Nodes: those are are hybrid nodes
 - `leaf`: vector of Nodes: those that are leaves
 - `fscore`: score after fitting network to data, i.e. parsimony score, or
-  multipe of the negative log pseudodeviance for SNaQ
+   multipe of the negative log pseudodeviance for SNaQ
 - `isrooted`: true or false
 - `partition`: vector of `Partition`
 """

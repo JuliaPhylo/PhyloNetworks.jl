@@ -55,6 +55,20 @@ end
     @test (getparent(net.edge[11]).number,getchild(net.edge[11]).number)==(-5,7)
     @test (getparent(net.edge[4]).number, getchild(net.edge[4]).number) == (7,4)
     @test (getparent(net.edge[5]).number, getchild(net.edge[5]).number) == (7,5)
+    # todo: test that all y and z values are -1 (for missing)
+    #net = readnewick( "(((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25);");
+    #=
+    fixit above: extra tip named "nf", its external edge of length 25
+    ┌ Warning: one colon read without double in left parenthesis 5, ignored.
+    └ @ PhyloNetworks ~/.julia/dev/PhyloNetworks/src/readwrite.jl:312
+    fixit below: different error
+    # net = readnewick("((((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25));");
+    ┌ Warning: one colon read without double in left parenthesis 6, ignored.
+    └ @ PhyloNetworks ~/.julia/dev/PhyloNetworks/src/readwrite.jl:312
+    ERROR: Expected right parenthesis after left parenthesis 6 but read I. The remainder of line is nf:25));.
+    todo: add test for correct .y values, then correct string output by writenewick(support=true)
+    =#
+    net = readnewick("((((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A)))::25));");
 end
 @testset "internal nodes, writemulti" begin
     @test writenewick(readnewick("(a,b):0.5;")) == "(a,b);"
