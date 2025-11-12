@@ -29,9 +29,9 @@ function getnodeages(net::HybridNetwork)
 end
 
 """
-    pairwisetaxondistancematrix(net; keepInternal=false,
+    pairwisetaxondistancematrix(net; distanceType=:average, keepInternal=false,
                                 checkpreorder=true, nodeAges=[])
-    pairwisetaxondistancematrix!(M, net, nodeAges)
+    pairwisetaxondistancematrix!(M, net, distanceType, nodeAges)
 
 Return the matrix `M` of pairwise distances between nodes in the network:
 - between all nodes (internal and leaves) if `keepInternal=true`,
