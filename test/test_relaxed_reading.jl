@@ -41,7 +41,7 @@ end
  @test [e.gamma for e in net.edge if e.hybrid] == [0.99999999945, 5.5e-10]
 end
 @testset "ismajor & gamma consistency, and miscellaneous" begin
-    net = readnewick("((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));");
+    net = readnewick(" ((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));"); # leading white space in string
     @test writenewick(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
     net = readnewick("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
     @test writenewick(net) == "(E,((B)#H1:::0.5,((D,C),(#H1:::0.5,A))));"

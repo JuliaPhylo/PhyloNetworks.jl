@@ -481,15 +481,15 @@ end
 # calls readnewick(s::IO)
 # warning: crashes if file name starts with (
 function readnewick(input::AbstractString)
-    if(input[1] == '(') # input = parenthetical description
+    input = lstrip(input) # strips leading whitespaces
+    if input[1] == '(' # input = parenthetical description
        s = IOBuffer(input)
     else # input = file name
-        try
-            s = open(input)
+        s = try
+            open(input)
         catch
             error("Could not find or open $(input) file");
         end
-       s = open(input)
     end
     net = readnewick(s)
     return net
@@ -500,18 +500,19 @@ end
     readnewick(parenthetical description)
     readnewick(IO)
 
-Read tree or network topology from parenthetical format (extended Newick).
-If the root node has a single child: ignore (i.e. delete from the topology)
-the root node and its child edge.
+Read a tree or network topology from parenthetical format (extended Newick).
 
-Input: text file or parenthetical format directly.
-The file name may not start with a left parenthesis, otherwise the file
-name itself would be interpreted as the parenthetical description.
+Input: text file or parenthetical format directly. Leading white spaces are ignored.
+The input string may start with white spaces followed by the file name.
+The file name may *not* start with spaces. Also, it may *not* start with a left parenthesis,
+otherwise the file name itself would be interpreted as the parenthetical description.
 Nexus-style comments (`[&...]`) are ignored, and may be placed
 after (or instead) of a node name, and before/after an edge length.
 
 A root edge, not enclosed within a pair a parentheses, is ignored.
-If the root node has a single edge, this one edge is removed.
+If the root node ρ0 has a single child edge ρ0 → ρ1,
+then this initial root ρ0 and its child edge are deleted from the topology.
+Its initial child ρ1 becomes the new root.
 
 See also: [`readnexus_treeblock`](@ref)
 """
