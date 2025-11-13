@@ -56,7 +56,7 @@ end
     @test (getparent(net.edge[4]).number, getchild(net.edge[4]).number) == (7,4)
     @test (getparent(net.edge[5]).number, getchild(net.edge[5]).number) == (7,5)
     # todo: test that all y and z values are -1 (for missing)
-    #net = readnewick( "(((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25);");
+    @test_throws r"digit after ':' but found I." readnewick( "(((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25);")
     #=
     fixit above: extra tip named "nf", its external edge of length 25
     ┌ Warning: one colon read without double in left parenthesis 5, ignored.

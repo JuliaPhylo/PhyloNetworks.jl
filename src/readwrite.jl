@@ -121,9 +121,8 @@ function readnewick_float(s::IO, c::Char)
         num = string(num,d);
         c = peekskip(s);
     end
-    f = 0.0
-    try
-        f = parse(Float64, num)
+    f = try
+        parse(Float64, num)
     catch
         error("problem with number read $(num), not a float number")
     end
@@ -286,7 +285,7 @@ Modifies s by advancing past the next colon character.
 Only call this function to read a value when you know a numerical value exists!
 """
 @inline function parsenewick_getfloat!(s::IO, call::Int, numLeft::Array{Int,1})
-    errors = ["one colon read without double in left parenthesis $(numLeft[1]-1), ignored.",
+    errors = ["first colon : read without double in left parenthesis $(numLeft[1]-1), ignored.",
               "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
               "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
     c = peekskip(s)
@@ -294,21 +293,22 @@ Only call this function to read a value when you know a numerical value exists!
         readnexus_comment(s,c)
         c = peekskip(s)
     end
-    if isdigit(c) || c == '.' || c == '-'
-        # value is present: read it, and any following comment(s)
-        val = readnewick_float(s, c)
+    if c == ':' # no value
+        return -1.0
+    else # value is present: read it, and any following comment(s)
+    # elseif isdigit(c) || c == '.' || c == '-'
+        val = try
+            readnewick_float(s, c)
+        catch e
+            @warn errors[call]
+            rethrow(e)
+        end
         if val < 0.0
             @error "expecting non-negative value but read '-', left parenthesis $(numLeft[1]-1). will set to 0."
             val = 0.0
         end
         readnexus_comment(s,peekskip(s))
         return val
-    # No value
-    elseif c == ':'
-        return -1.0
-    else
-        @warn errors[call]
-        return -1.0
     end
 end
 
