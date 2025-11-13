@@ -43,11 +43,13 @@ end
 @testset "ismajor & gamma consistency, and miscellaneous" begin
     net = readnewick(" ((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));"); # leading white space in string
     @test writenewick(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
-    net = readnewick("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
+    net = readnewick("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A:))));"); # no edge length after colon
     @test writenewick(net) == "(E,((B)#H1:::0.5,((D,C),(#H1:::0.5,A))));"
     @test !PhyloNetworks.shrinkedge!(net,net.edge[6]) # parent to (D,C)
     @test_throws "at a hybrid" PhyloNetworks.resolvetreepolytomy!(net, net.node[3])
     PhyloNetworks.resolvetreepolytomy!(net, net.node[8])
+    @test all(e.y == -1 for e in net.edge) # missing (-1) support values, even after resolving polytomy
+    @test all(e.z == -1 for e in net.edge)
     @test net.node[11].number == 7 # new node
     @test length(net.edge) == 11
     @test net.edge[11].number == 6 # new edge, recycled old unused number
@@ -55,20 +57,12 @@ end
     @test (getparent(net.edge[11]).number,getchild(net.edge[11]).number)==(-5,7)
     @test (getparent(net.edge[4]).number, getchild(net.edge[4]).number) == (7,4)
     @test (getparent(net.edge[5]).number, getchild(net.edge[5]).number) == (7,5)
-    # todo: test that all y and z values are -1 (for missing)
-    @test_throws r"digit after ':' but found I." readnewick( "(((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25);")
+    @test_logs (:warn, r"^first colon") (
+        @test_throws r"digit after ':' but found I." readnewick( "(((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25);"))
+    net = readnewick("((((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A)))::25));");
     #=
-    fixit above: extra tip named "nf", its external edge of length 25
-    ┌ Warning: one colon read without double in left parenthesis 5, ignored.
-    └ @ PhyloNetworks ~/.julia/dev/PhyloNetworks/src/readwrite.jl:312
-    fixit below: different error
-    # net = readnewick("((((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25));");
-    ┌ Warning: one colon read without double in left parenthesis 6, ignored.
-    └ @ PhyloNetworks ~/.julia/dev/PhyloNetworks/src/readwrite.jl:312
-    ERROR: Expected right parenthesis after left parenthesis 6 but read I. The remainder of line is nf:25));.
     todo: add test for correct .y values, then correct string output by writenewick(support=true)
     =#
-    net = readnewick("((((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A)))::25));");
 end
 @testset "internal nodes, writemulti" begin
     @test writenewick(readnewick("(a,b):0.5;")) == "(a,b);"

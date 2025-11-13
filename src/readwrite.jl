@@ -285,15 +285,15 @@ Modifies s by advancing past the next colon character.
 Only call this function to read a value when you know a numerical value exists!
 """
 @inline function parsenewick_getfloat!(s::IO, call::Int, numLeft::Array{Int,1})
-    errors = ["first colon : read without double in left parenthesis $(numLeft[1]-1), ignored.",
-              "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
+    errors = ["first colon : without double after in left parenthesis $(numLeft[1]-1), ignored.",
+              "second colon : without double after in left parenthesis $(numLeft[1]-1), ignored.",
               "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
     c = peekskip(s)
     if c == '[' # e.g. comments only, no value, but : after
         readnexus_comment(s,c)
         c = peekskip(s)
     end
-    if c == ':' # no value
+    if c == ':' || c == ')' || c == ',' # no value after the previous colon after all
         return -1.0
     else # value is present: read it, and any following comment(s)
     # elseif isdigit(c) || c == '.' || c == '-'
