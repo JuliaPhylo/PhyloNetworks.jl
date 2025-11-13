@@ -152,9 +152,13 @@ Advances `s` past the subtree, adds discovered nodes and edges to `net`, and `hy
 Does *not* read the node name and the edge information of the subtree root:
 this is done by [`readnewick_subtree!`](@ref)
 """
-@inline function parsenewick_remainingsubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Vector{String})
+@inline function parsenewick_remainingsubtree!(
+    s::IO,
+    numLeft::Array{Int,1},
+    net::HybridNetwork,
+    hybrids::Vector{String}
+)
     numLeft[1] += 1
-    # DEBUGC && @debug "" numLeft
     n = Node(-1*numLeft[1],false);
     # @debug "creating node $(n.number)"
     keepon = true;
@@ -175,55 +179,47 @@ end
 """
     parsenewick_hybridnode!(node, parentNode, hybridName, net, hybrids)
 
-Helper function for `readnewick_subtree!`. Create the parent edge for `node`.
+Helper for [`readnewick_subtree!`](@ref). Create the parent edge for `node`.
 Return this edge, and the hybrid node retained (`node` or its clone in the newick string).
 Insert new edge and appropriate node into `net` and `hybrids` accordingly.
 Handles any type of given hybrid node.
 Called after a `#` has been found in a tree topology.
 """
-@inline function parsenewick_hybridnode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Vector{String})
-    # @debug "found pound in $(name)"
+@inline function parsenewick_hybridnode!(
+    n::Node,
+    parent::Node,
+    name::String,
+    net::HybridNetwork,
+    hybrids::Vector{String}
+)
     n.hybrid = true;
-    # DEBUGC && @debug "got hybrid $(name)"
-    # DEBUGC && @debug "hybrids list has length $(length(hybrids))"
     ind = findfirst(isequal(name), hybrids) # index of 'name' in the list 'hybrid'. nothing if not found
     e = Edge(net.numedges+1) # ismajor = true by default
     if n.leaf e.ismajor = false; end
     e.hybrid = true
     e.gamma = -1.0
     if ind !== nothing # the hybrid name was seen before
-        # @debug "$(name) was found in hybrids list"
         ni = findfirst(isequal(name), [no.name for no in net.node])
         ni !== nothing || error("hybrid name $name was supposed to be in the network, but not found")
         other = net.node[ni]
-        # @debug "other is $(other.number)"
-        # DEBUGC && @debug "other is leaf? $(other.leaf), n is leaf? $(n.leaf)"
         if !n.leaf && !other.leaf
             error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
         elseif n.leaf
-            # @debug "n is leaf"
-            # @debug "creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)"
             pushEdge!(net,e);
             setNode!(e,[other,parent]); # ischild1 = true by default constructor
             setEdge!(other,e);
             setEdge!(parent,e);
             n = other # original 'n' dropped, 'other' retained: 'n' output to modify 'n' outside
-            # @debug "e $(e.number )boole1? $(e.boole1)"
         else # !n.leaf : delete 'other' from the network
             # @debug "n is not leaf, other is leaf"
             size(other.edge,1) == 1 || # other should be a leaf
                error("strange: node $(other.number) is a leaf hybrid node. should have only 1 edge but has $(size(other.edge,1))")
-            # DEBUGC && @debug "other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)"
+            # @debug "other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)"
             otheredge = other.edge[1];
-            otherparent = getOtherNode(otheredge,other);
-            # @debug "otheredge is $(otheredge.number)"
-            # @debug "parent of other is $(otherparent.number)"
             removeNode!(other,otheredge);
             deleteNode!(net,other);
             setNode!(otheredge,n);
             setEdge!(n,otheredge);
-            ## otheredge.boole1 = true ## setNode should catch this, but when fixed, causes a lot of problems
-            # @debug "setting otheredge to n $(n.number)"
             # @debug "creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)"
             setNode!(e,[n,parent]);
             setEdge!(n,e);
@@ -242,7 +238,6 @@ Called after a `#` has been found in a tree topology.
         nam = string(name)
         push!(net.names, nam);
         n.name = nam;
-        # DEBUGC && @debug "put $(nam) in hybrids name list"
         push!(hybrids, nam);
         pushNode!(net,n);
         # @debug "creating hybrid edge $(e.number)"
@@ -259,7 +254,7 @@ end
 """
     parsenewick_treenode!(node, parentNode, net)
 
-Helper function for `readnewick_subtree!`.
+Helper for [`readnewick_subtree!`](@ref).
 Insert the input tree node and associated edge (created here) into `net`.
 """
 @inline function parsenewick_treenode!(n::Node, parent::Node, net::HybridNetwork)
@@ -275,14 +270,16 @@ end
 """
     parsenewick_getfloat!(s::IO, int, numLeft::Array{Int,1})
 
-Helper function for `parsenewick_edgedata!`.
+Helper for [`parsenewick_edgedata!`](@ref).
 Read a single floating point edge data value in a tree topology.
 Ignore (and skip) nexus-style comments before & after the value
-(see [`readnexus_comment`](@ref)).
+(see [`readnexus_comment`](@ref)) then
+advance `s` past the next colon character.
 
-Return -1.0 if no value exists before the next colon, return the value as a float otherwise.
-Modifies s by advancing past the next colon character.
-Only call this function to read a value when you know a numerical value exists!
+output:
+- -1.0 if no value exists before the next colon, closing parenthesis or comma
+- the numerical value as a float otherwise, read by `readnewick_float`, which
+  may error if what comes next in `s` cannot be parsed as a numerical value.
 """
 @inline function parsenewick_getfloat!(s::IO, call::Int, numLeft::Array{Int,1})
     errors = ["first colon : without double after in left parenthesis $(numLeft[1]-1), ignored.",
@@ -315,20 +312,20 @@ end
 """
     parsenewick_edgedata!(s::IO, edge, numberOfLeftParentheses::Array{Int,1})
 
-Helper function for readnewick_subtree!.
-Modifies `e` according to the specified edge length and gamma values in the tree topology.
-Advances the stream `s` past any existing edge data.
-Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
-where edgeLen, bootstrap, and gamma are decimal values.
+Helper for [`readnewick_subtree!`](@ref). Modify `edge` according to the
+specified length, support and gamma values in the newick string, then
+advance the stream `s` past any existing edge data.
+Edges in a topology may optionally be followed by ":length:support:gamma"
+where length, support (such as bootstrap support), and gamma are numerical values.
 Nexus-style comments `[&...]`, if any, are ignored.
 """
 @inline function parsenewick_edgedata!(s::IO, e::Edge, numLeft::Array{Int,1})
     read(s, Char); # to read the first ":"
     e.length = parsenewick_getfloat!(s, 1, numLeft)
-    bootstrap = nothing;
     if peekskip(s) == ':'
         readskip!(s)
-        bootstrap = parsenewick_getfloat!(s, 2, numLeft)
+        support = parsenewick_getfloat!(s, 2, numLeft)
+        e.y = support # e.y originally -1 by default
     end
     # e.gamma = -1.0 by default when e is created by parsenewick_hybridnode!
     if peekskip(s) == ':'

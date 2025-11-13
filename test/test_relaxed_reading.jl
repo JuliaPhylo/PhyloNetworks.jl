@@ -59,9 +59,13 @@ end
     @test (getparent(net.edge[5]).number, getchild(net.edge[5]).number) == (7,5)
     @test_logs (:warn, r"^first colon") (
         @test_throws r"digit after ':' but found I." readnewick( "(((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25);"))
-    net = readnewick("((((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A)))::25));");
+    net = readnewick("((((B::50)#H1:.1:.2:.6,(C:.7:100,(#H1::.3,A))):1e30:25));"); # root node pruned. new root node still degree 1
+    @test [e.gamma for e in net.edge] == [1,.6,1,.4,1, 1, 1, 1]
+    @test [e.y for e in net.edge] == [50,.2,100,.3,-1,-1,-1,25]
+    @test all(e.z == -1 for e in net.edge)
+    @test writenewick(net) == "(((B)#H1:0.1::0.6,(C:0.7,(#H1:::0.4,A))):1.0e30);"
     #=
-    todo: add test for correct .y values, then correct string output by writenewick(support=true)
+    todo: add test for correct string output by writenewick(net,support=true)
     =#
 end
 @testset "internal nodes, writemulti" begin
