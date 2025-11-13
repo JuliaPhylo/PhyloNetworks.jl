@@ -766,7 +766,7 @@ end
 """
     writesubtree!(IO, network, dendroscope::Bool, namelabel::Bool,
                   round_branch_lengths::Bool, digits::Integer,
-                  internallabel::Bool)
+                  internallabel::Bool, support)
 
 Write to IO the extended newick format (parenthetical description)
 of a network.
@@ -776,14 +776,22 @@ otherwise taxa are labelled by their number IDs.
 If unspecified, branch lengths and γ's are rounded to 3 digits.
 Use `internallabel=false` to suppress the labels of internal nodes.
 """
-function writesubtree!(s::IO, net::HybridNetwork, di::Bool, namelabel::Bool,
-                       roundBL::Bool, digits::Integer, internallabel::Bool)
+function writesubtree!(
+    s::IO,
+    net::HybridNetwork,
+    di::Bool,
+    namelabel::Bool,
+    roundBL::Bool,
+    digits::Integer,
+    internallabel::Bool,
+    support,
+)
     rootnode = getroot(net)
     if net.numnodes > 1
         print(s,"(")
         degree = length(rootnode.edge)
         for e in rootnode.edge
-            writesubtree!(s,getOtherNode(e,rootnode),e,di,namelabel,roundBL,digits,internallabel)
+            writesubtree!(s,getOtherNode(e,rootnode),e,di,namelabel,roundBL,digits,internallabel,support)
             degree -= 1
             degree == 0 || print(s,",")
         end
@@ -799,7 +807,8 @@ end
 
 """
     writesubtree!(IO, node, edge, dendroscope::Bool, namelabel::Bool,
-                  round_branch_lengths::Bool, digits::Integer, internallabel::Bool)
+                  round_branch_lengths::Bool, digits::Integer,
+                  internallabel::Bool, support)
 
 Write the extended newick format of the sub-network rooted at
 `node` and assuming that `edge` is a parent of `node`.
@@ -813,19 +822,28 @@ Example:
 net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
 directedges!(net)
 s = IOBuffer()
-writesubtree!(s, net.node[7], nothing, false, true)
+writesubtree!(s, net.node[7], nothing, false, true) # fixit: turn into jldoctest
 String(take!(s))
 ```
 
 Used by [`writenewick`](@ref).
 """
-writesubtree!(s,n,parent,di,namelabel) =
-    writesubtree!(s,n,parent,di,namelabel, true,3,true)
+writesubtree!(s,n,parent,di,namelabel) = # form never used in PN, but tested
+    writesubtree!(s,n,parent,di,namelabel, true,3,true,nothing)
 
 # "parent' is assumed to be adjancent to "node". not checked.
 # algorithm comes from "parent": do not traverse again.
-function writesubtree!(s::IO, n::Node, parent::Union{Edge,Nothing},
-    di::Bool, namelabel::Bool, roundBL::Bool, digits::Integer, internallabel::Bool)
+function writesubtree!(
+    s::IO,
+    n::Node,
+    parent::Union{Edge,Nothing},
+    di::Bool,
+    namelabel::Bool,
+    roundBL::Bool,
+    digits::Integer,
+    internallabel::Bool,
+    support,
+)
     # subtree below node n:
     if !n.leaf && (parent == nothing || parent.ismajor) # do not descent below a minor hybrid edge
         print(s,"(")
@@ -839,7 +857,7 @@ function writesubtree!(s::IO, n::Node, parent::Union{Edge,Nothing},
             firstchild || print(s, ",")
             firstchild = false
             child = getOtherNode(e,n)
-            writesubtree!(s,child,e, di,namelabel, roundBL, digits, internallabel)
+            writesubtree!(s,child,e, di,namelabel, roundBL, digits, internallabel, support)
         end
         print(s,")")
     end
@@ -959,8 +977,13 @@ or like this, as output by SpeciesNetwork
 
 In this example, the corresponding edge to hybrid H11 has γ=0.08.
 """
-function readnexus_treeblock(file::AbstractString, treereader::Function=readnewick, args...;
-            reticulate=true, stringmodifier=[r"#(\d+)\b" => s"#H\1"]) # add H
+function readnexus_treeblock(
+    file::AbstractString,
+    treereader::Function=readnewick,
+    args...;
+    reticulate=true,
+    stringmodifier=[r"#(\d+)\b" => s"#H\1"], # add H
+)
     vnet = HybridNetwork[]
     rx_start = r"^\s*begin\s+trees\s*;"i
     rx_end = r"^\s*end\s*;"i
@@ -1173,19 +1196,20 @@ end
 
 
 """
-    writenewick(net)
-    writenewick(net, filename)
-    writenewick(net, IO)
+    writenewick(net; kwargs...)
+    writenewick(net, filename; kwargs...)
+    writenewick(net, IO, args...)
 
 Write the parenthetical extended Newick format of a network,
 as a string, to a file or to an IO buffer / stream.
 Optional arguments (default values):
 
-- di (false): write in format for Dendroscope
+- append (false): if true, appends to the file
 - round (false): rounds branch lengths and heritabilities γ
 - digits (3): digits after the decimal place for rounding
-- append (false): if true, appends to the file
+- di (false): write in format for Dendroscope
 - internallabel (true): if true, writes internal node labels
+- support (nothing): value to write in the "support" slot for edges
 
 If the current root placement is not admissible, other placements are tried.
 The network is updated with this new root placement, if successful.
@@ -1199,11 +1223,12 @@ function writenewick(
     round::Bool=false,
     digits::Integer=3,
     di::Bool=false,
-    internallabel::Bool=true
+    internallabel::Bool=true,
+    support=nothing,
 )
     mode = (append ? "a" : "w")
     s = open(file, mode)
-    writenewick(n,s,round,digits,di,internallabel)
+    writenewick(n,s,round,digits,di,internallabel,support)
     write(s,"\n")
     close(s)
 end
@@ -1213,10 +1238,11 @@ function writenewick(
     round::Bool=false,
     digits::Integer=3,
     di::Bool=false,
-    internallabel::Bool=true
+    internallabel::Bool=true,
+    support=nothing,
 )
     s = IOBuffer()
-    writenewick(n,s,round,digits,di,internallabel)
+    writenewick(n,s,round,digits,di,internallabel,support)
     return String(take!(s))
 end
 
@@ -1226,7 +1252,8 @@ function writenewick(
     round::Bool=false,
     digits::Integer=3,
     di::Bool=false,
-    internallabel::Bool=true
+    internallabel::Bool=true,
+    support=nothing,
 )
     # check/find admissible root: otherwise could be trapped in infinite loop
     rootsaved = net.rooti
@@ -1269,7 +1296,7 @@ function writenewick(
               """
     end
     # finally, write parenthetical format
-    writesubtree!(s,net,di,true,round,digits,internallabel)
+    writesubtree!(s,net,di,true,round,digits,internallabel,support)
     # namelabel = true: to print leaf & node names (labels), not numbers
 end
 
