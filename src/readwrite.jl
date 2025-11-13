@@ -480,7 +480,7 @@ end
 # input: file name or tree in parenthetical format
 # calls readnewick(s::IO)
 # warning: crashes if file name starts with (
-function readnewick(input::AbstractString,verbose::Bool)
+function readnewick(input::AbstractString)
     if(input[1] == '(') # input = parenthetical description
        s = IOBuffer(input)
     else # input = file name
@@ -491,7 +491,7 @@ function readnewick(input::AbstractString,verbose::Bool)
         end
        s = open(input)
     end
-    net = readnewick(s,verbose)
+    net = readnewick(s)
     return net
 end
 
@@ -515,9 +515,7 @@ If the root node has a single edge, this one edge is removed.
 
 See also: [`readnexus_treeblock`](@ref)
 """
-readnewick(input::AbstractString) = readnewick(input,true)
-
-function readnewick(s::IO,verbose::Bool)
+function readnewick(s::IO)
     net = HybridNetwork()
     line = readuntil(s,";", keep=true);
     if(line[end] != ';')
@@ -580,8 +578,6 @@ function readnewick(s::IO,verbose::Bool)
     net.isrooted = true
     return net
 end
-
-readnewick(s::IO) = readnewick(s,true)
 
 """
     checkNumHybEdges!(net)
@@ -920,7 +916,7 @@ function readmultinewick(file::AbstractString, fast::Bool=true)
         c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
-               push!(vnet, readnewick(line,false)) # false for non-verbose
+               push!(vnet, readnewick(line))
            catch err
                print("skipped phylogeny on line $(numl) of file $file: ")
                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
