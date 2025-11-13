@@ -1,24 +1,22 @@
 # functions to read/write networks topologies
 
-# peek the next non-white-space char
-# removes white spaces from the IOStream/IOBuffer
-# see skipchars(predicate, io::IO; linecomment=nothing) in io.jl
-# https://github.com/JuliaLang/julia/blob/3b02991983dd47313776091720871201f75f644a/base/io.jl#L971
-# replace "while !eof ... read(io, Char)" by readeach(io, Char)
-# when ready to require Julia v1.6
-# https://docs.julialang.org/en/v1/base/io-network/#Base.skipchars
+#= peek the next non-white-space char
+   removing white spaces from the IOStream/IOBuffer.
+code similar to [skipchars](https://docs.julialang.org/en/v1/base/io-network/#Base.skipchars)
+in julia/base/io.jl, except that
+- the peeked character is returned (instead of io)
+- 'missing' is returned if io is empty (i.e. eof(io))
+=#
 function peekskip(io::IO, linecomment=nothing)
-    c = missing
-    while !eof(io)
-        c = read(io, Char)
+    for c in readeach(io, Char) # empty iterable if eof(io)
         if c === linecomment
             readline(io)
         elseif !isspace(c)
             skip(io, -ncodeunits(c))
-            break
+            return c # break
         end
     end
-    return c # skipchar returns io instead
+    return missing
 end
 
 # aux function to read the next non-white-symbol char in s, advances s
