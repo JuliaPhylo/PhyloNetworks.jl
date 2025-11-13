@@ -40,6 +40,7 @@ Please make sure to follow the Julia package guidelines and conventions on your 
 
 To learn more about the Julia conventions, check out the following links:
 
-- [Julia package development](http://web.mit.edu/julia_v0.6.0/julia/share/doc/julia/html/en/manual/packages.html#Package-Development-1)
-- [Creating Julia packages](https://pkgdocs.julialang.org/v1/creating-packages/)
+- [Blue code style](https://github.com/JuliaDiff/BlueStyle)
 - [Julia style guide](https://docs.julialang.org/en/v1/manual/style-guide/)
+- [Creating Julia packages](https://pkgdocs.julialang.org/v1/creating-packages/)
+- [Contributor's Guide](https://github.com/SciML/ColPrac)
