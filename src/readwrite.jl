@@ -766,7 +766,7 @@ end
 """
     writesubtree!(IO, network, dendroscope::Bool, namelabel::Bool,
                   round_branch_lengths::Bool, digits::Integer,
-                  internallabel::Bool, support)
+                  internallabel::Bool, support=nothing)
 
 Write to IO the extended newick format (parenthetical description)
 of a network.
@@ -784,7 +784,7 @@ function writesubtree!(
     roundBL::Bool,
     digits::Integer,
     internallabel::Bool,
-    support,
+    support=nothing, # default for backward compatibility, in SNaQ.writenewick_level1
 )
     rootnode = getroot(net)
     if net.numnodes > 1
@@ -816,19 +816,37 @@ Write the extended newick format of the sub-network rooted at
 If the parent `edge` is `nothing`, the edge attribute `ischild1` is used
 and assumed to be correct to write the subtree rooted at `node`.
 This is useful to write a subtree starting at a non-root node.
-Example:
 
-```julia
-net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
-directedges!(net)
-s = IOBuffer()
-writesubtree!(s, net.node[7], nothing, false, true) # fixit: turn into jldoctest
-String(take!(s))
+In the example below, we run `directedges!` just to be safe
+(edges are directed correctly right after `readnewick`), as a reminder
+that `writesubtree!` assumes tree edges to be correctly directed away
+from the current root (while `writenewick` checks).
+
+```jldoctest
+julia> net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);") |> directedges!;
+
+julia> getroot(net).number
+-2
+
+julia> crownABC = net.node[7].number # not the root: crown of ABC clade
+-3
+
+julia> s = IOBuffer(); writesubtree!(s, crownABC, nothing, false,true);
+
+julia> String(take!(s))
+"((A,(B)#H1:::0.9),(C,#H1:::0.1));"
+
+julia> ancestorBC = net.node[6]; # ancestor of B and C, but not stable
+
+julia> writesubtree!(s, ancestorBC, nothing, false,true);
+
+julia> String(take!(s)) # includes only 1 of the 2 partner hybrid edges
+"(C,#H1:::0.1);"
 ```
 
 Used by [`writenewick`](@ref).
 """
-writesubtree!(s,n,parent,di,namelabel) = # form never used in PN, but tested
+writesubtree!(s::IO,n::Node,parent,di,namelabel) = # form never used in PN, but tested
     writesubtree!(s,n,parent,di,namelabel, true,3,true,nothing)
 
 # "parent' is assumed to be adjancent to "node". not checked.
@@ -849,8 +867,8 @@ function writesubtree!(
         print(s,"(")
         firstchild = true
         for e in n.edge
-            e != parent || continue # skip parent edge where we come from
-            if parent == nothing    # skip if n = child of e
+            e !== parent || continue # skip parent edge where we come from
+            if isnothing(parent)     # skip if n = child of e
                 n != getchild(e) || continue
             end
             (e.hybrid && getchild(e)==n) && continue # no going up minor hybrid
@@ -869,12 +887,13 @@ function writesubtree!(
     elseif internallabel || n.leaf
         print(s, (namelabel ? n.name : n.number))
     end
-    # branch lengths and γ, if available:
+    # branch lengths, support value and γ, if desired and available:
     printBL = false
     if parent != nothing && parent.length != -1.0 # -1.0 means missing
         print(s,string(":",(roundBL ? round(parent.length, digits=digits) : parent.length)))
         printBL = true
     end
+    # fixit: print support here
     if !isnothing(parent) && parent.hybrid && !di # && (!printID || !n.booln2))
         if(parent.gamma != -1.0)
             if(!printBL) print(s,":"); end
