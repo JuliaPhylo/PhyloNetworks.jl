@@ -893,11 +893,20 @@ function writesubtree!(
         print(s,string(":",(roundBL ? round(parent.length, digits=digits) : parent.length)))
         printBL = true
     end
-    # fixit: print support here
-    if !isnothing(parent) && parent.hybrid && !di # && (!printID || !n.booln2))
-        if(parent.gamma != -1.0)
-            if(!printBL) print(s,":"); end
-            print(s,string("::",(roundBL ? round(parent.gamma, digits=digits) : parent.gamma)))
+    printS = false
+    if !isnothing(support) && !isnothing(parent)
+        sval = parent.y
+        if sval != -1.0 # -1.0 means missing
+            print(s, (printBL ? ":" : "::"))
+            print(s, (roundBL ? round(sval, digits=digits) : sval))
+            printS = true
+        end
+    end
+    if !isnothing(parent) && parent.hybrid && !di
+        γ = parent.gamma
+        if γ != -1.0
+            print(s, ((printS ? ":" : (printBL ? "::" : ":::"))))
+            print(s, (roundBL ? round(γ, digits=digits) : γ))
         end
     end
     if isnothing(parent)
