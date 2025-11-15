@@ -6,6 +6,7 @@ code similar to [skipchars](https://docs.julialang.org/en/v1/base/io-network/#Ba
 in julia/base/io.jl, except that
 - the peeked character is returned (instead of io)
 - 'missing' is returned if io is empty (i.e. eof(io))
+linecomment argument: never actually used here
 =#
 function peekskip(io::IO, linecomment=nothing)
     for c in readeach(io, Char) # empty iterable if eof(io)
@@ -590,7 +591,7 @@ function checkNumHybEdges!(net::HybridNetwork)
     if isTree(net) return nothing; end
     !isempty(net.hybrid) || error("net.hybrid should not be empty for this network")
     for n in net.hybrid
-        hyb = sum([e.hybrid for e in n.edge]); # number of hybrid edges attached to node
+        hyb = sum(e.hybrid for e in n.edge); # number of hybrid edges attached to node
         if hyb == 1
             if net.numhybrids == 1
                 error("only one hybrid node $(n.number) named $(n.name) found with one hybrid edge attached")
@@ -828,7 +829,7 @@ julia> net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);") |> directedges!
 julia> getroot(net).number
 -2
 
-julia> crownABC = net.node[7].number # not the root: crown of ABC clade
+julia> crownABC = net.node[7]; crownABC.number # not the root: crown of ABC clade
 -3
 
 julia> s = IOBuffer(); writesubtree!(s, crownABC, nothing, false,true);

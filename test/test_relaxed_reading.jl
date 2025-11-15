@@ -71,7 +71,18 @@ end
       "((a,(b:0.5:50.0)#H2:0.1)i1::70.0,(#H2::2.0,c:1.0)::90.0)root;"
 end
 @testset "internal nodes, writemulti" begin
-    @test writenewick(readnewick("(a,b):0.5;")) == "(a,b);"
+    @test_logs (:warn, r"first colon") (
+        @test_throws "problem with number read -" readnewick("(a,b:-foo);"))
+    @test_logs (:warn, r"^γ read") readnewick("(a:::.5);")
+    @test_logs (:warn, r"^partners: 2 with no γ, 3 with γ>1.") readnewick("((b)#H1,#H1:::1.1);")
+    @test_logs (:warn, r"^partners: 3 with no γ, 2 with γ>1.") readnewick("((b)#H1:::1.1,#H1);")
+    net = readnewick("(a, b):0.5;")
+    tmpfile = "tmp.nwk"
+    writemultinewick([net], tmpfile)
+    writenewick(net, tmpfile; append=true, support=true)
+    @test readlines(tmpfile) == ["(a,b);","(a,b);"]
+    rm(tmpfile)
+    @test_throws "not find or open tmp.nwk" readnewick(tmpfile)
     @test writenewick(readnewick("((a,(b)#H1)i1,(#H1,c))r;")) == "((a,(b)#H1)i1,(#H1,c))r;"
     @test writenewick(readnewick("((a,(b)#H1)i1,(#H1,c))r;"), internallabel=false) == "((a,(b)#H1),(#H1,c));"
     n11 = (@test_logs readnewick("((a,(b)#H1)i1,(#H1,c)i2)root:0.5;"));
