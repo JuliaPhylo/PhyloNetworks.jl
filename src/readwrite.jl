@@ -1238,7 +1238,10 @@ Optional arguments (default values):
 - digits (3): digits after the decimal place for rounding
 - di (false): write in format for Dendroscope
 - internallabel (true): if true, writes internal node labels
-- support (nothing): value to write in the "support" slot for edges
+- support (nothing): if something, such as `true`, write values in the "support"
+  slot for edges in the newick format (after second colon).
+  Currently, support values are taken from the `.y` internal field of each edge,
+  consistent with [`readnewick`](@ref).
 
 If the current root placement is not admissible, other placements are tried.
 The network is updated with this new root placement, if successful.
