@@ -65,7 +65,7 @@ function Base.show(io::IO, obj::HybridNetwork)
         writesubtree! does *not* modify the network.
         =#
         s = IOBuffer()
-        writesubtree!(s, obj, false,true, true,3,true)
+        writesubtree!(s, obj, false,true, true,3,true, nothing)
         par = String(take!(s))
     catch err
         println("error with writesubtree!. perhaps try checkroot! or directedges! on the network")
