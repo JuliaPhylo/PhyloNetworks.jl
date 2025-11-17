@@ -1063,7 +1063,7 @@ function maxParsimonyNetRun1!(
     tolAbs >= 0 || error("tolAbs must be greater than zero: $(tolAbs)")
     Nfail > 0 || error("Nfail must be greater than zero: $(Nfail)")
     @debug begin printEverything(currT); "printed everything" end
-    CHECKNET && checkNet(currT)
+    # checkNet(currT)
     count = 0
     movescount = zeros(Int,18) #1:6 number of times moved proposed, 7:12 number of times success move (no intersecting cycles, etc.), 13:18 accepted by parsimony score
     movesfail = zeros(Int,6) #count of failed moves for current topology

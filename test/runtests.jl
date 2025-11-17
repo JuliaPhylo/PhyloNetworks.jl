@@ -31,25 +31,9 @@ tests = [
     "test_murepresentation.jl"
 ]
 
-anyerrors = false
-
-for t in tests
-    global anyerrors
-    try
-        @info "starting $t"
-        include(t)
-        println("\033[1m\033[32mPASSED\033[0m: $t")
-    catch
-        anyerrors = true
-        println("\033[1m\033[31mFAILED\033[0m: $t")
-        @error "Error in $t" exception=(err, catch_backtrace())
+@testset "PhyloNetworks.jl" begin
+    for testfile in tests
+        include(testfile)
     end
 end
-println("-------------------------------------")
 
-if anyerrors
-    
-    throw("Tests failed")
-else
-    println("\033[1m\033[32mTests passed")
-end

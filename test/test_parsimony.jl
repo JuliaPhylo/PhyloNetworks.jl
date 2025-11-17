@@ -14,10 +14,10 @@ dna_dat, dna_weights = readfastatodna(fasta8sites, true) # 22 species
 end
 
 @testset "utility: readphylip" begin
-  fastafile = "../examples/Ae_bicornis_truncated_names.aln"
+  fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_truncated_names.aln")
   species, sequences = PhyloNetworks.readfastatoarray(fastafile);
 
-  phylipfile = "../examples/Ae_bicornis_truncated_names.phylip"
+  phylipfile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_truncated_names.phylip")
   species2, sequences2 = readphylip(phylipfile);
 
   dat1 = collect(zip(species , sequences ))
@@ -92,10 +92,10 @@ end # of test set for softwired parsimony
 
 
 if extrarun
-  fastafile = "../examples/Ae_bicornis_Tr406_Contig10132.aln"
+  fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
   species, sequences = PhyloNetworks.readfastatoarray(fastafile);
   @test parsimonysoftwired(net, species, sequences) == 209.0
-  fastafile = "../examples/Ae_bicornis_Tr406_Contig10722.aln"
+  fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10722.aln")
   species, sequences = PhyloNetworks.readfastatoarray(fastafile);
   @test parsimonysoftwired(net, species, sequences) == 583.0
   @time parsimonysoftwired(net, species, sequences)
@@ -129,10 +129,10 @@ species, sequences = PhyloNetworks.readfastatoarray(fastafile);
 end # of test set for GF parsimony
 
 if extrarun
-  fastafile = "../examples/Ae_bicornis_Tr406_Contig10132.aln"
+  fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10132.aln")
   species, sequences = PhyloNetworks.readfastatoarray(fastafile);
   @test parsimonyGF(net, species, sequences) == 209.0
-  fastafile = "../examples/Ae_bicornis_Tr406_Contig10722.aln"
+  fastafile = joinpath(@__DIR__, "..", "examples", "Ae_bicornis_Tr406_Contig10722.aln")
   species, sequences = PhyloNetworks.readfastatoarray(fastafile);
   @test parsimonyGF(net, species, sequences) == 583.0
   @time parsimonyGF(net, species, sequences)
