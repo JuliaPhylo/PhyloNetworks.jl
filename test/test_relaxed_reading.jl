@@ -41,13 +41,15 @@ end
  @test [e.gamma for e in net.edge if e.hybrid] == [0.99999999945, 5.5e-10]
 end
 @testset "ismajor & gamma consistency, and miscellaneous" begin
-    net = readnewick("((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));");
+    net = readnewick(" ((((B)#H1)#H2,((D,C,#H2:::0.8),(#H1,A))));"); # leading white space in string
     @test writenewick(net, round=true, digits=8) == "(#H2:::0.2,((D,C,((B)#H1)#H2:::0.8),(#H1,A)));"
-    net = readnewick("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A))));");
+    net = readnewick("(E,((B)#H1:::.5,((D,C),(#H1:::.5,A:))));"); # no edge length after colon
     @test writenewick(net) == "(E,((B)#H1:::0.5,((D,C),(#H1:::0.5,A))));"
     @test !PhyloNetworks.shrinkedge!(net,net.edge[6]) # parent to (D,C)
     @test_throws "at a hybrid" PhyloNetworks.resolvetreepolytomy!(net, net.node[3])
     PhyloNetworks.resolvetreepolytomy!(net, net.node[8])
+    @test all(e.y == -1 for e in net.edge) # missing (-1) support values, even after resolving polytomy
+    @test all(e.z == -1 for e in net.edge)
     @test net.node[11].number == 7 # new node
     @test length(net.edge) == 11
     @test net.edge[11].number == 6 # new edge, recycled old unused number
@@ -55,9 +57,32 @@ end
     @test (getparent(net.edge[11]).number,getchild(net.edge[11]).number)==(-5,7)
     @test (getparent(net.edge[4]).number, getchild(net.edge[4]).number) == (7,4)
     @test (getparent(net.edge[5]).number, getchild(net.edge[5]).number) == (7,5)
+    @test_logs (:warn, r"^first colon") (
+        @test_throws r"digit after ':' but found I." readnewick( "(((B::50)#H1:.1:.2:.6,(C:1:100,(#H1::.3,A))):Inf:25);"))
+    net = readnewick("((((B::50)#H1:.1::.6,(C:.7:100,(#H1::.3,A))):1e30:25));"); # root node pruned. new root node still degree 1
+    @test [e.gamma for e in net.edge] == [1,.6,1,.4,1, 1, 1, 1]
+    @test [e.y for e in net.edge] == [50,-1,100,.3,-1,-1,-1,25]
+    @test all(e.z == -1 for e in net.edge)
+    @test writenewick(net) == "(((B)#H1:0.1::0.6,(C:0.7,(#H1:::0.4,A))):1.0e30);"
+    @test writenewick(net, support=true) ==
+      "(((B::50.0)#H1:0.1::0.6,(C:0.7:100.0,(#H1::0.3:0.4,A))):1.0e30:25.0);"
+    net = readnewick("(((a,(b:.5:50)#H2:0.1)i1::70,(#H2::2,c:1)::90)root:0.5);")
+    @test writenewick(net, support=true, internallabel=true) ==
+      "((a,(b:0.5:50.0)#H2:0.1)i1::70.0,(#H2::2.0,c:1.0)::90.0)root;"
 end
 @testset "internal nodes, writemulti" begin
-    @test writenewick(readnewick("(a,b):0.5;")) == "(a,b);"
+    @test_logs (:warn, r"first colon") (
+        @test_throws "problem with number read -" readnewick("(a,b:-foo);"))
+    @test_logs (:warn, r"^γ read") readnewick("(a:::.5);")
+    @test_logs (:warn, r"^partners: 2 with no γ, 3 with γ>1.") readnewick("((b)#H1,#H1:::1.1);")
+    @test_logs (:warn, r"^partners: 3 with no γ, 2 with γ>1.") readnewick("((b)#H1:::1.1,#H1);")
+    net = readnewick("(a, b):0.5;")
+    tmpfile = "tmp.nwk"
+    writemultinewick([net], tmpfile)
+    writenewick(net, tmpfile; append=true, support=true)
+    @test readlines(tmpfile) == ["(a,b);","(a,b);"]
+    rm(tmpfile)
+    @test_throws "not find or open tmp.nwk" readnewick(tmpfile)
     @test writenewick(readnewick("((a,(b)#H1)i1,(#H1,c))r;")) == "((a,(b)#H1)i1,(#H1,c))r;"
     @test writenewick(readnewick("((a,(b)#H1)i1,(#H1,c))r;"), internallabel=false) == "((a,(b)#H1),(#H1,c));"
     n11 = (@test_logs readnewick("((a,(b)#H1)i1,(#H1,c)i2)root:0.5;"));

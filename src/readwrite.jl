@@ -1,24 +1,23 @@
 # functions to read/write networks topologies
 
-# peek the next non-white-space char
-# removes white spaces from the IOStream/IOBuffer
-# see skipchars(predicate, io::IO; linecomment=nothing) in io.jl
-# https://github.com/JuliaLang/julia/blob/3b02991983dd47313776091720871201f75f644a/base/io.jl#L971
-# replace "while !eof ... read(io, Char)" by readeach(io, Char)
-# when ready to require Julia v1.6
-# https://docs.julialang.org/en/v1/base/io-network/#Base.skipchars
+#= peek the next non-white-space char
+   removing white spaces from the IOStream/IOBuffer.
+code similar to [skipchars](https://docs.julialang.org/en/v1/base/io-network/#Base.skipchars)
+in julia/base/io.jl, except that
+- the peeked character is returned (instead of io)
+- 'missing' is returned if io is empty (i.e. eof(io))
+linecomment argument: never actually used here
+=#
 function peekskip(io::IO, linecomment=nothing)
-    c = missing
-    while !eof(io)
-        c = read(io, Char)
+    for c in readeach(io, Char) # empty iterable if eof(io)
         if c === linecomment
             readline(io)
         elseif !isspace(c)
             skip(io, -ncodeunits(c))
-            break
+            return c # break
         end
     end
-    return c # skipchar returns io instead
+    return missing
 end
 
 # aux function to read the next non-white-symbol char in s, advances s
@@ -123,9 +122,8 @@ function readnewick_float(s::IO, c::Char)
         num = string(num,d);
         c = peekskip(s);
     end
-    f = 0.0
-    try
-        f = parse(Float64, num)
+    f = try
+        parse(Float64, num)
     catch
         error("problem with number read $(num), not a float number")
     end
@@ -155,9 +153,13 @@ Advances `s` past the subtree, adds discovered nodes and edges to `net`, and `hy
 Does *not* read the node name and the edge information of the subtree root:
 this is done by [`readnewick_subtree!`](@ref)
 """
-@inline function parsenewick_remainingsubtree!(s::IO, numLeft::Array{Int,1}, net::HybridNetwork, hybrids::Vector{String})
+@inline function parsenewick_remainingsubtree!(
+    s::IO,
+    numLeft::Array{Int,1},
+    net::HybridNetwork,
+    hybrids::Vector{String}
+)
     numLeft[1] += 1
-    # DEBUGC && @debug "" numLeft
     n = Node(-1*numLeft[1],false);
     # @debug "creating node $(n.number)"
     keepon = true;
@@ -178,55 +180,47 @@ end
 """
     parsenewick_hybridnode!(node, parentNode, hybridName, net, hybrids)
 
-Helper function for `readnewick_subtree!`. Create the parent edge for `node`.
+Helper for [`readnewick_subtree!`](@ref). Create the parent edge for `node`.
 Return this edge, and the hybrid node retained (`node` or its clone in the newick string).
 Insert new edge and appropriate node into `net` and `hybrids` accordingly.
 Handles any type of given hybrid node.
 Called after a `#` has been found in a tree topology.
 """
-@inline function parsenewick_hybridnode!(n::Node, parent::Node, name::String, net::HybridNetwork, hybrids::Vector{String})
-    # @debug "found pound in $(name)"
+@inline function parsenewick_hybridnode!(
+    n::Node,
+    parent::Node,
+    name::String,
+    net::HybridNetwork,
+    hybrids::Vector{String}
+)
     n.hybrid = true;
-    # DEBUGC && @debug "got hybrid $(name)"
-    # DEBUGC && @debug "hybrids list has length $(length(hybrids))"
     ind = findfirst(isequal(name), hybrids) # index of 'name' in the list 'hybrid'. nothing if not found
     e = Edge(net.numedges+1) # ismajor = true by default
     if n.leaf e.ismajor = false; end
     e.hybrid = true
     e.gamma = -1.0
     if ind !== nothing # the hybrid name was seen before
-        # @debug "$(name) was found in hybrids list"
         ni = findfirst(isequal(name), [no.name for no in net.node])
         ni !== nothing || error("hybrid name $name was supposed to be in the network, but not found")
         other = net.node[ni]
-        # @debug "other is $(other.number)"
-        # DEBUGC && @debug "other is leaf? $(other.leaf), n is leaf? $(n.leaf)"
         if !n.leaf && !other.leaf
             error("both hybrid nodes are internal nodes: successors of the hybrid node must only be included in the node list of a single occurrence of the hybrid node.")
         elseif n.leaf
-            # @debug "n is leaf"
-            # @debug "creating hybrid edge $(e.number) attached to other $(other.number) and parent $(parent.number)"
             pushEdge!(net,e);
             setNode!(e,[other,parent]); # ischild1 = true by default constructor
             setEdge!(other,e);
             setEdge!(parent,e);
             n = other # original 'n' dropped, 'other' retained: 'n' output to modify 'n' outside
-            # @debug "e $(e.number )boole1? $(e.boole1)"
         else # !n.leaf : delete 'other' from the network
             # @debug "n is not leaf, other is leaf"
             size(other.edge,1) == 1 || # other should be a leaf
                error("strange: node $(other.number) is a leaf hybrid node. should have only 1 edge but has $(size(other.edge,1))")
-            # DEBUGC && @debug "other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)"
+            # @debug "other is $(other.number), n is $(n.number), edge of other is $(other.edge[1].number)"
             otheredge = other.edge[1];
-            otherparent = getOtherNode(otheredge,other);
-            # @debug "otheredge is $(otheredge.number)"
-            # @debug "parent of other is $(otherparent.number)"
             removeNode!(other,otheredge);
             deleteNode!(net,other);
             setNode!(otheredge,n);
             setEdge!(n,otheredge);
-            ## otheredge.boole1 = true ## setNode should catch this, but when fixed, causes a lot of problems
-            # @debug "setting otheredge to n $(n.number)"
             # @debug "creating hybrid edge $(e.number) between n $(n.number) and parent $(parent.number)"
             setNode!(e,[n,parent]);
             setEdge!(n,e);
@@ -245,7 +239,6 @@ Called after a `#` has been found in a tree topology.
         nam = string(name)
         push!(net.names, nam);
         n.name = nam;
-        # DEBUGC && @debug "put $(nam) in hybrids name list"
         push!(hybrids, nam);
         pushNode!(net,n);
         # @debug "creating hybrid edge $(e.number)"
@@ -262,7 +255,7 @@ end
 """
     parsenewick_treenode!(node, parentNode, net)
 
-Helper function for `readnewick_subtree!`.
+Helper for [`readnewick_subtree!`](@ref).
 Insert the input tree node and associated edge (created here) into `net`.
 """
 @inline function parsenewick_treenode!(n::Node, parent::Node, net::HybridNetwork)
@@ -278,59 +271,62 @@ end
 """
     parsenewick_getfloat!(s::IO, int, numLeft::Array{Int,1})
 
-Helper function for `parsenewick_edgedata!`.
+Helper for [`parsenewick_edgedata!`](@ref).
 Read a single floating point edge data value in a tree topology.
 Ignore (and skip) nexus-style comments before & after the value
-(see [`readnexus_comment`](@ref)).
+(see [`readnexus_comment`](@ref)) then
+advance `s` past the next colon character.
 
-Return -1.0 if no value exists before the next colon, return the value as a float otherwise.
-Modifies s by advancing past the next colon character.
-Only call this function to read a value when you know a numerical value exists!
+output:
+- -1.0 if no value exists before the next colon, closing parenthesis or comma
+- the numerical value as a float otherwise, read by `readnewick_float`, which
+  may error if what comes next in `s` cannot be parsed as a numerical value.
 """
 @inline function parsenewick_getfloat!(s::IO, call::Int, numLeft::Array{Int,1})
-    errors = ["one colon read without double in left parenthesis $(numLeft[1]-1), ignored.",
-              "second colon : read without any double in left parenthesis $(numLeft[1]-1), ignored.",
+    errors = ["first colon : without double after in left parenthesis $(numLeft[1]-1), ignored.",
+              "second colon : without double after in left parenthesis $(numLeft[1]-1), ignored.",
               "third colon : without gamma value after in $(numLeft[1]-1) left parenthesis, ignored"]
     c = peekskip(s)
     if c == '[' # e.g. comments only, no value, but : after
         readnexus_comment(s,c)
         c = peekskip(s)
     end
-    if isdigit(c) || c == '.' || c == '-'
-        # value is present: read it, and any following comment(s)
-        val = readnewick_float(s, c)
+    if c == ':' || c == ')' || c == ',' # no value after the previous colon after all
+        return -1.0
+    else # value is present: read it, and any following comment(s)
+    # elseif isdigit(c) || c == '.' || c == '-'
+        val = try
+            readnewick_float(s, c)
+        catch e
+            @warn errors[call]
+            rethrow(e)
+        end
         if val < 0.0
             @error "expecting non-negative value but read '-', left parenthesis $(numLeft[1]-1). will set to 0."
             val = 0.0
         end
         readnexus_comment(s,peekskip(s))
         return val
-    # No value
-    elseif c == ':'
-        return -1.0
-    else
-        @warn errors[call]
-        return -1.0
     end
 end
 
 """
     parsenewick_edgedata!(s::IO, edge, numberOfLeftParentheses::Array{Int,1})
 
-Helper function for readnewick_subtree!.
-Modifies `e` according to the specified edge length and gamma values in the tree topology.
-Advances the stream `s` past any existing edge data.
-Edges in a topology may optionally be followed by ":edgeLen:bootstrap:gamma"
-where edgeLen, bootstrap, and gamma are decimal values.
+Helper for [`readnewick_subtree!`](@ref). Modify `edge` according to the
+specified length, support and gamma values in the newick string, then
+advance the stream `s` past any existing edge data.
+Edges in a topology may optionally be followed by ":length:support:gamma"
+where length, support (such as bootstrap support), and gamma are numerical values.
 Nexus-style comments `[&...]`, if any, are ignored.
 """
 @inline function parsenewick_edgedata!(s::IO, e::Edge, numLeft::Array{Int,1})
     read(s, Char); # to read the first ":"
     e.length = parsenewick_getfloat!(s, 1, numLeft)
-    bootstrap = nothing;
     if peekskip(s) == ':'
         readskip!(s)
-        bootstrap = parsenewick_getfloat!(s, 2, numLeft)
+        support = parsenewick_getfloat!(s, 2, numLeft)
+        e.y = support # e.y originally -1 by default
     end
     # e.gamma = -1.0 by default when e is created by parsenewick_hybridnode!
     if peekskip(s) == ':'
@@ -482,18 +478,18 @@ end
 # input: file name or tree in parenthetical format
 # calls readnewick(s::IO)
 # warning: crashes if file name starts with (
-function readnewick(input::AbstractString,verbose::Bool)
-    if(input[1] == '(') # input = parenthetical description
+function readnewick(input::AbstractString)
+    input = lstrip(input) # strips leading whitespaces
+    if input[1] == '(' # input = parenthetical description
        s = IOBuffer(input)
     else # input = file name
-        try
-            s = open(input)
+        s = try
+            open(input)
         catch
             error("Could not find or open $(input) file");
         end
-       s = open(input)
     end
-    net = readnewick(s,verbose)
+    net = readnewick(s)
     return net
 end
 
@@ -502,24 +498,23 @@ end
     readnewick(parenthetical description)
     readnewick(IO)
 
-Read tree or network topology from parenthetical format (extended Newick).
-If the root node has a single child: ignore (i.e. delete from the topology)
-the root node and its child edge.
+Read a tree or network topology from parenthetical format (extended Newick).
 
-Input: text file or parenthetical format directly.
-The file name may not start with a left parenthesis, otherwise the file
-name itself would be interpreted as the parenthetical description.
+Input: text file or parenthetical format directly. Leading white spaces are ignored.
+The input string may start with white spaces followed by the file name.
+The file name may *not* start with spaces. Also, it may *not* start with a left parenthesis,
+otherwise the file name itself would be interpreted as the parenthetical description.
 Nexus-style comments (`[&...]`) are ignored, and may be placed
 after (or instead) of a node name, and before/after an edge length.
 
 A root edge, not enclosed within a pair a parentheses, is ignored.
-If the root node has a single edge, this one edge is removed.
+If the root node ρ0 has a single child edge ρ0 → ρ1,
+then this initial root ρ0 and its child edge are deleted from the topology.
+Its initial child ρ1 becomes the new root.
 
 See also: [`readnexus_treeblock`](@ref)
 """
-readnewick(input::AbstractString) = readnewick(input,true)
-
-function readnewick(s::IO,verbose::Bool)
+function readnewick(s::IO)
     net = HybridNetwork()
     line = readuntil(s,";", keep=true);
     if(line[end] != ';')
@@ -583,8 +578,6 @@ function readnewick(s::IO,verbose::Bool)
     return net
 end
 
-readnewick(s::IO) = readnewick(s,true)
-
 """
     checkNumHybEdges!(net)
 
@@ -598,7 +591,7 @@ function checkNumHybEdges!(net::HybridNetwork)
     if isTree(net) return nothing; end
     !isempty(net.hybrid) || error("net.hybrid should not be empty for this network")
     for n in net.hybrid
-        hyb = sum([e.hybrid for e in n.edge]); # number of hybrid edges attached to node
+        hyb = sum(e.hybrid for e in n.edge); # number of hybrid edges attached to node
         if hyb == 1
             if net.numhybrids == 1
                 error("only one hybrid node $(n.number) named $(n.name) found with one hybrid edge attached")
@@ -774,7 +767,7 @@ end
 """
     writesubtree!(IO, network, dendroscope::Bool, namelabel::Bool,
                   round_branch_lengths::Bool, digits::Integer,
-                  internallabel::Bool)
+                  internallabel::Bool, support=nothing)
 
 Write to IO the extended newick format (parenthetical description)
 of a network.
@@ -784,14 +777,22 @@ otherwise taxa are labelled by their number IDs.
 If unspecified, branch lengths and γ's are rounded to 3 digits.
 Use `internallabel=false` to suppress the labels of internal nodes.
 """
-function writesubtree!(s::IO, net::HybridNetwork, di::Bool, namelabel::Bool,
-                       roundBL::Bool, digits::Integer, internallabel::Bool)
+function writesubtree!(
+    s::IO,
+    net::HybridNetwork,
+    di::Bool,
+    namelabel::Bool,
+    roundBL::Bool,
+    digits::Integer,
+    internallabel::Bool,
+    support=nothing, # default for backward compatibility, in SNaQ.writenewick_level1
+)
     rootnode = getroot(net)
     if net.numnodes > 1
         print(s,"(")
         degree = length(rootnode.edge)
         for e in rootnode.edge
-            writesubtree!(s,getOtherNode(e,rootnode),e,di,namelabel,roundBL,digits,internallabel)
+            writesubtree!(s,getOtherNode(e,rootnode),e,di,namelabel,roundBL,digits,internallabel,support)
             degree -= 1
             degree == 0 || print(s,",")
         end
@@ -807,7 +808,8 @@ end
 
 """
     writesubtree!(IO, node, edge, dendroscope::Bool, namelabel::Bool,
-                  round_branch_lengths::Bool, digits::Integer, internallabel::Bool)
+                  round_branch_lengths::Bool, digits::Integer,
+                  internallabel::Bool, support)
 
 Write the extended newick format of the sub-network rooted at
 `node` and assuming that `edge` is a parent of `node`.
@@ -815,39 +817,66 @@ Write the extended newick format of the sub-network rooted at
 If the parent `edge` is `nothing`, the edge attribute `ischild1` is used
 and assumed to be correct to write the subtree rooted at `node`.
 This is useful to write a subtree starting at a non-root node.
-Example:
 
-```julia
-net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);")
-directedges!(net)
-s = IOBuffer()
-writesubtree!(s, net.node[7], nothing, false, true)
-String(take!(s))
+In the example below, we run `directedges!` just to be safe
+(edges are directed correctly right after `readnewick`), as a reminder
+that `writesubtree!` assumes tree edges to be correctly directed away
+from the current root (while `writenewick` checks).
+
+```jldoctest
+julia> net = readnewick("(((A,(B)#H1:::0.9),(C,#H1:::0.1)),D);") |> directedges!;
+
+julia> getroot(net).number
+-2
+
+julia> crownABC = net.node[7]; crownABC.number # not the root: crown of ABC clade
+-3
+
+julia> s = IOBuffer(); writesubtree!(s, crownABC, nothing, false,true);
+
+julia> String(take!(s))
+"((A,(B)#H1:::0.9),(C,#H1:::0.1));"
+
+julia> ancestorBC = net.node[6]; # ancestor of B and C, but not stable
+
+julia> writesubtree!(s, ancestorBC, nothing, false,true);
+
+julia> String(take!(s)) # includes only 1 of the 2 partner hybrid edges
+"(C,#H1:::0.1);"
 ```
 
 Used by [`writenewick`](@ref).
 """
-writesubtree!(s,n,parent,di,namelabel) =
-    writesubtree!(s,n,parent,di,namelabel, true,3,true)
+writesubtree!(s::IO,n::Node,parent,di,namelabel) = # form never used in PN, but tested
+    writesubtree!(s,n,parent,di,namelabel, true,3,true,nothing)
 
 # "parent' is assumed to be adjancent to "node". not checked.
 # algorithm comes from "parent": do not traverse again.
-function writesubtree!(s::IO, n::Node, parent::Union{Edge,Nothing},
-    di::Bool, namelabel::Bool, roundBL::Bool, digits::Integer, internallabel::Bool)
+function writesubtree!(
+    s::IO,
+    n::Node,
+    parent::Union{Edge,Nothing},
+    di::Bool,
+    namelabel::Bool,
+    roundBL::Bool,
+    digits::Integer,
+    internallabel::Bool,
+    support,
+)
     # subtree below node n:
     if !n.leaf && (parent == nothing || parent.ismajor) # do not descent below a minor hybrid edge
         print(s,"(")
         firstchild = true
         for e in n.edge
-            e != parent || continue # skip parent edge where we come from
-            if parent == nothing    # skip if n = child of e
+            e !== parent || continue # skip parent edge where we come from
+            if isnothing(parent)     # skip if n = child of e
                 n != getchild(e) || continue
             end
             (e.hybrid && getchild(e)==n) && continue # no going up minor hybrid
             firstchild || print(s, ",")
             firstchild = false
             child = getOtherNode(e,n)
-            writesubtree!(s,child,e, di,namelabel, roundBL, digits, internallabel)
+            writesubtree!(s,child,e, di,namelabel, roundBL, digits, internallabel, support)
         end
         print(s,")")
     end
@@ -859,16 +888,26 @@ function writesubtree!(s::IO, n::Node, parent::Union{Edge,Nothing},
     elseif internallabel || n.leaf
         print(s, (namelabel ? n.name : n.number))
     end
-    # branch lengths and γ, if available:
+    # branch lengths, support value and γ, if desired and available:
     printBL = false
     if parent != nothing && parent.length != -1.0 # -1.0 means missing
         print(s,string(":",(roundBL ? round(parent.length, digits=digits) : parent.length)))
         printBL = true
     end
-    if !isnothing(parent) && parent.hybrid && !di # && (!printID || !n.booln2))
-        if(parent.gamma != -1.0)
-            if(!printBL) print(s,":"); end
-            print(s,string("::",(roundBL ? round(parent.gamma, digits=digits) : parent.gamma)))
+    printS = false
+    if !isnothing(support) && !isnothing(parent)
+        sval = parent.y
+        if sval != -1.0 # -1.0 means missing
+            print(s, (printBL ? ":" : "::"))
+            print(s, (roundBL ? round(sval, digits=digits) : sval))
+            printS = true
+        end
+    end
+    if !isnothing(parent) && parent.hybrid && !di
+        γ = parent.gamma
+        if γ != -1.0
+            print(s, ((printS ? ":" : (printBL ? "::" : ":::"))))
+            print(s, (roundBL ? round(γ, digits=digits) : γ))
         end
     end
     if isnothing(parent)
@@ -922,7 +961,7 @@ function readmultinewick(file::AbstractString, fast::Bool=true)
         c = isempty(line) ? "" : line[1]
         if(c == '(')
            try
-               push!(vnet, readnewick(line,false)) # false for non-verbose
+               push!(vnet, readnewick(line))
            catch err
                print("skipped phylogeny on line $(numl) of file $file: ")
                if :msg in fieldnames(typeof(err)) println(err.msg); else println(typeof(err)); end
@@ -967,8 +1006,13 @@ or like this, as output by SpeciesNetwork
 
 In this example, the corresponding edge to hybrid H11 has γ=0.08.
 """
-function readnexus_treeblock(file::AbstractString, treereader::Function=readnewick, args...;
-            reticulate=true, stringmodifier=[r"#(\d+)\b" => s"#H\1"]) # add H
+function readnexus_treeblock(
+    file::AbstractString,
+    treereader::Function=readnewick,
+    args...;
+    reticulate=true,
+    stringmodifier=[r"#(\d+)\b" => s"#H\1"], # add H
+)
     vnet = HybridNetwork[]
     rx_start = r"^\s*begin\s+trees\s*;"i
     rx_end = r"^\s*end\s*;"i
@@ -1181,19 +1225,23 @@ end
 
 
 """
-    writenewick(net)
-    writenewick(net, filename)
-    writenewick(net, IO)
+    writenewick(net; kwargs...)
+    writenewick(net, filename; kwargs...)
+    writenewick(net, IO, args...)
 
 Write the parenthetical extended Newick format of a network,
 as a string, to a file or to an IO buffer / stream.
 Optional arguments (default values):
 
-- di (false): write in format for Dendroscope
+- append (false): if true, appends to the file
 - round (false): rounds branch lengths and heritabilities γ
 - digits (3): digits after the decimal place for rounding
-- append (false): if true, appends to the file
+- di (false): write in format for Dendroscope
 - internallabel (true): if true, writes internal node labels
+- support (nothing): if something, such as `true`, write values in the "support"
+  slot for edges in the newick format (after second colon).
+  Currently, support values are taken from the `.y` internal field of each edge,
+  consistent with [`readnewick`](@ref).
 
 If the current root placement is not admissible, other placements are tried.
 The network is updated with this new root placement, if successful.
@@ -1207,11 +1255,12 @@ function writenewick(
     round::Bool=false,
     digits::Integer=3,
     di::Bool=false,
-    internallabel::Bool=true
+    internallabel::Bool=true,
+    support=nothing,
 )
     mode = (append ? "a" : "w")
     s = open(file, mode)
-    writenewick(n,s,round,digits,di,internallabel)
+    writenewick(n,s,round,digits,di,internallabel,support)
     write(s,"\n")
     close(s)
 end
@@ -1221,10 +1270,11 @@ function writenewick(
     round::Bool=false,
     digits::Integer=3,
     di::Bool=false,
-    internallabel::Bool=true
+    internallabel::Bool=true,
+    support=nothing,
 )
     s = IOBuffer()
-    writenewick(n,s,round,digits,di,internallabel)
+    writenewick(n,s,round,digits,di,internallabel,support)
     return String(take!(s))
 end
 
@@ -1234,7 +1284,8 @@ function writenewick(
     round::Bool=false,
     digits::Integer=3,
     di::Bool=false,
-    internallabel::Bool=true
+    internallabel::Bool=true,
+    support=nothing,
 )
     # check/find admissible root: otherwise could be trapped in infinite loop
     rootsaved = net.rooti
@@ -1277,7 +1328,7 @@ function writenewick(
               """
     end
     # finally, write parenthetical format
-    writesubtree!(s,net,di,true,round,digits,internallabel)
+    writesubtree!(s,net,di,true,round,digits,internallabel,support)
     # namelabel = true: to print leaf & node names (labels), not numbers
 end
 

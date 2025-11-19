@@ -30,9 +30,6 @@ module PhyloNetworks
 
     import Base: show, ==, isless
 
-    const DEBUGC = false # even more debug messages
-    global CHECKNET = false # for debugging only
-
     export
         ## Network Definition
         HybridNetwork,

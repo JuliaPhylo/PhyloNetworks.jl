@@ -268,8 +268,8 @@ function breakedge!(
     removeNode!(pn,edge)
     max_edge = maximum(e.number for e in net.edge)
     max_node = maximum(n.number for n in net.node)
-    # new parent edge: length=-1,hybrid=false,y=0,z=1,γ=1, ischild1=true,
-    newedge = Edge(max_edge+1, -1., false, 0.,1., 1., Node[],true,
+    # new parent edge: length=-1,hybrid=false,y=-1,z=-1,γ=1, ischild1=true,
+    newedge = Edge(max_edge+1, -1., false, -1.,-1., 1., Node[],true,
                    true,-1, edge.containroot, true,false)
     newnode = Node(max_node+1,false,false,[edge,newedge]) # tree node
     setNode!(edge,newnode) # newnode comes 2nd, and parent node along 'edge'

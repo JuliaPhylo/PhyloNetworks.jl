@@ -4,7 +4,7 @@
 [![coverage](https://codecov.io/gh/juliaphylo/PhyloNetworks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/juliaphylo/PhyloNetworks.jl)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
-[![PkgEval](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/P/PhyloNetworks.svg)](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/report.html)
+[![PkgEval](https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/P/PhyloNetworks.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PhyloNetworks.html)<!-- https://JuliaCI.github.io/NanosoldierReports/pkgeval_badges/report.html -->
 
 <div align="right">
 
