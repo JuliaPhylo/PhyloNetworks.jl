@@ -201,9 +201,29 @@ function max_updatehybrid_pairwisedistancematrix!(
     return true
 end
 
+function min_updatehybrid_pairwisedistancematrix!(
+    V::Matrix,
+    i::Int,
+    parindx::AbstractVector{Int},
+    paredge::AbstractVector{Edge},
+    nodeages,
+)
+    if !isempty(nodeages)
+        for (pi,pe) in zip(parindx, paredge)
+            pe.length = nodeages[pi] - nodeages[i]
+        end
+    end
+    for j in 1:(i-1)
+        V[i,j] = minimum(((pi, pe),) -> V[pi, j] + pe.length, zip(parindx, paredge))
+        V[j,i] = V[i,j]
+    end
+    return true
+end
+
 const updatehybrid_distance_funs = Dict(
     :maximum => max_updatehybrid_pairwisedistancematrix!,
-    :average => average_updatehybrid_pairwisedistancematrix!
+    :average => average_updatehybrid_pairwisedistancematrix!,
+    :minimum => min_updatehybrid_pairwisedistancematrix!
 )
 
 """
