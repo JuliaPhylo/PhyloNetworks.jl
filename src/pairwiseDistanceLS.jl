@@ -28,10 +28,45 @@ function getnodeages(net::HybridNetwork)
     return x
 end
 
+#= helpers for pairwisetaxondistancematrix, that modify M in place
+with M: matrix across all internal nodes and leaves
+
+{ave,max,min}_pairwisetaxondistancematrix!(M, net, nodeAges)
+get the average, maximum and minimum distance.
+=#
+ave_pairwisetaxondistancematrix!(
+    M::Matrix{Float64},
+    net::HybridNetwork,
+    nodeAges
+) = traversal_preorder!(net.vec_node, M, traversalupdate_default!,
+    updatetree_pairwisedistancematrix!,
+    ave_updatehybrid_pairwisedistancematrix!,
+    nodeAges)
+max_pairwisetaxondistancematrix!(
+    M::Matrix{Float64},
+    net::HybridNetwork,
+    nodeAges
+) = traversal_preorder!(net.vec_node, M, traversalupdate_default!,
+    updatetree_pairwisedistancematrix!,
+    max_updatehybrid_pairwisedistancematrix!,
+    nodeAges)
+min_pairwisetaxondistancematrix!(
+    M::Matrix{Float64},
+    net::HybridNetwork,
+    nodeAges
+) = traversal_preorder!(net.vec_node, M, traversalupdate_default!,
+    updatetree_pairwisedistancematrix!,
+    min_updatehybrid_pairwisedistancematrix!,
+    nodeAges)
+const distancefun_dict = Dict(
+    :maximum => max_pairwisetaxondistancematrix!,
+    :average => ave_pairwisetaxondistancematrix!,
+    :minimum => min_pairwisetaxondistancematrix!,
+)
+
 """
     pairwisetaxondistancematrix(net; type=:average, keepInternal=false,
                                 checkpreorder=true, nodeAges=[])
-    pairwisetaxondistancematrix!(M, net, type, nodeAges)
 
 Return the matrix `M` of pairwise distances between nodes in the network:
 - between all nodes (internal and leaves) if `keepInternal=true`,
@@ -40,8 +75,6 @@ Return the matrix `M` of pairwise distances between nodes in the network:
 - between taxa only otherwise, in which case the nodes are listed
   in `M` in the order in which they appear in `tiplabels(net)`
   (i.e. same order as in `net.leaf`)
-
-The second form modifies `M` in place, assuming all nodes.
 
 Between any two nodes n1 and n2, we consider all up-down paths
 between n1 and n2: paths starting from n1, going up to a common ancestor
@@ -56,8 +89,9 @@ weighted by the paths' inheritance γs.
 It measures the average genetic distance across the genome,
 if branch lengths are in substitutions/site.
 
-Another distance type is `:maximum`. This is the maximum length
-among all up-down paths between two nodes. For this maximum distance,
+Other distance types are `:maximum` or `:minimum`.
+They are the maximum (or minimum) length among all up-down paths
+between two nodes. For either of these distances,
 the inheritance probabilities γ (or path weights) have no impact.
 
 Other optional arguments:
@@ -88,7 +122,11 @@ function pairwisetaxondistancematrix(
     M = zeros(Float64,nnodes,nnodes)
     isempty(nodeAges) || length(nodeAges) == nnodes ||
         error("there should be $nnodes node ages")
-    pairwisetaxondistancematrix!(M, net, type, nodeAges)
+    distancefun! = get(distancefun_dict, type, nothing)
+    if isnothing(distancefun!)
+        error("Unknown distance type $type. Supported types are :average, :maximum or :minimum.")
+    end
+    distancefun!(M, net, nodeAges)
     if !keepInternal
         M = getTipSubmatrix(M, net)
     end
@@ -122,23 +160,6 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     end
 end
 
-function pairwisetaxondistancematrix!(
-    M::Matrix{Float64},
-    net::HybridNetwork,
-    type::Symbol,
-    nodeAges
-)
-    updatehybrid = get(updatehybrid_distance_funs, type, nothing)
-    if isnothing(updatehybrid)
-        error("Unknown distance type $type. Supported types are :maximum or :average.")
-    end
-    traversal_preorder!(net.vec_node, M, # updates M in place
-            traversalupdate_default!, # does nothing
-            updatetree_pairwisedistancematrix!,
-            updatehybrid,
-            nodeAges)
-end
-
 function updatetree_pairwisedistancematrix!(
     V::Matrix,
     i::Int,
@@ -157,7 +178,7 @@ function updatetree_pairwisedistancematrix!(
     return true
 end
 
-function average_updatehybrid_pairwisedistancematrix!(
+function ave_updatehybrid_pairwisedistancematrix!(
     V::Matrix,
     i::Int,
     parindx::AbstractVector{Int},
@@ -220,16 +241,11 @@ function min_updatehybrid_pairwisedistancematrix!(
     return true
 end
 
-const updatehybrid_distance_funs = Dict(
-    :maximum => max_updatehybrid_pairwisedistancematrix!,
-    :average => average_updatehybrid_pairwisedistancematrix!,
-    :minimum => min_updatehybrid_pairwisedistancematrix!
-)
 
 """
     pairwisetaxondistance_gradient(net; checkEdgeNumber=true, nodeAges=[])
 
-3-dim array: gradient of pairwise distances between all nodes.
+3-dim array: gradient of *average* pairwise distances between all nodes.
 (internal and leaves); gradient with respect to edge lengths
 if `nodeAges` is empty; with respect to node ages otherwise.
 Assume correct `net.vec_node` (preorder).  
@@ -252,7 +268,7 @@ function pairwisetaxondistance_gradient(
     traversal_preorder!(net.vec_node, M,
             traversalupdate_default!,  # does nothing
             updatetree_pairwisedistancegrad!,
-            updatehybrid_pairwisedistancegrad!,
+            ave_updatehybrid_pairwisedistancegrad!,
             nodeAges) # nodeAges assumed pre-ordered, like vec_node
     return M
 end
@@ -279,7 +295,7 @@ function updatetree_pairwisedistancegrad!(
     # V[i,i,k] initialized to 0.0 already
     return true
 end
-function updatehybrid_pairwisedistancegrad!(
+function ave_updatehybrid_pairwisedistancegrad!(
     V::Array{Float64,3},
     i::Int,
     parindx::AbstractVector{Int},
@@ -313,7 +329,7 @@ end
     calibratefrompairwisedistances!(net, distances::Matrix{Float64},
         taxon_names::Vector{<:AbstractString})
 
-Calibrate the network to match (as best as possible) input
+Calibrate the network to match (as best as possible) input average
 pairwise distances between taxa, such as observed from sequence data.
 `taxon_names` should provide the list of taxa, in the same order
 in which they they are considered in the `distances` matrix.
@@ -322,8 +338,8 @@ observed distances, and the distances from the network
 (weighted average of tree distances, weighted by γ's).
 The network's edge lengths are modified.
 
-Warning: for many networks, mutiple calibrations can fit the pairwise
-distance data equally well (lack of identifiability).
+Warning: for many networks, mutiple calibrations can fit the
+average pairwise distance data equally well (lack of identifiability).
 This function will output *one* of these equally good calibrations.
 
 optional arguments (default):
@@ -403,7 +419,7 @@ function calibratefrompairwisedistances!(
         end
     end
     # initialize M=dist b/w all nodes, G=gradient (constant)
-    M = pairwisetaxondistancematrix(net, keepInternal=true,
+    M = pairwisetaxondistancematrix(net; type=:average, keepInternal=true,
             checkpreorder=false, nodeAges=na)
     if !ultrametric && sort([e.number for e in net.edge]) != collect(1:net.numedges)
         for i in 1:net.numedges # renumber edges, needed for G
@@ -501,7 +517,7 @@ function calibratefrompairwisedistances!(
             end
         end
         # update distances in M, in place
-        pairwisetaxondistancematrix!(M,net,:average,na)
+        ave_pairwisetaxondistancematrix!(M,net,na)
         ss = 0.0 # sum of squares between M and observed distances
         for i in 2:ntax; for j in 1:(i-1)
             ss += (M[tipind[i],tipind[j]]-D[i,j])^2
@@ -641,7 +657,7 @@ end
 
 Calibrate branch lengths in `net` by minimizing the mean squared error
 between the JC-adjusted pairwise distance between taxa, and network-predicted
-pairwise distances, using [`calibratefrompairwisedistances!`](@ref).
+average pairwise distances, using [`calibratefrompairwisedistances!`](@ref).
 The network is *not* forced to be time-consistent nor ultrametric.
 To avoid one source of non-identifiability, the network is "zipped" by
 forcing minor hybrid edges to have length 0.
