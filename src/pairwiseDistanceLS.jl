@@ -29,9 +29,9 @@ function getnodeages(net::HybridNetwork)
 end
 
 """
-    pairwisetaxondistancematrix(net; distanceType=:average, keepInternal=false,
+    pairwisetaxondistancematrix(net; type=:average, keepInternal=false,
                                 checkpreorder=true, nodeAges=[])
-    pairwisetaxondistancematrix!(M, net, distanceType, nodeAges)
+    pairwisetaxondistancematrix!(M, net, type, nodeAges)
 
 Return the matrix `M` of pairwise distances between nodes in the network:
 - between all nodes (internal and leaves) if `keepInternal=true`,
@@ -43,15 +43,22 @@ Return the matrix `M` of pairwise distances between nodes in the network:
 
 The second form modifies `M` in place, assuming all nodes.
 
-By default, the `distanceType` is `:average`. 
-This means that the distance between the root and a given hybrid node (to take an example)
-is the weighted average of path lengths from the root to that node,
-where each path is weighted by the product of γs of all edges on that path.
-This distance measures the average genetic distance across the genome,
+Between any two nodes n1 and n2, we consider all up-down paths
+between n1 and n2: paths starting from n1, going up to a common ancestor
+then back down to n2. The distance between n1 and n2 associated with an
+up-down path is the path length, the sum of its edge lengths. Each path also
+has an inheritance weight γ: the product of γs of all edges on the path,
+representing the proportion of the genome that took this path.
+
+By default, the distance `type` is `:average` to get a weighted average
+distance. This is the average of the up-down paths' lengths,
+weighted by the paths' inheritance γs.
+It measures the average genetic distance across the genome,
 if branch lengths are in substitutions/site.
 
-Other options for type are `:maximum`, in which case the distance is the maximum 
-of the *unweighted* up-down path lengths between the two taxa.
+Another distance type is `:maximum`. This is the maximum length
+among all up-down paths between two nodes. For this maximum distance,
+the inheritance probabilities γ (or path weights) have no impact.
 
 Other optional arguments:
 
@@ -68,7 +75,7 @@ If node ages are not provided, the network need not be time consistent.
 """
 function pairwisetaxondistancematrix(
     net::HybridNetwork;
-    distanceType = :average,
+    type::Symbol=:average,
     keepInternal::Bool=false,
     checkpreorder::Bool=true,
     nodeAges::Vector{Float64}=Float64[]
@@ -81,7 +88,7 @@ function pairwisetaxondistancematrix(
     M = zeros(Float64,nnodes,nnodes)
     isempty(nodeAges) || length(nodeAges) == nnodes ||
         error("there should be $nnodes node ages")
-    pairwisetaxondistancematrix!(M, net, distanceType, nodeAges)
+    pairwisetaxondistancematrix!(M, net, type, nodeAges)
     if !keepInternal
         M = getTipSubmatrix(M, net)
     end
@@ -115,22 +122,24 @@ function getTipSubmatrix(M::Matrix, net::HybridNetwork; indexation=:both)
     end
 end
 
-
-function pairwisetaxondistancematrix!(M::Matrix{Float64},net::HybridNetwork,distanceType,nodeAges)
-    
-    hybrid_update = get(HYBRID_UPDATE_FUNCTIONS, distanceType, nothing)
-    if hybrid_update === nothing
-        error("Unknown distanceType: $distanceType. Supported distances are :maximum or :average.")
+function pairwisetaxondistancematrix!(
+    M::Matrix{Float64},
+    net::HybridNetwork,
+    type::Symbol,
+    nodeAges
+)
+    updatehybrid = get(updatehybrid_distance_funs, type, nothing)
+    if isnothing(updatehybrid)
+        error("Unknown distance type $type. Supported types are :maximum or :average.")
     end
-
     traversal_preorder!(net.vec_node, M, # updates M in place
             traversalupdate_default!, # does nothing
-            updateTreePairwiseTaxonDistanceMatrix!,
-            hybrid_update,
+            updatetree_pairwisedistancematrix!,
+            updatehybrid,
             nodeAges)
 end
 
-function updateTreePairwiseTaxonDistanceMatrix!(
+function updatetree_pairwisedistancematrix!(
     V::Matrix,
     i::Int,
     parindx::Int, # index of parent node
@@ -148,7 +157,7 @@ function updateTreePairwiseTaxonDistanceMatrix!(
     return true
 end
 
-function average_updateHybridPairwiseTaxonDistanceMatrix!(
+function average_updatehybrid_pairwisedistancematrix!(
     V::Matrix,
     i::Int,
     parindx::AbstractVector{Int},
@@ -162,6 +171,9 @@ function average_updateHybridPairwiseTaxonDistanceMatrix!(
     end
     for j in 1:(i-1)
         V[i,j] = zero(eltype(V))
+        #= V[i,j] initialized at 0 by pairwisetaxondistancematrix but
+        re-initialization needed during optimization in
+        calibratefrompairwisedistances! =#
         for (pi,pe) in zip(parindx, paredge)
             V[i,j] += pe.gamma * (V[pi,j] + pe.length)
         end
@@ -170,14 +182,13 @@ function average_updateHybridPairwiseTaxonDistanceMatrix!(
     return true
 end
 
-
-function max_updateHybridPairwiseTaxonDistanceMatrix!(
+function max_updatehybrid_pairwisedistancematrix!(
     V::Matrix,
     i::Int,
     parindx::AbstractVector{Int},
     paredge::AbstractVector{Edge},
     nodeages,
-)   
+)
     if !isempty(nodeages)
         for (pi,pe) in zip(parindx, paredge)
             pe.length = nodeages[pi] - nodeages[i]
@@ -190,9 +201,9 @@ function max_updateHybridPairwiseTaxonDistanceMatrix!(
     return true
 end
 
-const HYBRID_UPDATE_FUNCTIONS = Dict(
-    :maximum => max_updateHybridPairwiseTaxonDistanceMatrix!,
-    :average => average_updateHybridPairwiseTaxonDistanceMatrix!
+const updatehybrid_distance_funs = Dict(
+    :maximum => max_updatehybrid_pairwisedistancematrix!,
+    :average => average_updatehybrid_pairwisedistancematrix!
 )
 
 """
@@ -220,12 +231,12 @@ function pairwisetaxondistance_gradient(
     M = zeros(Float64, net.numnodes, net.numnodes, n)
     traversal_preorder!(net.vec_node, M,
             traversalupdate_default!,  # does nothing
-            updateTreePairwiseTaxonDistanceGrad!,
-            updateHybridPairwiseTaxonDistanceGrad!,
+            updatetree_pairwisedistancegrad!,
+            updatehybrid_pairwisedistancegrad!,
             nodeAges) # nodeAges assumed pre-ordered, like vec_node
     return M
 end
-function updateTreePairwiseTaxonDistanceGrad!(
+function updatetree_pairwisedistancegrad!(
     V::Array{Float64,3},
     i::Int,
     parindx::Int, # index of parent node
@@ -248,7 +259,7 @@ function updateTreePairwiseTaxonDistanceGrad!(
     # V[i,i,k] initialized to 0.0 already
     return true
 end
-function updateHybridPairwiseTaxonDistanceGrad!(
+function updatehybrid_pairwisedistancegrad!(
     V::Array{Float64,3},
     i::Int,
     parindx::AbstractVector{Int},
