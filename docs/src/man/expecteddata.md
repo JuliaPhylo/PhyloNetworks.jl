@@ -37,7 +37,7 @@ R"dev.off"();
 ```
 ![net02-distquartet](../assets/figures/expectedata_fig_net02.svg)
 
-## average pairwise distance
+## pairwise distance
 
 One distance between pairs of taxa, say between t1 and t2, is the
 average length of all "up-down" paths in the network to go from t1 to t2
@@ -77,6 +77,10 @@ aveD_net2 = pairwisetaxondistancematrix(net2);
 taxonlist2 = tiplabels(net2);
 DataFrame(aveD_net2, taxonlist2)
 ```
+
+Note that [`pairwisetaxondistancematrix`](@ref) can also calculate
+the minimum or maximum distance (across all up-down paths between
+each pair of taxa), using its option `type`.
 
 ## hamming distance
 
