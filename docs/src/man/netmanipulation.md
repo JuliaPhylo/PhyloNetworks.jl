@@ -21,7 +21,8 @@ each hybrid node has exactly 2 parents (never more).
 - [`getroot`](@ref) gives the root node
 - [`leaststableancestor`](@ref) give the least stable ancestor (LSA) of
   all taxa (their MRCA on a tree), which may be below the root
-- [`pairwisetaxondistancematrix`](@ref) for *average* distances
+- [`pairwisetaxondistancematrix`](@ref) for distances:
+  average, minimum or maximum
 - [`vcv`](@ref) for the variance-covariance matrix between taxa under a
   Brownian Motion model along the network, and [`sharedpathmatrix`](@ref)
   for the variance-covariance between all nodes (not just leaves)

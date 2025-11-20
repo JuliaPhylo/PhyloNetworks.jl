@@ -10,7 +10,7 @@ bootnet = readmultinewick(joinpath(exdir,"fish3hyb_20boostrap.net"));
 # plot(bootnet[20], showedgenumber=true)
 # include(string(home, "bootstrap.jl"))
 
-bt = PhyloNetworks.samplebootstrap_multiloci([bootnet, bootnet])
+bt = (@test_logs (:info, r"^using seed") PhyloNetworks.samplebootstrap_multiloci([bootnet, bootnet]))
 @test isa(bt, Vector{HybridNetwork})
 @test length(bt) == 2
 

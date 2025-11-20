@@ -25,7 +25,6 @@ Base.@deprecate_moved snaq! "SNaQ"
 @deprecate displayedTrees displayedtrees
 @deprecate minorTreeAt    minortreeat
 @deprecate majorTree      majortree
-@deprecate pairwiseTaxonDistanceMatrix pairwisetaxondistancematrix!
 @deprecate sharedPathMatrix sharedpathmatrix
 @deprecate descendenceMatrix descendencematrix
 @deprecate getNodeAges getnodeages

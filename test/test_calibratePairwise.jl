@@ -1,7 +1,7 @@
 @testset "calibrate with distances: 3-cycle, non-identifiable example" begin
 net2 = readnewick("((((D:0.1,C:0.2):1.5,(B:0.1)#H1:0.9::0.7):0.1,(#H1:0.01::0.3,A:0.3):0.8):0.1);")
-dAll = pairwisetaxondistancematrix(net2, keepInternal=true)
-@test dAll ≈ [0.0 .8 1.1 .1 .943 1.043 1.6 1.8 1.7
+dAll_avg = pairwisetaxondistancematrix(net2; keepInternal=true)
+@test dAll_avg ≈ [0.0 .8 1.1 .1 .943 1.043 1.6 1.8 1.7
  0.8   0.0   0.3   0.9   1.263 1.363 2.4   2.6   2.5
  1.1   0.3   0.0   1.2   1.563 1.663 2.7   2.9   2.8
  0.1   0.9   1.2   0.0   0.903 1.003 1.5   1.7   1.6
@@ -10,6 +10,31 @@ dAll = pairwisetaxondistancematrix(net2, keepInternal=true)
  1.6   2.4   2.7   1.5   2.403 2.503 0.0   0.2   0.1
  1.8   2.6   2.9   1.7   2.603 2.703 0.2   0.0   0.3
  1.7   2.5   2.8   1.6   2.503 2.603 0.1   0.3   0.0]
+@test_throws "type oops" pairwisetaxondistancematrix(net2; type=:oops)
+dAll_max = pairwisetaxondistancematrix(net2; type=:maximum, keepInternal=true)
+@test dAll_max ≈ [0.0 .8 1.1 .1 1.0 1.1 1.6 1.8 1.7
+ 0.8   0.0   0.3   0.9   1.8   1.9   2.4   2.6   2.5
+ 1.1   0.3   0.0   1.2   2.1   2.2   2.7   2.9   2.8
+ 0.1   0.9   1.2   0.0   0.91  1.01  1.5   1.7   1.6
+ 1.0   1.8   2.1   0.91  0.0   0.1   2.41  2.61  2.51
+ 1.1   1.9   2.2   1.01  0.1   0.0   2.51  2.71  2.61
+ 1.6   2.4   2.7   1.5   2.41  2.51  0.0   0.2   0.1
+ 1.8   2.6   2.9   1.7   2.61  2.71  0.2   0.0   0.3
+ 1.7   2.5   2.8   1.6   2.51  2.61  0.1   0.3   0.0
+]
+dAll_min = pairwisetaxondistancematrix(net2; type=:minimum, keepInternal=true)
+@test dAll_min ≈ [0.0 .8 1.1 .1 .81 .91 1.6 1.8 1.7
+ 0.8   0.0   0.3   0.9   0.01  0.11  2.4   2.6   2.5
+ 1.1   0.3   0.0   1.2   0.31  0.41  2.7   2.9   2.8
+ 0.1   0.9   1.2   0.0   0.9   1.0   1.5   1.7   1.6
+ 0.81  0.01  0.31  0.9   0.0   0.1   2.4   2.6   2.5
+ 0.91  0.11  0.41  1.0   0.1   0.0   2.5   2.7   2.6
+ 1.6   2.4   2.7   1.5   2.4   2.5   0.0   0.2   0.1
+ 1.8   2.6   2.9   1.7   2.6   2.7   0.2   0.0   0.3
+ 1.7   2.5   2.8   1.6   2.5   2.6   0.1   0.3   0.0
+]
+
+
 taxa = [l.name for l in net2.leaf]
 net2distances = pairwisetaxondistancematrix(net2)
 @test net2distances ≈ [.0 .3 2.603 2.8
