@@ -74,7 +74,7 @@ function samplebootstrap_multiloci!(
         t = time()/1e9
         a = split(string(t),".")
         seed = parse(Int,a[2][end-4:end]) #better seed based on clock
-        println("using seed $(seed) for bootstrap trees")
+        @info "using seed $(seed) for bootstrap trees"
       end
       Random.seed!(seed)
       if generesampling

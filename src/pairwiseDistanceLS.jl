@@ -58,11 +58,6 @@ min_pairwisetaxondistancematrix!(
     updatetree_pairwisedistancematrix!,
     min_updatehybrid_pairwisedistancematrix!,
     nodeAges)
-const distancefun_dict = Dict(
-    :maximum => max_pairwisetaxondistancematrix!,
-    :average => ave_pairwisetaxondistancematrix!,
-    :minimum => min_pairwisetaxondistancematrix!,
-)
 
 """
     pairwisetaxondistancematrix(net; type=:average, keepInternal=false,
@@ -122,7 +117,11 @@ function pairwisetaxondistancematrix(
     M = zeros(Float64,nnodes,nnodes)
     isempty(nodeAges) || length(nodeAges) == nnodes ||
         error("there should be $nnodes node ages")
-    distancefun! = get(distancefun_dict, type, nothing)
+    distancefun! = (
+        type == :average ? ave_pairwisetaxondistancematrix! : (
+        type == :maximum ? max_pairwisetaxondistancematrix! : (
+        type == :minimum ? min_pairwisetaxondistancematrix! :
+            nothing)))
     if isnothing(distancefun!)
         error("Unknown distance type $type. Supported types are :average, :maximum or :minimum.")
     end
@@ -178,6 +177,15 @@ function updatetree_pairwisedistancematrix!(
     return true
 end
 
+@inline function parentlengths_from_nodeages!(paredge,parindx,i,nodeages)
+    if !isempty(nodeages)
+        for (p_i,pe) in zip(parindx, paredge)
+            pe.length = nodeages[p_i] - nodeages[i]
+        end
+    end
+    return nothing
+end
+
 function ave_updatehybrid_pairwisedistancematrix!(
     V::Matrix,
     i::Int,
@@ -185,11 +193,7 @@ function ave_updatehybrid_pairwisedistancematrix!(
     paredge::AbstractVector{Edge},
     nodeages, # node ages should be pre-ordered
 )
-    if !isempty(nodeages)
-        for (pi,pe) in zip(parindx, paredge)
-            pe.length = nodeages[pi] - nodeages[i]
-        end
-    end
+    parentlengths_from_nodeages!(paredge,parindx,i,nodeages)
     for j in 1:(i-1)
         V[i,j] = zero(eltype(V))
         #= V[i,j] initialized at 0 by pairwisetaxondistancematrix but
@@ -210,11 +214,7 @@ function max_updatehybrid_pairwisedistancematrix!(
     paredge::AbstractVector{Edge},
     nodeages,
 )
-    if !isempty(nodeages)
-        for (pi,pe) in zip(parindx, paredge)
-            pe.length = nodeages[pi] - nodeages[i]
-        end
-    end
+    parentlengths_from_nodeages!(paredge,parindx,i,nodeages)
     for j in 1:(i-1)
         V[i,j] = maximum(((pi, pe),) -> V[pi, j] + pe.length, zip(parindx, paredge))
         V[j,i] = V[i,j]
@@ -229,11 +229,7 @@ function min_updatehybrid_pairwisedistancematrix!(
     paredge::AbstractVector{Edge},
     nodeages,
 )
-    if !isempty(nodeages)
-        for (pi,pe) in zip(parindx, paredge)
-            pe.length = nodeages[pi] - nodeages[i]
-        end
-    end
+    parentlengths_from_nodeages!(paredge,parindx,i,nodeages)
     for j in 1:(i-1)
         V[i,j] = minimum(((pi, pe),) -> V[pi, j] + pe.length, zip(parindx, paredge))
         V[j,i] = V[i,j]
