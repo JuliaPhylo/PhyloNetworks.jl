@@ -58,6 +58,10 @@ the root to a node varies across multiple paths from the root to that node.
 - [`getnodeheights_average`](@ref)
 - [`getnodeheights_majortree`](@ref)
 
+About paths from a node or from an edge to other nodes:
+- [`descendencematrix`](@ref) and [`PhyloNetworks.descendenceweight`](@ref)
+- [`PhyloNetworks.numberpathsmatrix`](@ref) for the number of up-down paths
+
 ### node information
 
 To learn about nodes and how some might be related or connected, one can use:
@@ -154,7 +158,7 @@ To calibrate a network (modify its edge lengths):
 
 ## Comparing taxa
 
-- average pairwise distances on a network: [`pairwisetaxondistancematrix`](@ref),  
+- pairwise distances on a network: [`pairwisetaxondistancematrix`](@ref),  
   and from data: [`PhyloNetworks.hammingdistancematrix`](@ref), that can be
   followed by [`PhyloNetworks.distancecorrection_JC!`](@ref)
 - f2-distances expected from a network: [`expectedf2matrix`](@ref)

@@ -437,3 +437,68 @@ function updatehybrid_descendenceweight!(
     end
     return true
 end
+
+"""
+    numberpathsmatrix(net::HybridNetwork; preorder::Bool=true)
+
+Matrix `M` containing the number of up-down paths between each pair of nodes
+in `net`, as a [`MatrixTopologicalOrder`](@ref) object, in which nodes are in
+both rows and columns. By default, `preorder!` is called first, to calculate
+a pre-ordering of nodes, unless `preorder` is `false`.
+
+An up-down path between node n1 and n2 is a path that starts from n1, goes up
+to a common ancestor then down to n2 (and never using the same edge twice).
+This set of paths remain the same if the network is rerooted, so it is
+well-defined on semidirected networks
+(see [Xu & Ané 2023](https://doi.org/10.1007/s00285-022-01847-8)).
+If the input network is a tree, then all path numbers are 1.
+
+# example
+
+```jldoctest
+julia> net = readnewick("((t4,((t3,#H0),#H1)),(((t1)#H0,t2))#H1);");
+
+julia> m = PhyloNetworks.numberpathsmatrix(net);
+
+julia> m[:tips]
+4×4 Matrix{Int64}:
+ 1  1  3  2
+ 1  1  3  2
+ 3  3  1  3
+ 2  2  3  1
+
+julia> print(tiplabels(net)) # order of tips along rows
+["t4", "t3", "t1", "t2"]
+```
+"""
+function numberpathsmatrix(net::HybridNetwork; preorder::Bool=true)
+    preorder && preorder!(net)
+    V = traversal_preorder(
+            net.vec_node,
+            init_intmatrix, # matrix of Int, undef
+            fillwith_ones!,
+            updatetree_numberpathsmatrix!,
+            updatehybrid_numberpathsmatrix!,
+        )
+    M = MatrixTopologicalOrder(V, net, :b) # nodes in both columns & rows
+    return M
+end
+function updatetree_numberpathsmatrix!(V::Matrix,i::Int,pari::Int,::Edge)
+    for j in 1:(i-1)
+        V[i,j] = V[j,pari]
+        V[j,i] = V[j,pari]
+    end
+    return true
+end
+function updatehybrid_numberpathsmatrix!(
+    V::Matrix,
+    i::Int,
+    pari::AbstractVector{Int},
+    ::AbstractVector{Edge},
+)
+    for j in 1:(i-1)
+        V[i,j] = sum(ip -> V[ip, j], pari)
+        V[j,i] = V[i,j]
+    end
+    return true
+end
