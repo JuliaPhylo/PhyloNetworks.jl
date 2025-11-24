@@ -20,7 +20,7 @@ to handle phylogenetic trees and networks.
 It serves as a core package that other packages can depend on, such as
 [PhyloPlots](https://github.com/JuliaPhylo/PhyloPlots.jl)
 to visualize phylogenies,
-[SNaQ](https://github.com/JuliaPhylo/PhyloPlots.jl)
+[SNaQ](https://github.com/JuliaPhylo/SNaQ.jl)
 to infer phylogenies from genetic data,
 [PhyloTraits](https://github.com/JuliaPhylo/PhyloTraits.jl)
 to analyze the evolution of traits along phylogenies.
