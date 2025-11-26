@@ -144,4 +144,13 @@ D[mask, mask] .= 1.0
 V2 = gam*V_t_1[:all] + (1-gam)*V_t_2[:all] - gam*(1-gam) * (V_t_1.V[p, p] - V_t_1.V[a, b] + V_t_2.V[p, p] - V_t_2.V[a, b]) .* D
 
 @test V1[:all] ≈ V2
+
+net = readnewick("((t4,((t3,#H0:::0.7),#H1)),(((t1)#H0,t2))#H1);")
+m = PhyloNetworks.numberpathsmatrix(net)
+@test m[:tips] == [1 1 3 2; 1 1 3 2; 3 3 1 3; 2 2 3 1]
+mall = ones(Int, 11, 11)
+mall[[4,5,6], [1,2,3,7,10,11]] .= 2
+mall[[1,2,3,7,10,11], [4,5,6]] .= 2
+not89 = vcat(1:7,10:11); mall[[8,9], not89] .= 3; mall[not89, [8,9]] .= 3
+@test m[:all] == mall
 end

@@ -109,6 +109,11 @@ function traversalupdate_default!(::AbstractArray, ::Int, params...)
     return true
 end
 
+function fillwith_ones!(V::AbstractArray, ::Int, params...)
+    fill!(V, one(eltype(V)))
+    return true
+end
+
 """
     traversal_postorder(nodes, init_function,
         tip_function, internalnode_function, parameters...)
