@@ -2070,6 +2070,75 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
 end
 
 """
+    delete2cycles_shrink3cycles!(net::HybridNetwork)
+
+Delete the minor hybrid edge in each 2-cycle and shrink each 3-cycle,
+until none remains. Degree-2 nodes are fused, including the root if encountered.
+
+The treatment of 2-cycles differs from `shrink2cycles!` in that only the
+major hybrid edge length is retained. There is no weighted averaging of
+hybrid's parental branch lenghts.
+This operation does not affect the set of displayed trees, and of up-down
+paths' inheritance weights.
+"""
+function delete2cycles_shrink3cycles!(net::HybridNetwork)
+    nh = length(net.hybrid)
+    ih = nh # hybrids deleted from the end
+    while ih > 0
+        h = net.hybrid[ih]
+        minor = getparentedgeminor(h)
+        major = getparentedge(h)
+        pmin = getparent(minor) # minor parent node
+        pmaj = getparent(major) # major parent node
+        if pmin === pmaj # 2-cycle. deleting it can create new cycle: start over after
+            PN.deletehybridedge!(net, minor,
+                false,true,false,true,false) # ., unroot=true, ., simplify=true,.
+            nh = length(net.hybrid) # to start over
+            ih = nh + 1
+        elseif PN.isconnected(pmin, pmaj)
+            PN.shrink3cycleat!(net, h, major,minor, pmaj,pmin, true) # unroot=true
+            nh = length(net.hybrid) # to start over, as above
+            ih = nh + 1
+        end
+        ih -= 1
+    end
+    return net
+end
+
+"""
+    deleteexternal2blobs!(net::HybridNetwork)
+
+Delete non-trivial degree-2 blobs along external edges, assuming no degree-2
+nodes: these are *trivial* degree-2 blobs. They are kept and stop the process.
+"""
+function deleteexternal2blobs!(net::HybridNetwork)
+    bcc = biconnectedcomponents(net, true) # true: ignore trivial blobs
+    entry = PN.biconnectedcomponent_entrynodes(net, bcc)
+    entryindex = indexin(entry, net.vec_node)
+    exitnodes = PN.biconnectedcomponent_exitnodes(net, bcc, false) # don't redo the preordering
+    bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
+    function isexternal(ib) # is bcc[ib] of degree 2 and adjacent to an external edge?
+        # yes if: 1 single exit adjacent to a leaf
+        length(exitnodes[ib]) != 1 && return false
+        ch = getchildren(exitnodes[ib][1])
+        return length(ch) == 1 && ch[1].leaf
+    end
+    for ib in reverse(bloborder)
+        isexternal(ib) || continue # keep bcc[ib] if not external of degree 2
+        for he in bcc[ib]
+            he.ismajor && continue
+            # deletion of a hybrid can hide the deletion of another: check that he is still in net
+            any(e -> e===he, net.edge) || continue
+            # delete minor hybrid edge with options unroot=true: to make sure the
+            # root remains of degree 3+, in case a degree-2 blob starts at the root
+            # simplify=true: bc external blob
+            PN.deletehybridedge!(net,he, false,true,false,true,false)
+        end
+    end
+    return net
+end
+
+"""
     adjacentedges(centeredge::Edge)
 
 Vector of all edges that share a node with `centeredge`.
