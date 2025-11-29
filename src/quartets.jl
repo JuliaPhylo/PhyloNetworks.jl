@@ -143,7 +143,7 @@ In the output table, the columns are, in this order:
 In short, the first 3 columns of data are named "X1", "X2", "X3" by default.
 If a `prefix` and/or `basenames` is provided, this prefix and/or base names
 are used for these first 3 column names,
-for example: "CF12_34", "CF13_24", "CF14_23" if `prefix="CF"` and
+for example: "`CF12_34`", "`CF13_24`", "`CF14_23`" if `prefix="CF"` and
 `basename=["12_34","13_24","14_23"]`.
 
 If quartets have 4 data entries, then the 4th column is named `ngenes`,
