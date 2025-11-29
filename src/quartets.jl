@@ -593,31 +593,31 @@ Assumption: the network should have non-missing and valid inheritance γ values.
 
 ```jldoctest
 julia> net = readnewick(
-    "(((C,#H2),((((B1,B2),#H1))#H2:::0.6,(((A1,A2))#H3:::.8)#H1:::0.5)),(#H3,D));");
+    "(((C,#H2),((((B1,B2,B3),#H1))#H2:::0.6,((A)#H3:::.8)#H1:::0.5)),(#H3,D));");
 
 julia> # using PhyloPlots; plot(net, showgamma=true);
 
-julia> q,t = PhyloNetworks.network_displayedquartets(net);
+julia> q,t = PhyloNetworks.network_displayedquartets(net,showprogressbar=false);
 
 julia> for qi in q
          println(join(t[qi.taxonnumber],",") * ": " *
             string(round.(qi.data, sigdigits=3)))
        end
-A1,A2,B1,B2: [1.0, 0.0, 0.0]
-A1,A2,B1,C: [0.0, 0.0, 0.0]
-A1,A2,B2,C: [0.0, 0.0, 0.0]
-A1,B1,B2,C: [0.0, 0.0, 1.0]
-A2,B1,B2,C: [0.0, 0.0, 1.0]
-A1,A2,B1,D: [1.0, 0.0, 0.0]
-A1,A2,B2,D: [1.0, 0.0, 0.0]
-A1,B1,B2,D: [0.0, 0.0, 1.0]
-A2,B1,B2,D: [0.0, 0.0, 1.0]
-A1,A2,C,D: [1.0, 0.0, 0.0]
-A1,B1,C,D: [0.64, 0.0, 0.36]
-A2,B1,C,D: [0.64, 0.0, 0.36]
-A1,B2,C,D: [0.64, 0.0, 0.36]
-A2,B2,C,D: [0.64, 0.0, 0.36]
+A,B1,B2,B3: [0.0, 0.0, 0.0]
+A,B1,B2,C: [0.0, 0.0, 1.0]
+A,B1,B3,C: [0.0, 0.0, 1.0]
+A,B2,B3,C: [0.0, 0.0, 1.0]
+B1,B2,B3,C: [0.0, 0.0, 0.0]
+A,B1,B2,D: [0.0, 0.0, 1.0]
+A,B1,B3,D: [0.0, 0.0, 1.0]
+A,B2,B3,D: [0.0, 0.0, 1.0]
+B1,B2,B3,D: [0.0, 0.0, 0.0]
+A,B1,C,D: [0.64, 0.0, 0.36]
+A,B2,C,D: [0.64, 0.0, 0.36]
 B1,B2,C,D: [1.0, 0.0, 0.0]
+A,B3,C,D: [0.64, 0.0, 0.36]
+B1,B3,C,D: [1.0, 0.0, 0.0]
+B2,B3,C,D: [1.0, 0.0, 0.0]
 
 julia> nt = PhyloNetworks.tablequartetdata(q,t, prefix="p", basenames=["12_34","13_24","14_23"]);
 
@@ -626,46 +626,49 @@ julia> using DataFrames; df = DataFrame(nt, copycols=false)
  Row │ qind   t1      t2      t3      t4      p12_34   p13_24   p14_23  
      │ Int64  String  String  String  String  Float64  Float64  Float64 
 ─────┼──────────────────────────────────────────────────────────────────
-   1 │     1  A1      A2      B1      B2         1.0       0.0     0.0
-   2 │     2  A1      A2      B1      C          0.0       0.0     0.0
-   3 │     3  A1      A2      B2      C          0.0       0.0     0.0
-   4 │     4  A1      B1      B2      C          0.0       0.0     1.0
-   5 │     5  A2      B1      B2      C          0.0       0.0     1.0
-   6 │     6  A1      A2      B1      D          1.0       0.0     0.0
-   7 │     7  A1      A2      B2      D          1.0       0.0     0.0
-   8 │     8  A1      B1      B2      D          0.0       0.0     1.0
-   9 │     9  A2      B1      B2      D          0.0       0.0     1.0
-  10 │    10  A1      A2      C       D          1.0       0.0     0.0
-  11 │    11  A1      B1      C       D          0.64      0.0     0.36
-  12 │    12  A2      B1      C       D          0.64      0.0     0.36
-  13 │    13  A1      B2      C       D          0.64      0.0     0.36
-  14 │    14  A2      B2      C       D          0.64      0.0     0.36
-  15 │    15  B1      B2      C       D          1.0       0.0     0.0
+   1 │     1  A       B1      B2      B3         0.0       0.0     0.0
+   2 │     2  A       B1      B2      C          0.0       0.0     1.0
+   3 │     3  A       B1      B3      C          0.0       0.0     1.0
+   4 │     4  A       B2      B3      C          0.0       0.0     1.0
+   5 │     5  B1      B2      B3      C          0.0       0.0     0.0
+   6 │     6  A       B1      B2      D          0.0       0.0     1.0
+   7 │     7  A       B1      B3      D          0.0       0.0     1.0
+   8 │     8  A       B2      B3      D          0.0       0.0     1.0
+   9 │     9  B1      B2      B3      D          0.0       0.0     0.0
+  10 │    10  A       B1      C       D          0.64      0.0     0.36
+  11 │    11  A       B2      C       D          0.64      0.0     0.36
+  12 │    12  B1      B2      C       D          1.0       0.0     0.0
+  13 │    13  A       B3      C       D          0.64      0.0     0.36
+  14 │    14  B1      B3      C       D          1.0       0.0     0.0
+  15 │    15  B2      B3      C       D          1.0       0.0     0.0
 
 ```
 
-From this output, we see that A1,A2 are sister in all quartets,
-B1,B2 are also always sister. The other 4-taxon sets are of the form
-{Ai,Bj,C,D} (rows 11-14) and for them only 2 trees are displayed:
-AiC|BjD is *not* displayed. They have circular order (Ai,Bj,C,D)
+From this output, we see that Bi,Bj are sister in all quartets. We also see
+that (B1,B2,B3) is unresolved, from γ's not summing up to 1 for taxon sets
+having all 3 Bs and another taxon.
+The other 4-taxon sets are of the form {A,Bi,C,D} (rows 10,11,13).
+For them only 2 trees are displayed: ABi|CD (with probability 0.64) and
+AD|CBi (with probability 0.36). AC|BiD is *not* displayed.
+They quarnets have circular order (A,Bi,C,D).
 """
 function network_displayedquartets(
     net::HybridNetwork;
     showprogressbar=true,
 )
     getroot(net).leaf && error("The root can't be a leaf.")
-    PN.check_valid_gammas(net,
+    check_valid_gammas(net,
         "inheritance probabilities (γ) are needed to calculate quartet display probabilities.")
     taxa = sort!(tiplabels(net))
     taxonnumber = Dict(taxa[i] => i for i in eachindex(taxa))
     ntax = length(taxa)
-    nCk = PN.nchoose1234(ntax) # matrix to rank 4-taxon sets
+    nCk = nchoose1234(ntax) # matrix to rank 4-taxon sets
     qtype = MVector{3,Float64} # 3 floats: CF12_34, CF13_24, CF14_23; initialized at 0.0
     numq = nCk[ntax+1,4]
-    quartet = Vector{PN.QuartetT{qtype}}(undef, numq)
+    quartet = Vector{QuartetT{qtype}}(undef, numq)
     ts = [1,2,3,4]
     for qi in 1:numq
-        quartet[qi] = PN.QuartetT(qi, SVector{4}(ts), MVector(0.,0.,0.))
+        quartet[qi] = QuartetT(qi, SVector{4}(ts), MVector(0.,0.,0.))
         # next: find the 4-taxon set with the next rank,
         #       faster than using the direct mapping function
         ind = findfirst(x -> x>1, diff(ts))
@@ -684,7 +687,7 @@ function network_displayedquartets(
         nextstar = Integer(ceil(nquarnets_perstar))
     end
     for qi in 1:numq
-        network_expectedCF!(quartet[qi], net, taxa, taxonnumber)
+        network_displayedquartets!(quartet[qi], net, taxa, taxonnumber)
         if showprogressbar && qi >= nextstar
             print("*")
             stars += 1
@@ -708,14 +711,14 @@ in `taxa`, for easier lookup.
 
 `net` is not modified.
 """
-function network_expectedCF!(
-    quartet::PN.QuartetT{MVector{3,Float64}},
+function network_displayedquartets!(
+    quartet::QuartetT{MVector{3,Float64}},
     net::HybridNetwork,
     taxa,
     taxonnumber,
 )
     net = deepcopy(net)
-    PN.removedegree2nodes!(net)
+    removedegree2nodes!(net)
     # delete all taxa except for the 4 in the quartet
     for taxon in taxa
         taxonnumber[taxon] in quartet.taxonnumber && continue
@@ -756,7 +759,8 @@ function network_displayedquartets!(
     net::HybridNetwork,
     fourtaxa,
 )
-    deleteaboveLSA_unroot!(net)
+    deleteaboveLSA!(net)
+    length(getroot(net).edge) <= 2 && fuseedgesat!(net.rooti, net)
     deleteexternal2blobs!(net)
     delete2cycles_shrink3cycles!(net)
     ndes = 4 # number of taxa descendant from lowest hybrid node
@@ -766,15 +770,17 @@ function network_displayedquartets!(
         hyb = net.vec_node[findlast(n -> n.hybrid, net.vec_node)]
         funneledge = [e for e in hyb.edge if getparent(e) === hyb]
         ispolytomy = length(funneledge) > 1
-        funneldescendants = union([PN.descendants(e) for e in funneledge]...)
+        funneldescendants = union([descendants(e) for e in funneledge]...)
         ndes = length(funneldescendants)
         n2 = (ispolytomy ? hyb : getchild(funneledge[1]))
         ndes > 2 && n2.leaf && error("2+ descendants below the lowest hybrid, yet n2 is a leaf. taxa: $(fourtaxa)")
     end
     if ndes >= 2 # then 0 or 1 quartet only. find cut edge
         # pool of cut edges below. contains NO external edge, bc n2 not leaf (if reticulation), nice tree ow
-        cutpool = (net.numhybrids == 0 ? net.edge :
-                    [e for e in n2.edge if getparent(e) === n2])
+        cutpool = (ndes == 2 ? (ispolytomy ? Edge[] : funneledge) :
+            # otherwise ndes = 3 or 4: children edges of n2
+            (net.numhybrids == 0 ? net.edge :
+                [e for e in n2.edge if getparent(e) === n2]))
         filter!(e -> !getchild(e).leaf, cutpool)
         net.numhybrids > 0 || length(cutpool) <= 1 ||
             error("2+ cut edges, yet 4-taxon tree, degree-3 root and no degree-2 nodes. taxa: $(fourtaxa)")
@@ -803,7 +809,7 @@ function network_displayedquartets!(
             for j in 1:nhe
                 j == i && continue # don't delete hybrid edge i!
                 pe_index = findfirst(e -> e.number == parenthnumber[j], simplernet.edge)
-                PN.deletehybridedge!(simplernet, simplernet.edge[pe_index],
+                deletehybridedge!(simplernet, simplernet.edge[pe_index],
                     false,true,false,true,false) # ., unroot=true, ., simplify=true,.
             end
             qγ .+= gamma .* network_displayedquartets!(simplernet, fourtaxa)
@@ -814,6 +820,12 @@ function network_displayedquartets!(
 end
 
 """
+expectedNANUQdistancematrix(
+    net::HybridNetwork;
+    showprogressbar=false,
+    cost=:nanuqplus
+)
+
 fixit: better name? like:
 
 quarnetdistancematrix
@@ -827,31 +839,124 @@ in PN: `pairwisetaxondistancematrix` (expected from a network),
 `tablequartetCF` (from data after `countquartetsintrees`)
 in QGoF: `network_expectedCF` (expected from network)
 
+Output: n×n matrix where n is the number of taxa in the network, listed in the
+same order as in `tiplabels(net)`.
+
+Cost: scheme to penalize pairwise relationships within a quarnet.
+
+- With `cost=:nanuqplus`, the "modified NANUQ" cost is used (see
+  [Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w)):
+  `ρc = 0.5` for **c**herries,
+  `ρs = 1` for **s**plits (2 taxa **s**eparated by a tree-split),
+  `ρa = 0.5` for **a**djacent pairs (in a quarnet that admits 1 circular order)
+  `ρo = 1` for **o**pposite taxa (diagonal from each other in circular quarnets).
+- With `cost=:nanuq` we use the original NANUQ costs: the same as above except
+  that `ρc = 0`.
+- With `cost=:mgamma`, the cost depends on the taxon pair relationship within
+  the quarnet, and also on the inheritance probabilities:
+  `cost(ab in q={a,b,c,d}) = 1-γ(ab|cd)`.
+  This scheme is similar to NANUQ's, as it simplifies to `ρc = 0` for cherries,
+  `ρs = 1` and `ρo = 1` for split and opposite taxa. But the cost of
+  adjacent taxa depends on the "strength" of adjacency.
+- To use custom costs, we can provide a named tuple with desired cost values:
+  `cost = (cherry=0.5, split=2, adjacent=0.5, opposite=1)`
+
+**Warning**: the constant off-diagonal term `2 numtaxa - 4` is *not* included
+in the distance.
+
+**Polytomies**: some quartets displayed in a network might have a polytomy,
+that is, be a star tree on 4 taxa without any 2-2 split into 2 pairs of taxa.
+These pairwise relationship are not given any cost, or alternatively,
+such a quartet contributes `ρp = 0` to all its 6 taxon pairs equally.
+
 ```jldoctest
 julia> net2 = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,
     ((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);");
 
-julia> QuartetNetworkGoodnessFit.expectedNANUQdistancematrix(net2; showprogressbar=false, cost=:nanuq)
+julia> const PN = PhyloNetworks # to write less later
+
+julia> PN.expectedNANUQdistancematrix(net2; cost=:nanuqplus)
+6×6 Matrix{Float64}:
+ 0.0  3.5  4.5  5.5  5.5  3.0
+ 3.5  0.0  3.0  5.5  5.5  4.5
+ 4.5  3.0  0.0  4.5  4.5  5.5
+ 5.5  5.5  4.5  0.0  3.0  4.5
+ 5.5  5.5  4.5  3.0  0.0  4.5
+ 3.0  4.5  5.5  4.5  4.5  0.0
+
+julia> print(tiplabels(net2))
+["O", "E", "D", "C", "B", "A"]
+
+julia> PN.expectedNANUQdistancematrix(net2; cost=:mgamma)
+6×6 Matrix{Float64}:
+ 0.0   3.36  4.2   5.42  5.42  1.6
+ 3.36  0.0   1.68  5.4   5.4   4.16
+ 4.2   1.68  0.0   4.56  4.56  5.0
+ 5.42  5.4   4.56  0.0   0.0   4.62
+ 5.42  5.4   4.56  0.0   0.0   4.62
+ 1.6   4.16  5.0   4.62  4.62  0.0
+
+julia> PN.expectedNANUQdistancematrix(net2;
+        cost = (cherry=0.001, split=2, adjacent=0.5, opposite=1))
+6×6 Matrix{Float64}:
+ 0.0    4.001  5.001  8.5    8.5    2.002
+ 4.001  0.0    2.002  8.5    8.5    5.001
+ 5.001  2.002  0.0    7.5    7.5    6.001
+ 8.5    8.5    7.5    0.0    0.006  7.5
+ 8.5    8.5    7.5    0.006  0.0    7.5
+ 2.002  5.001  6.001  7.5    7.5    0.0
+```
+
+The next example uses a tree. The distance we get is additive on that tree
+(unrooted), so we can re-build the unrooted tree from distances,
+using neighbor-joining for example. We get branch lengths that reflect the
+quartet distance: **not** any distance from the original phylogeny (if any).
+
+```jldoctest
+julia> caterpillar = readnewick("(((((a1,a2),a3),a4),a5),a6);");
+
+julia> PN.expectedNANUQdistancematrix(caterpillar; cost=:mgamma) # same as nanuq
+6×6 Matrix{Float64}:
+ 0.0  0.0  3.0  5.0  6.0  6.0
+ 0.0  0.0  3.0  5.0  6.0  6.0
+ 3.0  3.0  0.0  4.0  5.0  5.0
+ 5.0  5.0  4.0  0.0  3.0  3.0
+ 6.0  6.0  5.0  3.0  0.0  0.0
+ 6.0  6.0  5.0  3.0  0.0  0.0
+
+julia> d = PN.expectedNANUQdistancematrix(caterpillar; cost=:nanuqplus)
+6×6 Matrix{Float64}:
+ 0.0  3.0  4.5  5.5  6.0  6.0
+ 3.0  0.0  4.5  5.5  6.0  6.0
+ 4.5  4.5  0.0  5.0  5.5  5.5
+ 5.5  5.5  5.0  0.0  4.5  4.5
+ 6.0  6.0  5.5  4.5  0.0  3.0
+ 6.0  6.0  5.5  4.5  3.0  0.0
+
+julia> tre = PN.nj!(copy(d), tiplabels(caterpillar)); writenewick(tre)
+"((((a1:1.5,a2:1.5):1.0,a3:2.0):1.0,a4:2.0):1.0,a6:1.5,a5:1.5);"
+
+julia> dtre = pairwisetaxondistancematrix(tre); dtre ≈ d
+true
 ```
 """
 function expectedNANUQdistancematrix(
     net::HybridNetwork;
-    showprogressbar=true,
+    showprogressbar=false,
     cost=:nanuqplus
 )
-    addcost! = (cost == :nanuqplus ? addQDcost_nanuqplus! :
-               (cost == :nanuq     ? addQDcost_nanuq! :
-                addQDcost_gamma! ))
+    addcost! =
+        (cost == :nanuqplus ? addQDcost_nanuqplus! :
+        (cost == :nanuq     ? addQDcost_nanuq! :
+        (cost == :mgamma    ? addQDcost_gamma! :
+        (d, qi, qγ) -> addQDcost_rho!(d, qi, qγ, cost[:cherry], cost[:split], cost[:adjacent], cost[:opposite]) ) ))
     taxa = tiplabels(net)
     nn = length(taxa)
     nanuqd = zeros(Float64, nn,nn)
     quartet,t = network_displayedquartets(net; showprogressbar=showprogressbar)
     nn == length(t) || error("network_displayedquartets got a different number of taxa.")
     o = indexin(t, taxa) # taxa[o[i]] = t[i]:
-    # place results for tip t[i] on nanuqe's row & column o[i]
-    @show o
-    @show taxa
-    @show t
+    # place results for tip t[i] on nanuqd's row & column o[i]
     for q in quartet
         addcost!(nanuqd,  o[q.taxonnumber], q.data)
     end

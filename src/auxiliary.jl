@@ -2091,12 +2091,12 @@ function delete2cycles_shrink3cycles!(net::HybridNetwork)
         pmin = getparent(minor) # minor parent node
         pmaj = getparent(major) # major parent node
         if pmin === pmaj # 2-cycle. deleting it can create new cycle: start over after
-            PN.deletehybridedge!(net, minor,
+            deletehybridedge!(net, minor,
                 false,true,false,true,false) # ., unroot=true, ., simplify=true,.
             nh = length(net.hybrid) # to start over
             ih = nh + 1
-        elseif PN.isconnected(pmin, pmaj)
-            PN.shrink3cycleat!(net, h, major,minor, pmaj,pmin, true) # unroot=true
+        elseif isconnected(pmin, pmaj)
+            shrink3cycleat!(net, h, major,minor, pmaj,pmin, true) # unroot=true
             nh = length(net.hybrid) # to start over, as above
             ih = nh + 1
         end
@@ -2113,9 +2113,9 @@ nodes: these are *trivial* degree-2 blobs. They are kept and stop the process.
 """
 function deleteexternal2blobs!(net::HybridNetwork)
     bcc = biconnectedcomponents(net, true) # true: ignore trivial blobs
-    entry = PN.biconnectedcomponent_entrynodes(net, bcc)
+    entry = biconnectedcomponent_entrynodes(net, bcc)
     entryindex = indexin(entry, net.vec_node)
-    exitnodes = PN.biconnectedcomponent_exitnodes(net, bcc, false) # don't redo the preordering
+    exitnodes = biconnectedcomponent_exitnodes(net, bcc, false) # don't redo the preordering
     bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
     function isexternal(ib) # is bcc[ib] of degree 2 and adjacent to an external edge?
         # yes if: 1 single exit adjacent to a leaf
@@ -2132,7 +2132,7 @@ function deleteexternal2blobs!(net::HybridNetwork)
             # delete minor hybrid edge with options unroot=true: to make sure the
             # root remains of degree 3+, in case a degree-2 blob starts at the root
             # simplify=true: bc external blob
-            PN.deletehybridedge!(net,he, false,true,false,true,false)
+            deletehybridedge!(net,he, false,true,false,true,false)
         end
     end
     return net
