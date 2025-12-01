@@ -592,8 +592,7 @@ Assumption: the network should have non-missing and valid inheritance γ values.
 # example
 
 ```jldoctest
-julia> net = readnewick(
-    "(((C,#H2),((((B1,B2,B3),#H1))#H2:::0.6,((A)#H3:::.8)#H1:::0.5)),(#H3,D));");
+julia> net = readnewick("(((C,#H2),((((B1,B2,B3),#H1))#H2:::0.6,((A)#H3:::.8)#H1:::0.5)),(#H3,D));");
 
 julia> # using PhyloPlots; plot(net, showgamma=true);
 
@@ -869,13 +868,14 @@ that is, be a star tree on 4 taxa without any 2-2 split into 2 pairs of taxa.
 These pairwise relationship are not given any cost, or alternatively,
 such a quartet contributes `ρp = 0` to all its 6 taxon pairs equally.
 
-```jldoctest
-julia> net2 = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,
-    ((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);");
+```jldoctest nqd
+julia> net = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);");
 
-julia> const PN = PhyloNetworks # to write less later
+julia> # using PhyloPlots; plot(net, showgamma=true);
 
-julia> PN.expectedNANUQdistancematrix(net2; cost=:nanuqplus)
+julia> const PN = PhyloNetworks; # to write less later
+
+julia> PN.expectedNANUQdistancematrix(net; cost=:nanuqplus)
 6×6 Matrix{Float64}:
  0.0  3.5  4.5  5.5  5.5  3.0
  3.5  0.0  3.0  5.5  5.5  4.5
@@ -884,10 +884,10 @@ julia> PN.expectedNANUQdistancematrix(net2; cost=:nanuqplus)
  5.5  5.5  4.5  3.0  0.0  4.5
  3.0  4.5  5.5  4.5  4.5  0.0
 
-julia> print(tiplabels(net2))
+julia> print(tiplabels(net))
 ["O", "E", "D", "C", "B", "A"]
 
-julia> PN.expectedNANUQdistancematrix(net2; cost=:mgamma)
+julia> PN.expectedNANUQdistancematrix(net; cost=:mgamma)
 6×6 Matrix{Float64}:
  0.0   3.36  4.2   5.42  5.42  1.6
  3.36  0.0   1.68  5.4   5.4   4.16
@@ -896,7 +896,7 @@ julia> PN.expectedNANUQdistancematrix(net2; cost=:mgamma)
  5.42  5.4   4.56  0.0   0.0   4.62
  1.6   4.16  5.0   4.62  4.62  0.0
 
-julia> PN.expectedNANUQdistancematrix(net2;
+julia> PN.expectedNANUQdistancematrix(net;
         cost = (cherry=0.001, split=2, adjacent=0.5, opposite=1))
 6×6 Matrix{Float64}:
  0.0    4.001  5.001  8.5    8.5    2.002
@@ -912,7 +912,7 @@ The next example uses a tree. The distance we get is additive on that tree
 using neighbor-joining for example. We get branch lengths that reflect the
 quartet distance: **not** any distance from the original phylogeny (if any).
 
-```jldoctest
+```jldoctest nqd
 julia> caterpillar = readnewick("(((((a1,a2),a3),a4),a5),a6);");
 
 julia> PN.expectedNANUQdistancematrix(caterpillar; cost=:mgamma) # same as nanuq
