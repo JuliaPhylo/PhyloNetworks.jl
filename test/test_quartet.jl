@@ -135,3 +135,124 @@ nt = tablequartetCF(q,t)
 @test nt[:CF14_23] ≈ [1.,1,0,0,0]
 @test nt[:ngenes]  ≈ [11.,11,11,11,6]
 end
+
+@testset "network_displayedquartets" begin
+    net = readnewick("(((C,#H2),((((B1,B2,B3),#H1))#H2:::0.6,((A)#H3:::.8)#H1:::0.5)),(#H3,D));")
+    q,t = PN.network_displayedquartets(net, showprogressbar=false)
+    # t should be ["A", "B1", "B2", "B3", "C", "D"] sorted
+    @test t == ["A", "B1", "B2", "B3", "C", "D"]
+
+    # Helper to find quartet index
+    function find_quartet(q, t, taxa)
+        indices = [findfirst(==(taxon), t) for taxon in taxa]
+        sort!(indices)
+        for (i, qi) in enumerate(q)
+            if qi.taxonnumber == indices
+                return qi
+            end
+        end
+        return nothing
+    end
+
+    q_AB1B2B3 = find_quartet(q, t, ["A", "B1", "B2", "B3"])
+    @test q_AB1B2B3.data ≈ [0.0, 0.0, 0.0]
+
+    q_AB1B2C = find_quartet(q, t, ["A", "B1", "B2", "C"])
+    @test q_AB1B2C.data ≈ [0.0, 0.0, 1.0]
+
+    q_AB1CD = find_quartet(q, t, ["A", "B1", "C", "D"])
+    @test q_AB1CD.data ≈ [0.64, 0.0, 0.36]
+
+    # Test with tablequartetdata
+    nt = PN.tablequartetdata(q,t, prefix="p", basenames=["12_34","13_24","14_23"])
+    @test length(nt.qind) == 15
+    
+    # Find index for A,B1,C,D
+    idx = findfirst(i -> nt.t1[i]=="A" && nt.t2[i]=="B1" && nt.t3[i]=="C" && nt.t4[i]=="D", 1:length(nt.qind))
+    @test !isnothing(idx)
+    @test nt.p12_34[idx] ≈ 0.64
+    @test nt.p13_24[idx] ≈ 0.0
+    @test nt.p14_23[idx] ≈ 0.36
+
+    # Test with a tree
+    tree = readnewick("((A,B),(C,D));")
+    q_tree, t_tree = PN.network_displayedquartets(tree, showprogressbar=false)
+    q_ABCD = find_quartet(q_tree, t_tree, ["A", "B", "C", "D"])
+    @test q_ABCD.data ≈ [1.0, 0.0, 0.0] # 12|34 -> AB|CD
+end
+
+@testset "expectedNANUQdistancematrix" begin
+    net2 = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);")
+    # tiplabels(net2) is ["O", "E", "D", "C", "B", "A"]
+
+    d_nanuqplus = PN.expectedNANUQdistancematrix(net2; cost=:nanuqplus)
+    @test d_nanuqplus ≈ [
+        0.0  3.5  4.5  5.5  5.5  3.0
+        3.5  0.0  3.0  5.5  5.5  4.5
+        4.5  3.0  0.0  4.5  4.5  5.5
+        5.5  5.5  4.5  0.0  3.0  4.5
+        5.5  5.5  4.5  3.0  0.0  4.5
+        3.0  4.5  5.5  4.5  4.5  0.0
+    ]
+    @test d_nanuqplus ≈ PN.expectedNANUQdistancematrix(net2;
+        cost = (cherry=0.5, split=1., adjacent=0.5, opposite=1.))
+    d_nanuq = PN.expectedNANUQdistancematrix(net2; cost=:nanuq)
+    @test d_nanuq ≈ [
+        0.0  3.0  4.0  5.5  5.5  2.0
+        3.0  0.0  2.0  5.5  5.5  4.0
+        4.0  2.0  0.0  4.5  4.5  5.0
+        5.5  5.5  4.5  0.0  0.0  4.5
+        5.5  5.5  4.5  0.0  0.0  4.5
+        2.0  4.0  5.0  4.5  4.5  0.0
+    ]
+
+    d_mgamma = PN.expectedNANUQdistancematrix(net2; cost=:mgamma)
+    @test d_mgamma ≈ [
+        0.0   3.36  4.2   5.42  5.42  1.6
+        3.36  0.0   1.68  5.4   5.4   4.16
+        4.2   1.68  0.0   4.56  4.56  5.0
+        5.42  5.4   4.56  0.0   0.0   4.62
+        5.42  5.4   4.56  0.0   0.0   4.62
+        1.6   4.16  5.0   4.62  4.62  0.0
+    ]
+
+    d_custom = PN.expectedNANUQdistancematrix(net2;
+        cost = (cherry=0.001, split=2, adjacent=0.5, opposite=1))
+    @test d_custom ≈ [
+        0.0    4.001  5.001  8.5    8.5    2.002
+        4.001  0.0    2.002  8.5    8.5    5.001
+        5.001  2.002  0.0    7.5    7.5    6.001
+        8.5    8.5    7.5    0.0    0.006  7.5
+        8.5    8.5    7.5    0.006  0.0    7.5
+        2.002  5.001  6.001  7.5    7.5    0.0
+    ]
+
+    caterpillar = readnewick("(((((a1,a2),a3),a4),a5),a6);")
+    d_cat_mgamma = PN.expectedNANUQdistancematrix(caterpillar; cost=:mgamma) # same as nanuq
+    @test d_cat_mgamma ≈ [
+        0.0  0.0  3.0  5.0  6.0  6.0
+        0.0  0.0  3.0  5.0  6.0  6.0
+        3.0  3.0  0.0  4.0  5.0  5.0
+        5.0  5.0  4.0  0.0  3.0  3.0
+        6.0  6.0  5.0  3.0  0.0  0.0
+        6.0  6.0  5.0  3.0  0.0  0.0
+    ]
+
+    d_cat_nanuqplus = PN.expectedNANUQdistancematrix(caterpillar; cost=:nanuqplus)
+    @test d_cat_nanuqplus ≈ [
+        0.0  3.0  4.5  5.5  6.0  6.0
+        3.0  0.0  4.5  5.5  6.0  6.0
+        4.5  4.5  0.0  5.0  5.5  5.5
+        5.5  5.5  5.0  0.0  4.5  4.5
+        6.0  6.0  5.5  4.5  0.0  3.0
+        6.0  6.0  5.5  4.5  3.0  0.0
+    ]
+    
+    tre = PN.nj!(copy(d_cat_nanuqplus), tiplabels(caterpillar))
+    rootatnode!(tre, tre.rooti) # arbitrarilly root so that pairwisetaxondistancematrix is happy
+    dtre = pairwisetaxondistancematrix(tre)
+    @test dtre ≈ d_cat_nanuqplus
+end
+
+
+

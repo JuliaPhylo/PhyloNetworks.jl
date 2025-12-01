@@ -570,7 +570,7 @@ A tree `T` is displayed in the network if it can be obtained by keeping all but
 1 hybrid edge above each hybrid node. The display probability `γ(T)` of `T` is
 the probability of choosing the edges that are kept to obtain `T`, that is:
 the product of `γ(e)` over all edges `e` in `T`.
-For a quartet tree `q = ab|cd` of 4 taxa, it display probability `γ(q)` is
+For a quartet tree `q = ab|cd` of 4 taxa, its display probability `γ(q)` is
 the sum of `γ(T)` over all trees T that have `ab|cd`.
 
 Polytomies in `net` can give positive probability to unresolved quartet trees,
@@ -650,7 +650,7 @@ having all 3 Bs and another taxon.
 The other 4-taxon sets are of the form {A,Bi,C,D} (rows 10,11,13).
 For them only 2 trees are displayed: ABi|CD (with probability 0.64) and
 AD|CBi (with probability 0.36). AC|BiD is *not* displayed.
-They quarnets have circular order (A,Bi,C,D).
+These quarnets have circular order (A,Bi,C,D).
 """
 function network_displayedquartets(
     net::HybridNetwork;
@@ -935,6 +935,8 @@ julia> d = PN.expectedNANUQdistancematrix(caterpillar; cost=:nanuqplus)
 
 julia> tre = PN.nj!(copy(d), tiplabels(caterpillar)); writenewick(tre)
 "((((a1:1.5,a2:1.5):1.0,a3:2.0):1.0,a4:2.0):1.0,a6:1.5,a5:1.5);"
+
+julia> rootatnode!(tre, tre.rooti); # arbitrarilly root so `pairwisetaxondistancematrix` is happy
 
 julia> dtre = pairwisetaxondistancematrix(tre); dtre ≈ d
 true
