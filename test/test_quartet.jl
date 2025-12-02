@@ -181,11 +181,13 @@ end
     @test q_ABCD.data ≈ [1.0, 0.0, 0.0] # 12|34 -> AB|CD
 end
 
-@testset "expectedNANUQdistancematrix" begin
-    net2 = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);")
-    # tiplabels(net2) is ["O", "E", "D", "C", "B", "A"]
-
-    d_nanuqplus = PN.expectedNANUQdistancematrix(net2; cost=:nanuqplus)
+@testset "expected NANUQ distance" begin
+    # level 2, one 2-cycle, 1 cherry below cut edge, 1 cherry at polytomy
+    net = readnewick("(((E)#H1:::0.7,((#H1,D),((C,(B)#H3,#H3):1)#H2:::0.6)),(#H2,A,a));")
+    @test_throws "edge(s) number 8,9 have no γ" PN.expectedNANUQdistancematrix(net)
+    setgamma!(net.edge[8], 0.9)
+    # tiplabels(net) == ["E", "D", "C", "B", "A", "a"]
+    d_nanuqplus = PN.expectedNANUQdistancematrix(net; cost=:nanuqplus)
     @test d_nanuqplus ≈ [
         0.0  3.5  4.5  5.5  5.5  3.0
         3.5  0.0  3.0  5.5  5.5  4.5
@@ -194,9 +196,9 @@ end
         5.5  5.5  4.5  3.0  0.0  4.5
         3.0  4.5  5.5  4.5  4.5  0.0
     ]
-    @test d_nanuqplus ≈ PN.expectedNANUQdistancematrix(net2;
+    @test d_nanuqplus ≈ PN.expectedNANUQdistancematrix(net;
         cost = (cherry=0.5, split=1., adjacent=0.5, opposite=1.))
-    d_nanuq = PN.expectedNANUQdistancematrix(net2; cost=:nanuq)
+    d_nanuq = PN.expectedNANUQdistancematrix(net; cost=:nanuq)
     @test d_nanuq ≈ [
         0.0  3.0  4.0  5.5  5.5  2.0
         3.0  0.0  2.0  5.5  5.5  4.0
@@ -205,8 +207,7 @@ end
         5.5  5.5  4.5  0.0  0.0  4.5
         2.0  4.0  5.0  4.5  4.5  0.0
     ]
-
-    d_mgamma = PN.expectedNANUQdistancematrix(net2; cost=:mgamma)
+    d_mgamma = PN.expectedNANUQdistancematrix(net; cost=:mgamma)
     @test d_mgamma ≈ [
         0.0   3.36  4.2   5.42  5.42  1.6
         3.36  0.0   1.68  5.4   5.4   4.16
@@ -215,8 +216,7 @@ end
         5.42  5.4   4.56  0.0   0.0   4.62
         1.6   4.16  5.0   4.62  4.62  0.0
     ]
-
-    d_custom = PN.expectedNANUQdistancematrix(net2;
+    d_custom = PN.expectedNANUQdistancematrix(net;
         cost = (cherry=0.001, split=2, adjacent=0.5, opposite=1))
     @test d_custom ≈ [
         0.0    4.001  5.001  8.5    8.5    2.002
@@ -226,32 +226,14 @@ end
         8.5    8.5    7.5    0.006  0.0    7.5
         2.002  5.001  6.001  7.5    7.5    0.0
     ]
-
-    caterpillar = readnewick("(((((a1,a2),a3),a4),a5),a6);")
-    d_cat_mgamma = PN.expectedNANUQdistancematrix(caterpillar; cost=:mgamma) # same as nanuq
-    @test d_cat_mgamma ≈ [
-        0.0  0.0  3.0  5.0  6.0  6.0
-        0.0  0.0  3.0  5.0  6.0  6.0
-        3.0  3.0  0.0  4.0  5.0  5.0
-        5.0  5.0  4.0  0.0  3.0  3.0
-        6.0  6.0  5.0  3.0  0.0  0.0
-        6.0  6.0  5.0  3.0  0.0  0.0
+    tre1 = readnewick("(((((a1,a2),a3),(a41,a42,(a431,a432))),a5),a6,a7);")
+    d_cat_nanuqplus  = PN.expectedNANUQdistancematrix(tre1; cost=:nanuqplus)
+    @test d_cat_nanuqplus ≈ [ fixit
     ]
-
-    d_cat_nanuqplus = PN.expectedNANUQdistancematrix(caterpillar; cost=:nanuqplus)
-    @test d_cat_nanuqplus ≈ [
-        0.0  3.0  4.5  5.5  6.0  6.0
-        3.0  0.0  4.5  5.5  6.0  6.0
-        4.5  4.5  0.0  5.0  5.5  5.5
-        5.5  5.5  5.0  0.0  4.5  4.5
-        6.0  6.0  5.5  4.5  0.0  3.0
-        6.0  6.0  5.5  4.5  3.0  0.0
-    ]
-    
-    tre = PN.nj!(copy(d_cat_nanuqplus), tiplabels(caterpillar))
-    rootatnode!(tre, tre.rooti) # arbitrarilly root so that pairwisetaxondistancematrix is happy
-    dtre = pairwisetaxondistancematrix(tre)
-    @test dtre ≈ d_cat_nanuqplus
+    d_cat_mgamma = PN.expectedNANUQdistancematrix(tre1; cost=:mgamma) # same as nanuq
+    tre2 = PN.nj!(copy(d_cat_mgamma), tiplabels(tre1))
+    dtre2 = pairwisetaxondistancematrix(tre2)
+    @test dtre2 ≈ d_cat_mgamma
 end
 
 

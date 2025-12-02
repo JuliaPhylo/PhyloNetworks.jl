@@ -81,7 +81,7 @@ function nj!(
         node_k = Node(net.numnodes+1, false, false, [eik, ejk])
         node_i = active_nodes[i]
         node_j = active_nodes[j]
-        setNode!(eik, Node[node_i, node_k])
+        setNode!(eik, Node[node_i, node_k]) # correct direction, bc ischild1 true by default
         setNode!(ejk, Node[node_j, node_k])
         setEdge!(node_i, eik)
         setEdge!(node_j, ejk)
@@ -125,8 +125,8 @@ function nj!(
     setEdge!(node1, newedge)
     setEdge!(node2, newedge)
     pushEdge!(net, newedge)
-
     net.rooti = net.numnodes # root = last created node, which is internal
+    net.isrooted = true # because rooti is valid, and edges are directed away from it
     if neglenp > 0
         infostr = (force_nonnegative_edges ?
                    "$neglenp branch(es) of negative length, reset to 0" :

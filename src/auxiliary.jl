@@ -2070,10 +2070,10 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
 end
 
 """
-    delete2cycles_shrink3cycles!(net::HybridNetwork)
+    delete2cycles!(net::HybridNetwork)
 
-Delete the minor hybrid edge in each 2-cycle and shrink each 3-cycle,
-until none remains. Degree-2 nodes are fused, including the root if encountered.
+Delete the minor hybrid edge in each 2-cycle until none remains.
+Degree-2 nodes are fused, including the root if encountered.
 
 The treatment of 2-cycles differs from `shrink2cycles!` in that only the
 major hybrid edge length is retained. There is no weighted averaging of
@@ -2081,7 +2081,7 @@ hybrid's parental branch lenghts.
 This operation does not affect the set of displayed trees, and of up-down
 paths' inheritance weights.
 """
-function delete2cycles_shrink3cycles!(net::HybridNetwork)
+function delete2cycles!(net::HybridNetwork)
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end
     while ih > 0
@@ -2094,10 +2094,6 @@ function delete2cycles_shrink3cycles!(net::HybridNetwork)
             deletehybridedge!(net, minor,
                 false,true,false,true,false) # ., unroot=true, ., simplify=true,.
             nh = length(net.hybrid) # to start over
-            ih = nh + 1
-        elseif isconnected(pmin, pmaj)
-            shrink3cycleat!(net, h, major,minor, pmaj,pmin, true) # unroot=true
-            nh = length(net.hybrid) # to start over, as above
             ih = nh + 1
         end
         ih -= 1

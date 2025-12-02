@@ -748,8 +748,10 @@ Assumptions about `net`:
 
 The network is modified as follows: what's above the LSA is removed,
 the 2 edges incident to the root are fused (if the root is of degree 2),
-external degree-2 blobs are removed, and 2- and 3-cycles are removed
-(retaining correct γ's). These operations do not modified the set of displayed
+external degree-2 blobs are removed, and 2-cycles are removed (retaining
+their major edge). 3-cycles are *not* shrunk, because shrinking a 3-cycle
+could remove (and hide) an unresolved displayed tree in non-binary networks.
+These operations do not modify the set of displayed
 unrooted quartets and their probabilities (from γ's).
 Then `net` is then simplified recursively
 by removing hybrid edges for the recursive extraction of displayed trees.
@@ -761,7 +763,7 @@ function network_displayedquartets!(
     deleteaboveLSA!(net)
     length(getroot(net).edge) <= 2 && fuseedgesat!(net.rooti, net)
     deleteexternal2blobs!(net)
-    delete2cycles_shrink3cycles!(net)
+    delete2cycles!(net)
     ndes = 4 # number of taxa descendant from lowest hybrid node
     if net.numhybrids > 0
         preorder!(net)
@@ -936,8 +938,6 @@ julia> d = PN.expectedNANUQdistancematrix(caterpillar; cost=:nanuqplus)
 julia> tre = PN.nj!(copy(d), tiplabels(caterpillar)); writenewick(tre)
 "((((a1:1.5,a2:1.5):1.0,a3:2.0):1.0,a4:2.0):1.0,a6:1.5,a5:1.5);"
 
-julia> rootatnode!(tre, tre.rooti); # arbitrarilly root so `pairwisetaxondistancematrix` is happy
-
 julia> dtre = pairwisetaxondistancematrix(tre); dtre ≈ d
 true
 ```
@@ -947,6 +947,8 @@ function expectedNANUQdistancematrix(
     showprogressbar=false,
     cost=:nanuqplus
 )
+    isa(cost, Dict) || cost ∈ (:nanuq, :nanuqplus, :mgamma) ||
+        error("invalid cost specification: $cost")
     addcost! =
         (cost == :nanuqplus ? addQDcost_nanuqplus! :
         (cost == :nanuq     ? addQDcost_nanuq! :
