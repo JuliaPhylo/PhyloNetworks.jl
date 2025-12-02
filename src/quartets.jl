@@ -558,7 +558,7 @@ function quartetRankResolution(t1::Int, t2::Int, t3::Int, t4::Int, nCk::Matrix)
 end
 
 """
-    network_displayedquartets(net::HybridNetwork; showprogressbar=true)
+    quartetdisplayprobability(net::HybridNetwork; showprogressbar=true)
 
 fixit: better name?
 
@@ -596,7 +596,7 @@ julia> net = readnewick("(((C,#H2),((((B1,B2,B3),#H1))#H2:::0.6,((A)#H3:::.8)#H1
 
 julia> # using PhyloPlots; plot(net, showgamma=true);
 
-julia> q,t = PhyloNetworks.network_displayedquartets(net,showprogressbar=false);
+julia> q,t = PhyloNetworks.quartetdisplayprobability(net,showprogressbar=false);
 
 julia> for qi in q
          println(join(t[qi.taxonnumber],",") * ": " *
@@ -651,7 +651,7 @@ For them only 2 trees are displayed: ABi|CD (with probability 0.64) and
 AD|CBi (with probability 0.36). AC|BiD is *not* displayed.
 These quarnets have circular order (A,Bi,C,D).
 """
-function network_displayedquartets(
+function quartetdisplayprobability(
     net::HybridNetwork;
     showprogressbar=true,
 )
@@ -686,7 +686,7 @@ function network_displayedquartets(
         nextstar = Integer(ceil(nquarnets_perstar))
     end
     for qi in 1:numq
-        network_displayedquartets!(quartet[qi], net, taxa, taxonnumber)
+        quartetdisplayprobability!(quartet[qi], net, taxa, taxonnumber)
         if showprogressbar && qi >= nextstar
             print("*")
             stars += 1
@@ -698,7 +698,7 @@ function network_displayedquartets(
 end
 
 """
-    network_displayedquartets!(quartet::QuartetT, net::HybridNetwork, taxa, taxonnumber)
+    quartetdisplayprobability!(quartet::QuartetT, net::HybridNetwork, taxa, taxonnumber)
 
 Update `quartet.data` to contain the quartet display probabilities
 (from inheritance γ) of 4-taxon quartet trees from `net` for the 4-taxon set
@@ -710,7 +710,7 @@ in `taxa`, for easier lookup.
 
 `net` is not modified.
 """
-function network_displayedquartets!(
+function quartetdisplayprobability!(
     quartet::QuartetT{MVector{3,Float64}},
     net::HybridNetwork,
     taxa,
@@ -724,12 +724,12 @@ function network_displayedquartets!(
         deleteleaf!(net, taxon, simplify=true, unroot=false)
         # would like unroot=true but deleteleaf! throws an error when the root is connected to 2 outgoing hybrid edges
     end
-    quartet.data .= network_displayedquartets!(net, taxa[quartet.taxonnumber])
+    quartet.data .= quartetdisplayprobability!(net, taxa[quartet.taxonnumber])
     return quartet
 end
 
 """
-    network_displayedquartets!(net::HybridNetwork, fourtaxa)
+    quartetdisplayprobability!(net::HybridNetwork, fourtaxa)
 
 fixit: better name?
 
@@ -756,7 +756,7 @@ unrooted quartets and their probabilities (from γ's).
 Then `net` is then simplified recursively
 by removing hybrid edges for the recursive extraction of displayed trees.
 """
-function network_displayedquartets!(
+function quartetdisplayprobability!(
     net::HybridNetwork,
     fourtaxa,
 )
@@ -813,7 +813,7 @@ function network_displayedquartets!(
                 deletehybridedge!(simplernet, simplernet.edge[pe_index],
                     false,true,false,true,false) # ., unroot=true, ., simplify=true,.
             end
-            qγ .+= gamma .* network_displayedquartets!(simplernet, fourtaxa)
+            qγ .+= gamma .* quartetdisplayprobability!(simplernet, fourtaxa)
         end
         return qγ
     end
@@ -957,8 +957,8 @@ function expectedNANUQdistancematrix(
     taxa = tiplabels(net)
     nn = length(taxa)
     nanuqd = zeros(Float64, nn,nn)
-    quartet,t = network_displayedquartets(net; showprogressbar=showprogressbar)
-    nn == length(t) || error("network_displayedquartets got a different number of taxa.")
+    quartet,t = quartetdisplayprobability(net; showprogressbar=showprogressbar)
+    nn == length(t) || error("quartetdisplayprobability got a different number of taxa.")
     o = indexin(t, taxa) # taxa[o[i]] = t[i]:
     # place results for tip t[i] on nanuqd's row & column o[i]
     for q in quartet

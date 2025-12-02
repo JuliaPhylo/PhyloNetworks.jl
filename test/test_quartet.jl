@@ -136,9 +136,9 @@ nt = tablequartetCF(q,t)
 @test nt[:ngenes]  ≈ [11.,11,11,11,6]
 end
 
-@testset "network_displayedquartets" begin
+@testset "quartetdisplayprobability" begin
     net = readnewick("(((C,#H2),((((B1,B2,B3),#H1))#H2:::0.6,((A)#H3:::.8)#H1:::0.5)),(#H3,D));")
-    q,t = PN.network_displayedquartets(net, showprogressbar=false)
+    q,t = PN.quartetdisplayprobability(net, showprogressbar=false)
     # t should be ["A", "B1", "B2", "B3", "C", "D"] sorted
     @test t == ["A", "B1", "B2", "B3", "C", "D"]
 
@@ -176,7 +176,7 @@ end
 
     # Test with a tree
     tree = readnewick("((A,B),(C,D));")
-    q_tree, t_tree = PN.network_displayedquartets(tree, showprogressbar=false)
+    q_tree, t_tree = PN.quartetdisplayprobability(tree, showprogressbar=false)
     q_ABCD = find_quartet(q_tree, t_tree, ["A", "B", "C", "D"])
     @test q_ABCD.data ≈ [1.0, 0.0, 0.0] # 12|34 -> AB|CD
 end
