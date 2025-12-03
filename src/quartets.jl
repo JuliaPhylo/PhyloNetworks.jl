@@ -729,13 +729,15 @@ end
 """
     quartetdisplayprobability!(net::HybridNetwork, fourtaxa)
 
-Display probabilities (from inheritance γ) of 4-taxon quartet trees from `net`.
-A quartet not displayed by `net` has γ=0.
-The 3 resolved quartet topologies are ordered following the
+Display probabilities, from inheritance γ in `net`, of the 3 four-taxon
+resolved quartet trees. These 3 topologies are ordered following the
 ordering of taxon names in `fourtaxa`, that is: if `fourtaxa` is a,b,c,d,
 then the quartets are listed in this order:
 
     (γ(ab|cd), γ(ac|bd), γ(ad,bc))
+
+A quartet not displayed by `net` has γ=0. The display probability of the
+star tree (unresolved) is 1 minus the sum of these 3 γ probabilities.
 
 Assumptions about `net`:
 - has 4 taxa, and those are the same as `fourtaxa`
@@ -749,8 +751,8 @@ their major edge). 3-cycles are *not* shrunk, because shrinking a 3-cycle
 could remove (and hide) an unresolved displayed tree in non-binary networks.
 These operations do not modify the set of displayed
 unrooted quartets and their probabilities (from γ's).
-Then `net` is then simplified recursively
-by removing hybrid edges for the recursive extraction of displayed trees.
+Then `net` is simplified recursively
+by removing hybrid edges for extracting displayed trees.
 """
 function quartetdisplayprobability!(
     net::HybridNetwork,
