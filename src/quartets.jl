@@ -845,7 +845,7 @@ Cost: scheme to penalize pairwise relationships within a quarnet.
   that `ρc = 0`.
 - With `cost=:mgamma`, the cost depends on the taxon pair relationship within
   the quarnet, and also on the inheritance probabilities:
-  `cost(a,b | q={a,b,c,d}) = 1-γ(ab|cd)`.
+  `cost(a,b | q={a,b,c,d})` = 1-γ(ab|cd).
   This scheme is similar to NANUQ's, as it simplifies to `ρc = 0` for cherries,
   `ρs = 1` and `ρo = 1` for split and opposite taxa. But the cost of
   adjacent taxa depends on the "strength" of adjacency.
@@ -869,13 +869,13 @@ The (modified) NANUQ distance definition in
 [Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w))
 is for binary networks, which only display resolved quartets.
 This implementation handles displayed star quartets `(a,b,c,d)` in the following way:
-- For `cost=:mgamma` the `cost(a,b | q) = 1-γ(ab|cd)` tends to
-  be large if the probability of the star quartet `γ(star)` on `q={a,b,c,d}`
-  is high, because γ(star) = 1 - γ(ab|cd) - γ(ac|bd) - γ(ad|bc))`.
+- For `cost=:mgamma` the `cost(a,b | q)` = 1-γ(ab|cd) tends to
+  be large if the probability of the star quartet γ(star) on q={a,b,c,d}
+  is high, because γ(star) = 1 - γ(ab|cd) - γ(ac|bd) - γ(ad|bc).
 - When using `:nanuq`, `:nanuplus` or custom, the cost is a weighted average:
   `cost(a,b | q) = (1-γ(star)) * ρx + γ(star) * ρo`, where x=c,s,a, or o
   based on whether `a` and `b` are a cherry, star, adjacent, or opposite in
-  the quarnet on `q={a,b,c,d}`, and `γ(star)` is the probability that the
+  the quarnet on `q={a,b,c,d}`, and γ(star) is the probability that the
   star quartet is displayed under the quarnet.
   This is consistent with the metric for trees with polytomies in
   [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204).
