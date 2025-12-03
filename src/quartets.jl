@@ -560,11 +560,9 @@ end
 """
     quartetdisplayprobability(net::HybridNetwork; showprogressbar=true)
 
-fixit: better name?
-
 Display probabilities of quartet trees, under a displayed-tree model
 (see [Xu & Ané (2024)](https://doi.org/10.1007/s00285-022-01847-8) or
-[Rhodes et al. (2024)]()).
+[Rhodes et al. (2025)](https://doi.org/10.1016/j.aam.2024.102804)).
 
 A tree `T` is displayed in the network if it can be obtained by keeping all but
 1 hybrid edge above each hybrid node. The display probability `γ(T)` of `T` is
@@ -574,14 +572,14 @@ For a quartet tree `q = ab|cd` of 4 taxa, its display probability `γ(q)` is
 the sum of `γ(T)` over all trees T that have `ab|cd`.
 
 Polytomies in `net` can give positive probability to unresolved quartet trees,
-in which case the probabilities of the 3 quartet trees on a given 4-taxon set
-would sum to less than 1.
+in which case the probabilities of the 3 resolved quartet trees on a given
+4-taxon set would sum to less than 1.
 
 Output: `(q,t)` where `t` is a list of taxa,
 and `q` is a list of 4-taxon set objects of type `PhyloNetworks.QuartetT{datatype}`.
 In each element of `q`, `taxonnumber` gives the indices in `taxa`
 of the 4 taxa of interest; and `data` contains the 3 quartet γs, for the
-3 unrooted topologies in the following order:
+3 unrooted (resolved) topologies in the following order:
 `t1,t2|t3,t4`, `t1,t3|t2,t4` and `t1,t4|t2,t3`.
 This output is similar to that of `PhyloNetworks.countquartetsintrees` when
 1 individual = 1 taxon, with 4-taxon sets listed in the same order
@@ -731,11 +729,9 @@ end
 """
     quartetdisplayprobability!(net::HybridNetwork, fourtaxa)
 
-fixit: better name?
-
 Display probabilities (from inheritance γ) of 4-taxon quartet trees from `net`.
 A quartet not displayed by `net` has γ=0.
-The 3 quartet topologies are ordered following the
+The 3 resolved quartet topologies are ordered following the
 ordering of taxon names in `fourtaxa`, that is: if `fourtaxa` is a,b,c,d,
 then the quartets are listed in this order:
 
@@ -821,24 +817,19 @@ function quartetdisplayprobability!(
 end
 
 """
-expectedNANUQdistancematrix(
+quarnetdistancematrix(
     net::HybridNetwork;
     showprogressbar=false,
     cost=:nanuqplus
 )
 
-fixit: better name? like:
-
-quarnetdistancematrix
-displayedquartetdistancematrix
-nanuqdistancematrix
-network_expectedDQdistance with DQ for displayed quartet?
-
-in PN: `pairwisetaxondistancematrix` (expected from a network),
-`hammingdistancematrix` (from data),
-`expectedf2matrix`, `expectedf4table`, `expectedf3matrix`,
-`tablequartetCF` (from data after `countquartetsintrees`)
-in QGoF: `network_expectedCF` (expected from network)
+Distance (or dissimilarity) matrix `d` between pairs of taxa, based on the
+quarnets in `net`: the subnetworks induced by subsets of 4 taxa.
+For taxa `x` and `y`, `d(x,y)` is the sum of `ρ(x,y | q)` over all quarnets
+`q` on 4-taxon subsets `{x,y,w,z}` that include both `x` and `y`.
+The penalty `ρ(x,y | q)` depends on the trees *displayed* in quarnet `q`,
+and possibly on their inheritance probabilities (depending on the cost).
+See [`quartetdisplayprobability`](@ref).
 
 Output: n×n matrix where n is the number of taxa in the network, listed in the
 same order as in `tiplabels(net)`.
@@ -850,7 +841,8 @@ Cost: scheme to penalize pairwise relationships within a quarnet.
   `ρc = 0.5` for **c**herries,
   `ρs = 1` for **s**plits (2 taxa **s**eparated by a tree-split),
   `ρa = 0.5` for **a**djacent pairs (in a quarnet that admits 1 circular order)
-  `ρo = 1` for **o**pposite taxa (diagonal from each other in circular quarnets).
+  `ρo = 1` for **o**pposite taxa (diagonal from each other in circular quarnets),
+    also if the quarnet displays all 3 resolved quartets.
 - With `cost=:nanuq` we use the original NANUQ costs: the same as above except
   that `ρc = 0`.
 - With `cost=:mgamma`, the cost depends on the taxon pair relationship within
@@ -862,13 +854,26 @@ Cost: scheme to penalize pairwise relationships within a quarnet.
 - To use custom costs, we can provide a named tuple with desired cost values:
   `cost = (cherry=0.5, split=2, adjacent=0.5, opposite=1)`
 
-**Warning**: the constant off-diagonal term `2 numtaxa - 4` is *not* included
-in the distance.
+**Note**: the (modified) NANUQ distance is defined as `2d(x,y) + 2n-4`,
+where `n` is the number of taxa.
+`d(x,y)` calculated here does **not** include the factor 2
+nor the constant off-diagonal term `2n-4`. With these extra terms,
+the NANUQ distance on a tree was proved to be additive on that tree
+[(Rhodes 2019)](https://doi.org/10.1109/TCBB.2019.2917204).
+It corresponds edge length `w(e) = |X_1| |X_2| + |Y_1| |Y_2|`
+for an internal edge `e` with quadripartition `X1,X2|Y_1,Y2`, and
+`w(e) = |Y_1| |Y_2|` for an external edge `e` with tripartition `{x},Y_1,Y_2`
+(see p.4 of [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204)
+for the general case with polytomies).
 
-**Polytomies**: some quartets displayed in a network might have a polytomy,
-that is, be a star tree on 4 taxa without any 2-2 split into 2 pairs of taxa.
-These pairwise relationship are not given any cost, or alternatively,
-such a quartet contributes `ρp = 0` to all its 6 taxon pairs equally.
+**Polytomies**: some quarnets with polytomies can display the star tree.
+The (modified) NANUQ distance definition in
+[Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w))
+is for binary networks, which only display resolved trees.
+The `:nanuq` and `:nanuplus` costs implemented here
+use the `ρ` costs with weight `1-γ(star)`, and add `γ(star) * ρo` to penalize
+any pair on the star tree with the "opposite" cost as in Rhodes (2019),
+but weighted by the probability that the star is displayed.
 
 ```jldoctest nqd
 julia> net = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);");
@@ -877,7 +882,7 @@ julia> # using PhyloPlots; plot(net, showgamma=true);
 
 julia> const PN = PhyloNetworks; # to write less later
 
-julia> PN.expectedNANUQdistancematrix(net; cost=:nanuqplus)
+julia> PN.quarnetdistancematrix(net; cost=:nanuqplus)
 6×6 Matrix{Float64}:
  0.0  3.5  4.5  5.5  5.5  3.0
  3.5  0.0  3.0  5.5  5.5  4.5
@@ -889,7 +894,7 @@ julia> PN.expectedNANUQdistancematrix(net; cost=:nanuqplus)
 julia> print(tiplabels(net))
 ["O", "E", "D", "C", "B", "A"]
 
-julia> PN.expectedNANUQdistancematrix(net; cost=:mgamma)
+julia> PN.quarnetdistancematrix(net; cost=:mgamma)
 6×6 Matrix{Float64}:
  0.0   3.36  4.2   5.42  5.42  1.6
  3.36  0.0   1.68  5.4   5.4   4.16
@@ -898,7 +903,7 @@ julia> PN.expectedNANUQdistancematrix(net; cost=:mgamma)
  5.42  5.4   4.56  0.0   0.0   4.62
  1.6   4.16  5.0   4.62  4.62  0.0
 
-julia> PN.expectedNANUQdistancematrix(net;
+julia> PN.quarnetdistancematrix(net;
         cost = (cherry=0.001, split=2, adjacent=0.5, opposite=1))
 6×6 Matrix{Float64}:
  0.0    4.001  5.001  8.5    8.5    2.002
@@ -917,7 +922,7 @@ quartet distance: **not** any distance from the original phylogeny (if any).
 ```jldoctest nqd
 julia> caterpillar = readnewick("(((((a1,a2),a3),a4),a5),a6);");
 
-julia> PN.expectedNANUQdistancematrix(caterpillar; cost=:mgamma) # same as nanuq
+julia> PN.quarnetdistancematrix(caterpillar; cost=:mgamma) # same as nanuq
 6×6 Matrix{Float64}:
  0.0  0.0  3.0  5.0  6.0  6.0
  0.0  0.0  3.0  5.0  6.0  6.0
@@ -926,7 +931,7 @@ julia> PN.expectedNANUQdistancematrix(caterpillar; cost=:mgamma) # same as nanuq
  6.0  6.0  5.0  3.0  0.0  0.0
  6.0  6.0  5.0  3.0  0.0  0.0
 
-julia> d = PN.expectedNANUQdistancematrix(caterpillar; cost=:nanuqplus)
+julia> d = PN.quarnetdistancematrix(caterpillar; cost=:nanuqplus)
 6×6 Matrix{Float64}:
  0.0  3.0  4.5  5.5  6.0  6.0
  3.0  0.0  4.5  5.5  6.0  6.0
@@ -942,18 +947,19 @@ julia> dtre = pairwisetaxondistancematrix(tre); dtre ≈ d
 true
 ```
 """
-function expectedNANUQdistancematrix(
+function quarnetdistancematrix(
     net::HybridNetwork;
     showprogressbar=false,
     cost=:nanuqplus
 )
-    isa(cost, Dict) || cost ∈ (:nanuq, :nanuqplus, :mgamma) ||
+    isa(cost, NamedTuple) || cost ∈ (:nanuq, :nanuqplus, :mgamma) ||
         error("invalid cost specification: $cost")
     addcost! =
         (cost == :nanuqplus ? addQDcost_nanuqplus! :
         (cost == :nanuq     ? addQDcost_nanuq! :
         (cost == :mgamma    ? addQDcost_gamma! :
-        (d, qi, qγ) -> addQDcost_rho!(d, qi, qγ, cost[:cherry], cost[:split], cost[:adjacent], cost[:opposite]) ) ))
+        (d, qi, qγ) -> addQDcost_rho!(d, qi, qγ, cost[:cherry], cost[:split], cost[:adjacent], cost[:opposite])
+        )))
     taxa = tiplabels(net)
     nn = length(taxa)
     nanuqd = zeros(Float64, nn,nn)
@@ -968,18 +974,17 @@ function expectedNANUQdistancematrix(
 end
 
 function addQDcost_rho!(d, qi, qγ, chry, splt, adjt, opps)
-    ndisp = sum(x -> x != 0., qγ) # should we use !≈ instead??
-    if ndisp == 0 # completely unresolved
-        return nothing
-    end
-    if ndisp == 3
-        @warn("3 displayed quartets trees for taxa $qi: will ignore it")
-        return nothing
-    end
+    qdisp = map(x -> x ≉ 0.0, qγ)
+    ndisp = sum(qdisp)
     # ndisp=1: 1 cherry, 2 splits. ndisp=2: 2 adjacent, 1 opposite
-    (c1,c2) = (ndisp == 1 ? (chry,splt) : (adjt,opps))
+    sumγ = sum(qγ) # P(resolved quartet)
+    # common cost to all 6 pairs: star, or all 3 displayed
+    c3 = (ndisp == 0 || ndisp == 3 ? opps : opps * (1-sumγ))
+    (c1,c2) = (ndisp == 0 || ndisp == 3 ? (c3, c3) :
+              (ndisp == 1 ? (sumγ*chry + c3, sumγ*splt + c3) :
+                            (sumγ*adjt + c3, sumγ*opps + c3)))
     for jrow in 1:3 # resolution 1,i2|i3,i4
-        c = (qγ[jrow]>0 ? c1 : c2)
+        c = (qdisp[jrow] ? c1 : c2)
         (i2,i3,i4) = (jrow == 1 ? (2,3,4) : (jrow == 2 ? (3,4,2) : (4,2,3)))
         d[qi[ 1],qi[i2]] += c; d[qi[i2],qi[ 1]] = d[qi[ 1],qi[i2]]
         d[qi[i3],qi[i4]] += c; d[qi[i4],qi[i3]] = d[qi[i3],qi[i4]]
@@ -987,25 +992,7 @@ function addQDcost_rho!(d, qi, qγ, chry, splt, adjt, opps)
     return nothing
 end
 addQDcost_nanuq!(d,qi,qγ) = addQDcost_rho!(d,qi,qγ, 0. , 1., 0.5, 1.)
-# addQDcost_nanuqplus!(d,qi,qγ) = addQDcost_rho!(d,qi,qγ, 0.5, 1., 0.5, 1.)
-function addQDcost_nanuqplus!(d,qi,qγ)
-    ndisp = sum(x -> x != 0., qγ)
-    if ndisp == 0
-        return nothing
-    end
-    if ndisp == 3
-        @warn("3 displayed quartets trees for taxa $qi: will ignore it")
-        return nothing
-    end
-    for jrow in 1:3 # resolution 1,i2|i3,i4
-        c = (qγ[jrow]>0 ? 0.5 : 1)
-        (i2,i3,i4) = (jrow == 1 ? (2,3,4) : (jrow == 2 ? (3,4,2) : (4,2,3)))
-        d[qi[ 1],qi[i2]] += c; d[qi[i2],qi[ 1]] = d[qi[ 1],qi[i2]]
-        d[qi[i3],qi[i4]] += c; d[qi[i4],qi[i3]] = d[qi[i3],qi[i4]]
-    end
-    return nothing
-
-end
+addQDcost_nanuqplus!(d,qi,qγ) = addQDcost_rho!(d,qi,qγ, 0.5, 1., 0.5, 1.)
 function addQDcost_gamma!(d, qi, qγ)
     # like nanuq: chry=0, splt=opps=1. but adjt=1-γ instead of 1/2
     for jrow in 1:3 # resolution 1,i2|i3,i4
