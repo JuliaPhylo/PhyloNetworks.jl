@@ -759,7 +759,7 @@ function quartetdisplayprobability!(
     deleteaboveLSA!(net)
     length(getroot(net).edge) <= 2 && fuseedgesat!(net.rooti, net)
     deleteexternal2blobs!(net)
-    delete2cycles!(net)
+    delete2cycles!(net, true) # unroot=true
     ndes = 4 # number of taxa descendant from lowest hybrid node
     if net.numhybrids > 0
         preorder!(net)

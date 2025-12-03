@@ -1868,6 +1868,9 @@ If `unroot` is false and the root is up for deletion, it will be kept only if it
 is has degree 2 or more. If `unroot` is true and the root is up for deletion, it
 will be kept only if it has degree 3 or more. A root node with degree 1 will be
 deleted in both cases.
+
+See also [`delete2cycles!`](@ref) to simply delete the minor parent edge,
+with no edge length averaging.
 """
 function shrink2cycles!(net::HybridNetwork, unroot::Bool=false)
     foundcycle = false
@@ -1902,8 +1905,12 @@ Called by [`shrink2cycles!`](@ref)
 Assumption: `minor` and `major` do form a 2-cycle. That is, they start and end
 at the same node.
 """
-function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge,
-                         unroot::Bool)
+function shrink2cycleat!(
+    net::HybridNetwork,
+    minor::Edge,
+    major::Edge,
+    unroot::Bool,
+)
     g = minor.gamma
     if g == -1.0 g=.5; end
     major.length = addBL(multiplygammas(    g, minor.length),
@@ -2009,8 +2016,15 @@ provided that γ1, γ2=1-γ1, t1, t2 and t3 are not missing.
 If one is missing, then e1 is deleted naively such that
 tB is unchanged, new tC = tC + t2 and new tA = tA + t3.
 """
-function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
-                         edge2::Edge, node1::Node, node2::Node, unroot::Bool)
+function shrink3cycleat!(
+    net::HybridNetwork,
+    hybrid::Node,
+    edge1::Edge,
+    edge2::Edge,
+    node1::Node,
+    node2::Node,
+    unroot::Bool,
+)
     # check for presence of 3 cycle
     edge3 = nothing
     for e in node1.edge # find edge connecting node1 and node2
@@ -2070,18 +2084,19 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
 end
 
 """
-    delete2cycles!(net::HybridNetwork)
+    delete2cycles!(net::HybridNetwork, unroot::Bool=false)
 
 Delete the minor hybrid edge in each 2-cycle until none remains.
-Degree-2 nodes are fused, including the root if encountered.
+Degree-2 nodes are fused, excluding the root (if of degree 2) by default,
+but including the root if `unroot=true`.
 
-The treatment of 2-cycles differs from `shrink2cycles!` in that only the
+This 2-cycle deletion differs from [`shrink2cycles!`](@ref) in that only the
 major hybrid edge length is retained. There is no weighted averaging of
-hybrid's parental branch lenghts.
+hybrid's parental branch lengths.
 This operation does not affect the set of displayed trees, and of up-down
 paths' inheritance weights.
 """
-function delete2cycles!(net::HybridNetwork)
+function delete2cycles!(net::HybridNetwork, unroot::Bool=false)
     nh = length(net.hybrid)
     ih = nh # hybrids deleted from the end
     while ih > 0
@@ -2091,8 +2106,8 @@ function delete2cycles!(net::HybridNetwork)
         pmin = getparent(minor) # minor parent node
         pmaj = getparent(major) # major parent node
         if pmin === pmaj # 2-cycle. deleting it can create new cycle: start over after
-            deletehybridedge!(net, minor,
-                false,true,false,true,false) # ., unroot=true, ., simplify=true,.
+            deletehybridedge!(net, minor,false,unroot,false,false,false)
+            # simplify=false to control which hybrid edge gets deleted
             nh = length(net.hybrid) # to start over
             ih = nh + 1
         end
