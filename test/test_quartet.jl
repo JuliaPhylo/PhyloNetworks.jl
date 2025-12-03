@@ -156,7 +156,7 @@ end
 @testset "quarnetdistancematrix" begin
 # level 2, one 2-cycle, 1 cherry below cut edge, 1 cherry at polytomy
 net = readnewick("(((E)#H1:::0.7,((#H1,D),((C,(B)#H3,#H3):1)#H2:::0.6)),(#H2,A,a));")
-@test_throws "edge(s) number 8,9 have no γ" PN.quarnetdistancematrix(net)
+@test_throws "edge(s) number 8,9 have no γ" PN.quarnetdistancematrix(net; cost=:nanuq)
 setgamma!(net.edge[8], 0.9)
 # tiplabels(net) == ["E", "D", "C", "B", "A", "a"]
 d_nanuqplus = PN.quarnetdistancematrix(net; cost=:nanuqplus)
