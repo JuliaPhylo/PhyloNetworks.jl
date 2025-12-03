@@ -702,7 +702,7 @@ Update `quartet.data` to contain the quartet display probabilities
 (from inheritance γ) of 4-taxon quartet trees from `net` for the 4-taxon set
 `taxa[quartet.taxonnumber]`.
 `taxa` should contain the tip labels in `net`.
-`quartet.taxonnumber` gives themindices in `taxa` of the 4 taxa of interest.
+`quartet.taxonnumber` gives the indices in `taxa` of the 4 taxa of interest.
 `taxonnumber` should be a dictionary mapping taxon labels in to their indices
 in `taxa`, for easier lookup.
 
@@ -827,10 +827,10 @@ quarnetdistancematrix(
 
 Distance (or dissimilarity) matrix `d` between pairs of taxa, based on the
 quarnets in `net`: the subnetworks induced by subsets of 4 taxa.
-For taxa `x` and `y`, `d(x,y)` is the sum of `ρ(x,y | q)` over all quarnets
+For taxa `x` and `y`, `d(x,y)` is the sum of `cost(x,y | q)` over all quarnets
 `q` on 4-taxon subsets `{x,y,w,z}` that include both `x` and `y`.
-The penalty `ρ(x,y | q)` depends on the trees *displayed* in quarnet `q`,
-and possibly on their inheritance probabilities (depending on the cost).
+The penalty `cost(x,y | q)` depends on the quartet trees *displayed* by quarnet `q`,
+and possibly on their display probabilities (depending on the cost).
 See [`quartetdisplayprobability`](@ref).
 
 Output: n×n matrix where n is the number of taxa in the network, listed in the
@@ -838,7 +838,7 @@ same order as in `tiplabels(net)`.
 
 Cost: scheme to penalize pairwise relationships within a quarnet.
 
-- With `cost=:nanuqplus`, the "modified NANUQ" cost is used (see
+- With `cost=:nanuqplus`, the "modified NANUQ" cost `ρ` is used (see
   [Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w)):
   `ρc = 0.5` for **c**herries,
   `ρs = 1` for **s**plits (2 taxa **s**eparated by a tree-split),
@@ -854,7 +854,7 @@ Cost: scheme to penalize pairwise relationships within a quarnet.
   `ρs = 1` and `ρo = 1` for split and opposite taxa. But the cost of
   adjacent taxa depends on the "strength" of adjacency.
 - To use custom costs, we can provide a named tuple with desired cost values:
-  `cost = (cherry=0.5, split=2, adjacent=0.5, opposite=1)`
+  `cost = (cherry=0.5, split=2, adjacent=0.5, opposite=1)` 
 
 **Note**: the (modified) NANUQ distance is defined as `2d(x,y) + 2n-4`,
 where `n` is the number of taxa.
@@ -862,20 +862,24 @@ where `n` is the number of taxa.
 nor the constant off-diagonal term `2n-4`. With these extra terms,
 the NANUQ distance on a tree was proved to be additive on that tree
 [(Rhodes 2019)](https://doi.org/10.1109/TCBB.2019.2917204).
-It corresponds edge length `w(e) = |X_1| |X_2| + |Y_1| |Y_2|`
+It corresponds to edge lengths `w(e) = |X_1| |X_2| + |Y_1| |Y_2|`
 for an internal edge `e` with quadripartition `X1,X2|Y_1,Y2`, and
 `w(e) = |Y_1| |Y_2|` for an external edge `e` with tripartition `{x},Y_1,Y_2`
 (see p.4 of [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204)
 for the general case with polytomies).
 
-**Polytomies**: some quarnets with polytomies can display the star tree.
+**Polytomies**: some quarnets with polytomies can display the star quartet.
 The (modified) NANUQ distance definition in
 [Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w))
-is for binary networks, which only display resolved trees.
-The `:nanuq` and `:nanuplus` costs implemented here
-use the `ρ` costs with weight `1-γ(star)`, and add `γ(star) * ρo` to penalize
-any pair on the star tree with the "opposite" cost as in Rhodes (2019),
-but weighted by the probability that the star is displayed.
+is for binary networks, which only display resolved quartets.
+This implementation handles displayed star quartets `(abcd)` in the following way:
+- For `cost=:mgamma`, we still have `cost(ab in q={a,b,c,d}) = 1-γ(ab|cd)`.
+- When using `:nanuq`, `:nanuplus` or custom, the cost is a weighted average:
+  `cost(ab in q={a,b,c,d}) = (1-γ(star))ρx + γ(star) * ρo`, where x=c,s,a, or o
+  based on whether a and b are a cherry, star, adjacent, or opposite in the quarnet on {a,b,c,d},
+  and γ(star) is the probability that the star quartet is displayed under the quarnet. 
+  This is consistent with the metric for trees with polytomies in 
+  [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204).
 
 ```jldoctest nqd
 julia> net = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);");
@@ -979,6 +983,7 @@ function addQDcost_rho!(d, qi, qγ, chry, splt, adjt, opps)
     qdisp = map(x -> x ≉ 0.0, qγ)
     ndisp = sum(qdisp)
     # ndisp=1: 1 cherry, 2 splits. ndisp=2: 2 adjacent, 1 opposite
+    # ndisp=0 or ndisp=3: all 3 considered opposite
     sumγ = sum(qγ) # P(resolved quartet)
     # common cost to all 6 pairs: star, or all 3 displayed
     c3 = (ndisp == 0 || ndisp == 3 ? opps : opps * (1-sumγ))
