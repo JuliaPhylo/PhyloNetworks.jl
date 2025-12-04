@@ -1868,6 +1868,9 @@ If `unroot` is false and the root is up for deletion, it will be kept only if it
 is has degree 2 or more. If `unroot` is true and the root is up for deletion, it
 will be kept only if it has degree 3 or more. A root node with degree 1 will be
 deleted in both cases.
+
+See also [`delete2cycles!`](@ref) to simply delete the minor parent edge,
+with no edge length averaging.
 """
 function shrink2cycles!(net::HybridNetwork, unroot::Bool=false)
     foundcycle = false
@@ -1902,8 +1905,12 @@ Called by [`shrink2cycles!`](@ref)
 Assumption: `minor` and `major` do form a 2-cycle. That is, they start and end
 at the same node.
 """
-function shrink2cycleat!(net::HybridNetwork, minor::Edge, major::Edge,
-                         unroot::Bool)
+function shrink2cycleat!(
+    net::HybridNetwork,
+    minor::Edge,
+    major::Edge,
+    unroot::Bool,
+)
     g = minor.gamma
     if g == -1.0 g=.5; end
     major.length = addBL(multiplygammas(    g, minor.length),
@@ -2009,8 +2016,15 @@ provided that γ1, γ2=1-γ1, t1, t2 and t3 are not missing.
 If one is missing, then e1 is deleted naively such that
 tB is unchanged, new tC = tC + t2 and new tA = tA + t3.
 """
-function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
-                         edge2::Edge, node1::Node, node2::Node, unroot::Bool)
+function shrink3cycleat!(
+    net::HybridNetwork,
+    hybrid::Node,
+    edge1::Edge,
+    edge2::Edge,
+    node1::Node,
+    node2::Node,
+    unroot::Bool,
+)
     # check for presence of 3 cycle
     edge3 = nothing
     for e in node1.edge # find edge connecting node1 and node2
@@ -2067,6 +2081,72 @@ function shrink3cycleat!(net::HybridNetwork, hybrid::Node, edge1::Edge,
         deletehybridedge!(net, edge1, false,unroot,false,false) # nofuse,unroot,multgammas,simplify
     end
     return true
+end
+
+"""
+    delete2cycles!(net::HybridNetwork, unroot::Bool=false)
+
+Delete the minor hybrid edge in each 2-cycle until none remains.
+Degree-2 nodes are fused, excluding the root (if of degree 2) by default,
+but including the root if `unroot=true`.
+
+This 2-cycle deletion differs from [`shrink2cycles!`](@ref) in that only the
+major hybrid edge length is retained. There is no weighted averaging of
+hybrid's parental branch lengths.
+This operation does not affect the set of displayed trees, and of up-down
+paths' inheritance weights.
+"""
+function delete2cycles!(net::HybridNetwork, unroot::Bool=false)
+    nh = length(net.hybrid)
+    ih = nh # hybrids deleted from the end
+    while ih > 0
+        h = net.hybrid[ih]
+        minor = getparentedgeminor(h)
+        major = getparentedge(h)
+        pmin = getparent(minor) # minor parent node
+        pmaj = getparent(major) # major parent node
+        if pmin === pmaj # 2-cycle. deleting it can create new cycle: start over after
+            deletehybridedge!(net, minor,false,unroot,false,false,false)
+            # simplify=false to control which hybrid edge gets deleted
+            nh = length(net.hybrid) # to start over
+            ih = nh + 1
+        end
+        ih -= 1
+    end
+    return net
+end
+
+"""
+    deleteexternal2blobs!(net::HybridNetwork)
+
+Delete non-trivial degree-2 blobs along external edges, assuming no degree-2
+nodes: these are *trivial* degree-2 blobs. They are kept and stop the process.
+"""
+function deleteexternal2blobs!(net::HybridNetwork)
+    bcc = biconnectedcomponents(net, true) # true: ignore trivial blobs
+    entry = biconnectedcomponent_entrynodes(net, bcc)
+    entryindex = indexin(entry, net.vec_node)
+    exitnodes = biconnectedcomponent_exitnodes(net, bcc, false) # don't redo the preordering
+    bloborder = sortperm(entryindex) # pre-ordering for blobs in their own blob tree
+    function isexternal(ib) # is bcc[ib] of degree 2 and adjacent to an external edge?
+        # yes if: 1 single exit adjacent to a leaf
+        length(exitnodes[ib]) != 1 && return false
+        ch = getchildren(exitnodes[ib][1])
+        return length(ch) == 1 && ch[1].leaf
+    end
+    for ib in reverse(bloborder)
+        isexternal(ib) || continue # keep bcc[ib] if not external of degree 2
+        for he in bcc[ib]
+            he.ismajor && continue
+            # deletion of a hybrid can hide the deletion of another: check that he is still in net
+            any(e -> e===he, net.edge) || continue
+            # delete minor hybrid edge with options unroot=true: to make sure the
+            # root remains of degree 3+, in case a degree-2 blob starts at the root
+            # simplify=true: bc external blob
+            deletehybridedge!(net,he, false,true,false,true,false)
+        end
+    end
+    return net
 end
 
 """
