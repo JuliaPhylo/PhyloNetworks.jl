@@ -813,7 +813,6 @@ function quartetdisplayprobability!(
             end
             qγ .+= gamma .* quartetdisplayprobability!(simplernet, fourtaxa)
         end
-        return qγ
     end
     return qγ
 end
