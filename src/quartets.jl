@@ -220,15 +220,15 @@ if `basenames=["1","2","3"]`, say, the default used in [`tablequartetdata`](@ref
 to build a table from a vector of [`QuartetT`](@ref) objects.
 
 For example, [`tablequartetCF`](@ref) uses prefix "CF" and base names
-"12_34","13_24","14_23", so the first 3 column names are:
-"CF12_34","CF13_24","CF14_23".
+`"12_34"`, `"13_24"`, `"14_23"`, so the first 3 column names are:
+`"CF12_34"`, `"CF13_24"`, `"CF14_23"`.
 [`tablequartetf4`](@ref) uses different base names.
 
 If `T` is a length-4 vector type, the 4th name is "ngenes".
 
 If `T` is a 3×n matrix type, the output vector contains 3×n names.
 Each group of 3 is as desribed above, with prefix `prefix` for the first 3,
-and prefixes "V2_", "V3_", ... "Vn_" the following 3(n-1) names.
+and prefixes `"V2_"`, `"V3_"`, ... `"Vn_"` the following 3(n-1) names.
 """
 function quartetdata_columnnames(
     ::Type{T},
@@ -561,8 +561,8 @@ end
     quartetdisplayprobability(net::HybridNetwork; showprogressbar=true)
 
 Display probabilities of quartet trees, under a displayed-tree model
-(see [Xu & Ané (2024)](https://doi.org/10.1007/s00285-022-01847-8) or
-[Rhodes et al. (2025)](https://doi.org/10.1016/j.aam.2024.102804)).
+(see [Xu & Ané 2024](https://doi.org/10.1007/s00285-022-01847-8) or
+[Rhodes et al. 2025](https://doi.org/10.1016/j.aam.2024.102804)).
 
 A tree `T` is displayed in the network if it can be obtained by keeping all but
 1 hybrid edge above each hybrid node. The display probability `γ(T)` of `T` is
@@ -834,51 +834,53 @@ same order as in `tiplabels(net)`.
 
 Cost: scheme to penalize pairwise relationships within a quarnet.
 
-- With `cost=:nanuqplus`, the "modified NANUQ" cost `ρ` is used (see
+- `cost=:nanuqplus` uses the "modified NANUQ" cost `ρ` (by
   [Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w)):
   `ρc = 0.5` for **c**herries,
   `ρs = 1` for **s**plits (2 taxa **s**eparated by a tree-split),
-  `ρa = 0.5` for **a**djacent pairs (in a quarnet that admits 1 circular order)
-  `ρo = 1` for **o**pposite taxa (diagonal from each other in circular quarnets),
-    also if the quarnet displays all 3 resolved quartets.
-- With `cost=:nanuq` we use the original NANUQ costs: the same as above except
+  `ρa = 0.5` for **a**djacent pairs (in a quarnet that admits 1 circular order),
+  `ρo = 1` for **o**pposite taxa (diagonal from each other in circular quarnets)
+    or for any taxon pair in a star quartet tree.
+- `cost=:nanuq` uses the original NANUQ cost: same as above except
   that `ρc = 0`.
-- With `cost=:mgamma`, the cost depends on the taxon pair relationship within
+- `cost=:mgamma` uses a penalty that depends on the taxon pair relationship within
   the quarnet, and also on the inheritance probabilities:
-  `cost(a,b | q={a,b,c,d})` = 1-γ(ab|cd).
-  This scheme is similar to NANUQ's, as it simplifies to `ρc = 0` for cherries,
+  `cost(x,y | q={x,y,w,z})` = 1 - γ(xy|wz).
+  This scheme is similar to NANUQ's because it simplifies to `ρc = 0` for cherries,
   `ρs = 1` and `ρo = 1` for split and opposite taxa. But the cost of
   adjacent taxa depends on the "strength" of adjacency.
-- To use custom costs, we can provide a named tuple with desired cost values:
+- custom costs can be used by providing a named tuple, for example
   `cost = (cherry=0.5, split=2, adjacent=0.5, opposite=1)` 
 
-**Note**: the (modified) NANUQ distance is defined as `2d(x,y) + 2n-4`,
-where `n` is the number of taxa.
+**Note**: the (modified) NANUQ distance is defined as `2d(x,y) + 2n-4`
+for x≠y, where `n` is the number of taxa.
 `d(x,y)` calculated here does **not** include the factor 2
 nor the constant off-diagonal term `2n-4`. With these extra terms,
 the NANUQ distance on a tree was proved to be additive on that tree
 [(Rhodes 2019)](https://doi.org/10.1109/TCBB.2019.2917204).
-It corresponds to edge lengths `w(e) = |X_1| |X_2| + |Y_1| |Y_2|`
-for an internal edge `e` with quadripartition `X1,X2|Y_1,Y2`, and
-`w(e) = |Y_1| |Y_2|` for an external edge `e` with tripartition `{x},Y_1,Y_2`
-(see p.4 of [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204)
-for the general case with polytomies).
+It corresponds to edge lengths `w(e) = |X₁| |X₂| + |Y₁| |Y₂|`
+for an internal edge `e` with quadripartition `X₁,X₂|Y₁,Y₂`, and
+`w(e) = |Y₁| |Y₂|` for an external edge `e` with tripartition `x,Y₁,Y₂`.
+See p.4 of [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204)
+for the general case with polytomies in a tree.
 
 **Polytomies**: some quarnets with polytomies can display the star quartet.
 The (modified) NANUQ distance definition in
-[Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w))
+[Allman et al. (2025)](https://doi.org/10.1186/s13015-025-00274-w)
 is for binary networks, which only display resolved quartets.
-This implementation handles displayed star quartets `(a,b,c,d)` in the following way:
-- For `cost=:mgamma` the `cost(a,b | q)` = 1-γ(ab|cd) tends to
-  be large if the probability of the star quartet γ(star) on q={a,b,c,d}
-  is high, because γ(star) = 1 - γ(ab|cd) - γ(ac|bd) - γ(ad|bc).
+Here, a displayed star quartet `(x,y,w,z)` is handled as follows.
+- For `cost=:mgamma` the `cost(x,y | q)` = 1 - γ(xy|wz) tends to
+  be large if the probability of the star quartet γ(star) on q={x,y,w,z}
+  is high, because γ(star) = 1 - γ(xy|wz) - γ(xw|yz) - γ(xz|yw).
 - When using `:nanuq`, `:nanuplus` or custom, the cost is a weighted average:
-  `cost(a,b | q) = (1-γ(star)) * ρx + γ(star) * ρo`, where x=c,s,a, or o
-  based on whether `a` and `b` are a cherry, star, adjacent, or opposite in
-  the quarnet on `q={a,b,c,d}`, and γ(star) is the probability that the
-  star quartet is displayed under the quarnet.
+  `cost(x,y | q) = (1-γ(star)) * ρr + γ(star) * ρo`, where r=c,s,a, or o
+  based on the relationship (cherry, split, adjacent, opposite)
+  between x and y in the quarnet on `q={a,b,c,d}`, and
+  γ(star) is the probability that the star quartet on q is displayed.
   This is consistent with the metric for trees with polytomies in
   [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204).
+
+## examples
 
 ```jldoctest nqd
 julia> net = readnewick("(O:5.5,(((E:1.5)#H1:2.5::0.7,((#H1:0,D:1.5):1.5,((C:1,B:1):1)#H2:1::0.6):1.0):1.0,(#H2:0,A:2):3):0.5);");
