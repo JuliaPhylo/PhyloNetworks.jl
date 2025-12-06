@@ -882,6 +882,10 @@ by the quarnet on q={x,y,w,z}.
   This is consistent with the metric for trees with polytomies in
   [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204).
 
+If some hybrid edges are missing their inheritance γ, γ=0.5 is used instead.
+The input network is not modified: a copy is made internally, which is slower.
+See [`setgamma!`](@ref) to modify the network prior.
+
 ## examples
 
 ```jldoctest nqd
