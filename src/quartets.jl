@@ -984,6 +984,14 @@ function quarnetdistancematrix(
     nn = length(taxa)
     nn < 4 &&
         error("the network must have 4+ taxa to calculate quarnet distances")
+    ie = findall(e -> e.hybrid && e.ismajor && e.gamma==-1, net.edge)
+    if !isempty(ie)
+        @warn "some hybrid edges have missing inheritance: will use γ=0.5 for them."
+        net = deepcopy(net)
+        for i in ie
+            setgamma!(net.edge[i], 0.5)
+        end
+    end
     nanuqd = zeros(Float64, nn,nn)
     quartet,t = quartetdisplayprobability(net; showprogressbar=showprogressbar)
     nn == length(t) || error("quartetdisplayprobability got a different number of taxa.")

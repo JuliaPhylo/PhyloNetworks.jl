@@ -137,7 +137,9 @@ nt = tablequartetCF(q,t)
 end
 
 @testset "quartetdisplayprobability" begin
-net = readnewick("(((C,#H2),((((B1,B2,B3),#H1))#H2:::0.6,((A)#H3:::.8)#H1:::0.5)),(#H3,D));")
+net = readnewick("(((C,#H2),((((B1,B2,B3),#H1))#H2,((A)#H3:::.8)#H1:::0.5)),(#H3,D));")
+@test_throws "edge(s) number 2,10 have no γ" PN.quartetdisplayprobability(net)
+setgamma!(net.edge[10], 0.6)
 q,t = PN.quartetdisplayprobability(net)
 @test length(q)==15
 @test t == ["A","B1","B2","B3","C","D"] # sorted, unlike in tiplabels(net)
@@ -155,9 +157,7 @@ end
 
 @testset "quarnetdistancematrix" begin
 # level 2, one 2-cycle, 1 cherry below cut edge, 1 cherry at polytomy
-net = readnewick("(((E)#H1:::0.7,((#H1,D),((C,(B)#H3,#H3):1)#H2:::0.6)),(#H2,A,a));")
-@test_throws "edge(s) number 8,9 have no γ" PN.quarnetdistancematrix(net; cost=:nanuq)
-setgamma!(net.edge[8], 0.9)
+net = readnewick("(((E)#H1:::0.7,((#H1,D),((C,(B)#H3:::0.9,#H3):1)#H2:::0.6)),(#H2,A,a));")
 # tiplabels(net) == ["E", "D", "C", "B", "A", "a"]
 d_nanuqplus = PN.quarnetdistancematrix(net; cost=:nanuqplus)
 @test d_nanuqplus ≈ [
@@ -217,14 +217,16 @@ tre2 = PN.nj!(copy(d_mgamma), tiplabels(tre1))
 dtre2 = pairwisetaxondistancematrix(tre2)
 @test dtre2 ≈ d_mgamma
 # non-circular blob with a polytomy (γ* = 0.125)
-net = readnewick("(((a)#H1:::0.5,((#H1,(b)#H2:::0.5),#H3,d)),((#H2)#H3:::0.5,c));")
+net = readnewick("(((a)#H1,((#H1,(b)#H2:::0.5),#H3,d)),((#H2)#H3:::0.5,c));")
 d0 = [0 1 1 1; 1 0 1 1; 1 1 0 1; 1 1 1 0]
 @test_throws "invalid cost specification" PN.quarnetdistancematrix(net; cost=2)
 @test_throws "costs are needed" PN.quarnetdistancematrix(net; cost=(star=2,))
 @test_throws "invalid cost: star" PN.quarnetdistancematrix(net;
   cost=(cherry=0, split=0, adjacent=0, opposite=0, star=2))
-@test PN.quarnetdistancematrix(net; cost = (cherry=0, split=0, adjacent=0,
-  opposite=0, noncircular=0, unresolved=8)) ≈ d0
+d = (@test_logs (:warn, r"missing inheritance") PN.quarnetdistancematrix(net;
+  cost = (cherry=0, split=0, adjacent=0, opposite=0, noncircular=0, unresolved=8)))
+@test d ≈ d0
+setgamma!(net.edge[2], 0.5)
 @test PN.quarnetdistancematrix(net; cost = (cherry=0, split=0, adjacent=0,
   opposite=0, noncircular=8, unresolved=0)) ≈ 7d0
 end
