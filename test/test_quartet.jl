@@ -216,4 +216,15 @@ d_mgamma = PN.quarnetdistancematrix(tre1; cost=:mgamma) # same as nanuq
 tre2 = PN.nj!(copy(d_mgamma), tiplabels(tre1))
 dtre2 = pairwisetaxondistancematrix(tre2)
 @test dtre2 ≈ d_mgamma
+# non-circular blob with a polytomy (γ* = 0.125)
+net = readnewick("(((a)#H1:::0.5,((#H1,(b)#H2:::0.5),#H3,d)),((#H2)#H3:::0.5,c));")
+d0 = [0 1 1 1; 1 0 1 1; 1 1 0 1; 1 1 1 0]
+@test_throws "invalid cost specification" PN.quarnetdistancematrix(net; cost=2)
+@test_throws "costs are needed" PN.quarnetdistancematrix(net; cost=(star=2,))
+@test_throws "invalid cost: star" PN.quarnetdistancematrix(net;
+  cost=(cherry=0, split=0, adjacent=0, opposite=0, star=2))
+@test PN.quarnetdistancematrix(net; cost = (cherry=0, split=0, adjacent=0,
+  opposite=0, noncircular=0, unresolved=8)) ≈ d0
+@test PN.quarnetdistancematrix(net; cost = (cherry=0, split=0, adjacent=0,
+  opposite=0, noncircular=8, unresolved=0)) ≈ 7d0
 end

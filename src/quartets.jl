@@ -833,13 +833,15 @@ same order as in `tiplabels(net)`.
 
 Cost: scheme to penalize pairwise relationships within a quarnet.
 
-- `cost=:nanuqplus` uses the "modified NANUQ" cost `ρ` (by
-  [Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w)):
+- `cost=:nanuqplus` extends the "modified NANUQ" cost `ρ` (by
+  [Allman et al. 2025](https://doi.org/10.1186/s13015-025-00274-w),
+  who focused on binary networks):
   `ρc = 0.5` for **c**herries,
   `ρs = 1` for **s**plits (2 taxa **s**eparated by a tree-split),
-  `ρa = 0.5` for **a**djacent pairs (in a quarnet that admits 1 circular order),
-  `ρo = 1` for **o**pposite taxa (diagonal from each other in circular quarnets)
-    or for any taxon pair in a star quartet tree.
+  `ρa = 0.5` for **a**djacent pairs (in a quarnet that admits one circular order),
+  `ρo = 1` for **o**pposite taxa (diagonal from each other in circular quarnets),
+  `ρn = 1` for any pair in **n**on-circular quarnets (displaying all 3 splits),
+  `ρu = 1` for **u**nresolved pairs (in a star quartet tree).
 - `cost=:nanuq` uses the original NANUQ cost: same as above except
   that `ρc = 0`.
 - `cost=:mgamma` uses a penalty that depends on the taxon pair relationship within
@@ -848,8 +850,10 @@ Cost: scheme to penalize pairwise relationships within a quarnet.
   This scheme is similar to NANUQ's because it simplifies to `ρc = 0` for cherries,
   `ρs = 1` and `ρo = 1` for split and opposite taxa. But the cost of
   adjacent taxa depends on the "strength" of adjacency.
-- custom costs can be used by providing a named tuple, for example
-  `cost = (cherry=0.5, split=2, adjacent=0.5, opposite=1)` 
+- custom costs can be used by providing a named tuple. For example
+  `cost = (cherry=0, split=1, adjacent=0.5, opposite=1, noncircular=1, unresolved=1)`
+  corresponds to `cost=:nanuq`. If not provided, the noncircular and unresolved
+  costs are taken to be equal to the opposite cost.
 
 **Note**: the (modified) NANUQ distance is defined as `2d(x,y) + 2n-4`
 for x≠y, where `n` is the number of taxa.
@@ -863,19 +867,18 @@ for an internal edge `e` with quadripartition `X₁,X₂|Y₁,Y₂`, and
 See p.4 of [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204)
 for the general case with polytomies in a tree.
 
-**Polytomies**: some quarnets with polytomies can display the star quartet.
-The (modified) NANUQ distance definition in
-[Allman et al. (2025)](https://doi.org/10.1186/s13015-025-00274-w)
-is for binary networks, which only display resolved quartets.
-Here, a displayed star quartet `(x,y,w,z)` is handled as follows.
-- For `cost=:mgamma` the `cost(x,y | q)` = 1 - γ(xy|wz) tends to
-  be large if the probability of the star quartet γ(star) on q={x,y,w,z}
-  is high, because γ(star) = 1 - γ(xy|wz) - γ(xw|yz) - γ(xz|yw).
-- When using `:nanuq`, `:nanuplus` or custom, the cost is a weighted average:
-  `cost(x,y | q) = (1-γ(star)) * ρr + γ(star) * ρo`, where r=c,s,a, or o
-  based on the relationship (cherry, split, adjacent, opposite)
-  between x and y in the quarnet on `q={a,b,c,d}`, and
-  γ(star) is the probability that the star quartet on q is displayed.
+**Polytomies**: some quarnets with polytomies can display the star quartet,
+*and* have a split or a circular order etc.
+Suppose that the star tree `(x,y,w,z)` is displayed with probability γ*
+by the quarnet on q={x,y,w,z}.
+- The cost `:mgamma` handles this situation simply, as
+  `cost(x,y | q)` = 1 - γ(xy|wz) tends to be large if γ* is high,
+  because γ* = 1 - γ(xy|wz) - γ(xw|yz) - γ(xz|yw).
+- For the other cost schemes, γ* > 0 means that both the cost `ρu`
+  and another cost are used, via a weighted average:
+  `cost(x,y | q) = (1-γ*) ρr + γ* ρo`, where r=c,s,a,o or n
+  based on the relationship (cherry, split, adjacent, opposite, noncircular)
+  between x and y in the quarnet.
   This is consistent with the metric for trees with polytomies in
   [Rhodes (2019)](https://doi.org/10.1109/TCBB.2019.2917204).
 
@@ -960,14 +963,27 @@ function quarnetdistancematrix(
 )
     isa(cost, NamedTuple) || cost ∈ (:nanuq, :nanuqplus, :mgamma) ||
         error("invalid cost specification: $cost")
+    if isa(cost, NamedTuple)
+        basek = (:cherry, :split, :adjacent, :opposite) # order matters below
+        basek ⊆ keys(cost) ||
+            error("these costs are needed: cherry, split, adjacent, opposite")
+        allk = (basek..., :noncircular, :unresolved)
+        keys(cost) ⊆ allk ||
+            error("invalid cost: $(join(setdiff(keys(cost), allk), ", "))")
+        ρ = [cost[basek]...,
+             get(cost, :noncircular, cost[:opposite]),
+             get(cost, :unresolved,  cost[:opposite]) ]
+    end
     addcost! =
         (cost == :nanuqplus ? addQDcost_nanuqplus! :
         (cost == :nanuq     ? addQDcost_nanuq! :
         (cost == :mgamma    ? addQDcost_gamma! :
-        (d, qi, qγ) -> addQDcost_rho!(d, qi, qγ, cost[:cherry], cost[:split], cost[:adjacent], cost[:opposite])
+        (d, qi, qγ) -> addQDcost_rho!(d,qi,qγ, ρ...)
         )))
     taxa = tiplabels(net)
     nn = length(taxa)
+    nn < 4 &&
+        error("the network must have 4+ taxa to calculate quarnet distances")
     nanuqd = zeros(Float64, nn,nn)
     quartet,t = quartetdisplayprobability(net; showprogressbar=showprogressbar)
     nn == length(t) || error("quartetdisplayprobability got a different number of taxa.")
@@ -979,14 +995,16 @@ function quarnetdistancematrix(
     return nanuqd
 end
 
-function addQDcost_rho!(d, qi, qγ, chry, splt, adjt, opps)
+function addQDcost_rho!(d, qi, qγ, chry, splt, adjt, opps, nocirc, star)
     qdisp = map(x -> x ≉ 0.0, qγ)
     ndisp = sum(qdisp)
     # ndisp=1: 1 cherry, 2 splits. ndisp=2: 2 adjacent, 1 opposite
-    # ndisp=0 or ndisp=3: all 3 considered opposite
+    # ndisp=3: 3 non-circular
     sumγ = sum(qγ) # P(resolved quartet)
     # common cost to all 6 pairs: star, or all 3 displayed
-    c3 = (ndisp == 0 || ndisp == 3 ? opps : opps * (1-sumγ))
+    c3 = (ndisp == 0 ? star :
+         (ndisp == 3 ? star * (1-sumγ) + nocirc * sumγ :
+                       star * (1-sumγ) ))
     (c1,c2) = (ndisp == 0 || ndisp == 3 ? (c3, c3) :
               (ndisp == 1 ? (sumγ*chry + c3, sumγ*splt + c3) :
                             (sumγ*adjt + c3, sumγ*opps + c3)))
@@ -998,8 +1016,8 @@ function addQDcost_rho!(d, qi, qγ, chry, splt, adjt, opps)
     end
     return nothing
 end
-addQDcost_nanuq!(d,qi,qγ) = addQDcost_rho!(d,qi,qγ, 0. , 1., 0.5, 1.)
-addQDcost_nanuqplus!(d,qi,qγ) = addQDcost_rho!(d,qi,qγ, 0.5, 1., 0.5, 1.)
+addQDcost_nanuq!(d,qi,qγ) = addQDcost_rho!(d,qi,qγ,     0. ,1.,0.5,1.,1.,1.)
+addQDcost_nanuqplus!(d,qi,qγ) = addQDcost_rho!(d,qi,qγ, 0.5,1.,0.5,1.,1.,1.)
 function addQDcost_gamma!(d, qi, qγ)
     # like nanuq: chry=0, splt=opps=1. but adjt=1-γ instead of 1/2
     for jrow in 1:3 # resolution 1,i2|i3,i4
