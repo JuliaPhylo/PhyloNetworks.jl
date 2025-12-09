@@ -577,7 +577,7 @@ in which case the probabilities of the 3 resolved quartet trees on a given
 
 Output: `(q,t)` where `t` is a list of taxa,
 and `q` is a list of 4-taxon set objects of type `PhyloNetworks.QuartetT{datatype}`.
-In each element of `q`, `taxonnumber` gives the indices in `taxa`
+In each element of `q`, `taxonnumber` gives the indices in `t`
 of the 4 taxa of interest; and `data` contains the 3 quartet γs, for the
 3 unrooted (resolved) topologies in the following order:
 `t1,t2|t3,t4`, `t1,t3|t2,t4` and `t1,t4|t2,t3`.
@@ -678,7 +678,7 @@ function quartetdisplayprobability(
     if showprogressbar
         nstars = (numq < 50 ? numq : 50)
         nquarnets_perstar = (numq/nstars)
-        println("Calculation quartet CFs for $numq quartets...")
+        println("quartet display probabilities for $numq 4-taxon sets...")
         print("0+" * "-"^nstars * "+100%\n  ")
         stars = 0
         nextstar = Integer(ceil(nquarnets_perstar))
@@ -772,11 +772,11 @@ function quartetdisplayprobability!(
         funneldescendants = union([descendants(e) for e in funneledge]...)
         ndes = length(funneldescendants)
         n2 = (ispolytomy ? hyb : getchild(funneledge[1]))
-        ndes > 2 && n2.leaf && error("2+ descendants below the lowest hybrid, yet n2 is a leaf. taxa: $(fourtaxa)")
+        ndes >= 2 && n2.leaf && error("2+ descendants below the lowest hybrid, yet n2 is a leaf. taxa: $(fourtaxa)")
     end
-    if ndes >= 2 # then 0 or 1 quartet only. find cut edge
+    if ndes > 2  || (ndes==2 && !ispolytomy) # then 0 or 1 quartet only. find cut edge
         # pool of cut edges below. contains NO external edge, bc n2 not leaf (if reticulation), nice tree ow
-        cutpool = (ndes == 2 ? (ispolytomy ? Edge[] : funneledge) :
+        cutpool = (ndes == 2 ? funneledge : # not a polytomy: 1 funnel edge
             # otherwise ndes = 3 or 4: children edges of n2
             (net.numhybrids == 0 ? net.edge :
                 [e for e in n2.edge if getparent(e) === n2]))
@@ -795,24 +795,23 @@ function quartetdisplayprobability!(
         return qγ
     end
     ndes > 0 || error("weird: hybrid node has no descendant taxa")
-    # by now, there are 1 or 2 taxa below the lowest hybrid
+    # by now, only external edges below the lowest hybrid: 1 or 2 (polytomy)
+    # weighted average of qγs from the nhe(=2 often) displayed networks
     qγ = MVector{3,Float64}(0.,0.,0.) # mutated later
     parenthedge = [e for e in hyb.edge if getchild(e) === hyb]
     all(h.hybrid for h in parenthedge) || error("hybrid $(hyb.number) has a parent edge that's a tree edge")
     parenthnumber = [p.number for p in parenthedge]
     nhe = length(parenthedge)
-    if ndes == 1 # weighted qγs average of the nhe (often = 2) displayed networks
-        for i in 1:nhe # keep parenthedge[i], remove all others
-            gamma = parenthedge[i].gamma
-            simplernet = ( i < nhe ? deepcopy(net) : net ) # last case: to save memory allocation
-            for j in 1:nhe
-                j == i && continue # don't delete hybrid edge i!
-                pe_index = findfirst(e -> e.number == parenthnumber[j], simplernet.edge)
-                deletehybridedge!(simplernet, simplernet.edge[pe_index],
-                    false,true,false,true,false) # ., unroot=true, ., simplify=true,.
-            end
-            qγ .+= gamma .* quartetdisplayprobability!(simplernet, fourtaxa)
+    for i in 1:nhe # keep parenthedge[i], remove all others
+        gamma = parenthedge[i].gamma
+        simplernet = ( i < nhe ? deepcopy(net) : net ) # last case: to save memory allocation
+        for j in 1:nhe
+            j == i && continue # don't delete hybrid edge i!
+            pe_index = findfirst(e -> e.number == parenthnumber[j], simplernet.edge)
+            deletehybridedge!(simplernet, simplernet.edge[pe_index],
+                false,true,false,true,false) # ., unroot=true, ., simplify=true,.
         end
+        qγ .+= gamma .* quartetdisplayprobability!(simplernet, fourtaxa)
     end
     return qγ
 end
@@ -846,7 +845,7 @@ Cost: scheme to penalize pairwise relationships within a quarnet.
   that `ρc = 0`.
 - `cost=:mgamma` uses a penalty that depends on the taxon pair relationship within
   the quarnet, and also on the inheritance probabilities:
-  `cost(x,y | q={x,y,w,z})` = 1 - γ(xy|wz).
+  `cost(x,y | q on {x,y,w,z})` = 1 - γ(xy|wz).
   This scheme is similar to NANUQ's because it simplifies to `ρc = 0` for cherries,
   `ρs = 1` and `ρo = 1` for split and opposite taxa. But the cost of
   adjacent taxa depends on the "strength" of adjacency.
@@ -870,7 +869,7 @@ for the general case with polytomies in a tree.
 **Polytomies**: some quarnets with polytomies can display the star quartet,
 *and* have a split or a circular order etc.
 Suppose that the star tree `(x,y,w,z)` is displayed with probability γ*
-by the quarnet on q={x,y,w,z}.
+by the quarnet `q` on {x,y,w,z}.
 - The cost `:mgamma` handles this situation simply, as
   `cost(x,y | q)` = 1 - γ(xy|wz) tends to be large if γ* is high,
   because γ* = 1 - γ(xy|wz) - γ(xw|yz) - γ(xz|yw).

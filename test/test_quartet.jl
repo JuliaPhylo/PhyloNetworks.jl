@@ -153,6 +153,9 @@ q_AB1B2C = q[2]
 q_AB1CD = q[10]
 @test q_AB1CD.taxonnumber == [1,2,5,6]
 @test q_AB1CD.data ≈ [0.64, 0.0, 0.36]
+net = readnewick("((A,(X,Y)#H0:::0.5),(#H0,B));")
+q,t = PN.quartetdisplayprobability(net)
+@test q[1].data ≈ [1,0,0]
 end
 
 @testset "quarnetdistancematrix" begin
