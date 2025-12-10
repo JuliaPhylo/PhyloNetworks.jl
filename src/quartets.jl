@@ -875,7 +875,7 @@ by the quarnet `q` on {x,y,w,z}.
   because γ* = 1 - γ(xy|wz) - γ(xw|yz) - γ(xz|yw).
 - For the other cost schemes, γ* > 0 means that both the cost `ρu`
   and another cost are used, via a weighted average:
-  `cost(x,y | q) = (1-γ*) ρr + γ* ρo`, where r=c,s,a,o or n
+  `cost(x,y | q) = (1-γ*) ρr + γ* ρu`, where r=c,s,a,o or n
   based on the relationship (cherry, split, adjacent, opposite, noncircular)
   between x and y in the quarnet.
   This is consistent with the metric for trees with polytomies in
