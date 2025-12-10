@@ -109,7 +109,6 @@ function pairwisetaxondistancematrix(
     checkpreorder::Bool=true,
     nodeAges::Vector{Float64}=Float64[]
 )
-    net.isrooted || error("net needs to be rooted for preorder recursion")
     if checkpreorder
         preorder!(net)
     end

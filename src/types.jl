@@ -256,7 +256,11 @@ Explicit network (which may be a tree) with the following attributes:
 - `leaf`: vector of Nodes: those that are leaves
 - `fscore`: score after fitting network to data, i.e. parsimony score, or
    multipe of the negative log pseudodeviance for SNaQ
-- `isrooted`: true or false
+- `isrooted`: true or false, for traversal purposes. 'true' should be interpreted as:
+  the root node (of index `rooti`) is a valid placement, and edges are directed
+  away from that node. It should *not* be interpreted as a truly rooted phylogeny.
+  Semidirected networks and unrooted trees still need some arbitrary root for
+  traversal purposes.
 - `partition`: vector of `Partition`
 """
 mutable struct HybridNetwork <: Network

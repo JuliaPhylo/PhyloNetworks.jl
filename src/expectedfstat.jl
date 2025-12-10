@@ -77,7 +77,7 @@ Calculate the f4 statistics expected from `net`, assuming that branch lengths in
 `net` represent "f2 distance".
 Output: `(q,t)` where `t` is a list of taxa and `q` is a list of 4-taxon set
 objects of type [`PhyloNetworks.QuartetT{datatype}`](@ref).
-In each element of `q`, `taxonnumber` gives the indices in `taxa` of the 4 taxa
+In each element of `q`, `taxonnumber` gives the indices in `t` of the 4 taxa
 of interest; and `data` contains the 3 primary expected f4-statistics,
 for the following 3 ordering of the 4 taxa:
 
