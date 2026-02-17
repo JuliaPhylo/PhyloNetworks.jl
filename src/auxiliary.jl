@@ -469,7 +469,6 @@ function getconnectingedge(node1::Node, node2::Node)
             e1 === e2 && return e1
         end
     end
-    # error("nodes not connected")
     return nothing
 end
 """
