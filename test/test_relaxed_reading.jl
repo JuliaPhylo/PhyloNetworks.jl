@@ -76,11 +76,11 @@ end
     @test_logs (:warn, r"^γ read") readnewick("(a:::.5);")
     @test_logs (:warn, r"^partners: 2 with no γ, 3 with γ>1.") readnewick("((b)#H1,#H1:::1.1);")
     @test_logs (:warn, r"^partners: 3 with no γ, 2 with γ>1.") readnewick("((b)#H1:::1.1,#H1);")
-    net = readnewick("(a, b):0.5;")
+    net = readnewick("(a, b:0.123:0.81);")
     tmpfile = "tmp.nwk"
-    writemultinewick([net], tmpfile)
-    writenewick(net, tmpfile; append=true, support=true)
-    @test readlines(tmpfile) == ["(a,b);","(a,b);"]
+    writemultinewick([net], tmpfile; round=true, digits=1)
+    writenewick(net, tmpfile; append=true)
+    @test readlines(tmpfile) == ["(a,b:0.1:0.8);","(a,b:0.123);"]
     rm(tmpfile)
     @test_throws "not find or open tmp.nwk" readnewick(tmpfile)
     @test writenewick(readnewick("((a,(b)#H1)i1,(#H1,c))r;")) == "((a,(b)#H1)i1,(#H1,c))r;"

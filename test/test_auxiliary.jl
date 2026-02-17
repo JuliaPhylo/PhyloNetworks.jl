@@ -56,6 +56,8 @@ PhyloNetworks.EdgeT{PhyloNetworks.Node}:
 @test PhyloNetworks.getIndexNode(net0.edge[10], net0.node[8]) == 1
 @test PhyloNetworks.getIndexHybrid(net0.node[8], net) == 1
 @test PhyloNetworks.getconnectingedge(net0.node[8], net0.node[13]) === net0.edge[10]
+@test PhyloNetworks.getconnectingedge(1, -4, net0) === net0.edge[1]
+@test isnothing(PhyloNetworks.getconnectingedge(2, -5, net0))
 PhyloNetworks.deleteIntNode!(net0, getroot(net0))
 @test net0.numedges == 19
 @test net0.numnodes == 18
