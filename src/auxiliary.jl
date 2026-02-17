@@ -458,8 +458,8 @@ end
 """
     getconnectingedge(node1::Node, node2::Node)
 
-Edge shared by (or connecting) `node1` and `node2`, that is: edge incident
-to both nodes. An error is thrown if the 2 nodes are not adjacent.
+Edge shared by (or connecting) `node1` and `node2`, that is, edge incident
+to both nodes; or `nothing` if the nodes are not adjacent (without error).
 
 See also [`isconnected`](@ref)
 """
@@ -469,7 +469,7 @@ function getconnectingedge(node1::Node, node2::Node)
             e1 === e2 && return e1
         end
     end
-    error("nodes not connected")
+    # error("nodes not connected")
     return nothing
 end
 """

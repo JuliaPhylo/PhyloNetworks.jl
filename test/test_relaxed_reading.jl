@@ -78,7 +78,7 @@ end
     @test_logs (:warn, r"^partners: 3 with no γ, 2 with γ>1.") readnewick("((b)#H1:::1.1,#H1);")
     net = readnewick("(a, b:0.123:0.81);")
     tmpfile = "tmp.nwk"
-    writemultinewick([net], tmpfile; round=true, digits=1)
+    writemultinewick([net], tmpfile; round=true, digits=1, support=:y)
     writenewick(net, tmpfile; append=true)
     @test readlines(tmpfile) == ["(a,b:0.1:0.8);","(a,b:0.123);"]
     rm(tmpfile)

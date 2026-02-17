@@ -1221,7 +1221,7 @@ function writemultinewick(
     digits::Integer=3,
     di::Bool=false,
     internallabel::Bool=true,
-    support=:y,
+    support=nothing,
 )
     for i in 1:length(net)
       try
