@@ -458,8 +458,8 @@ end
 """
     getconnectingedge(node1::Node, node2::Node)
 
-Edge shared by (or connecting) `node1` and `node2`, that is: edge incident
-to both nodes. An error is thrown if the 2 nodes are not connected.
+Edge shared by (or connecting) `node1` and `node2`, that is, edge incident
+to both nodes; or `nothing` if the nodes are not adjacent (without error).
 
 See also [`isconnected`](@ref)
 """
@@ -469,15 +469,36 @@ function getconnectingedge(node1::Node, node2::Node)
             e1 === e2 && return e1
         end
     end
-    error("nodes not connected")
+    return nothing
+end
+"""
+    getconnectingedge(n1_number::Int, n2_number::Int, net::HybridNetwork)
+
+Edge in `net` that is incident to nodes `n1` and `n2` of specified numbers;
+or `nothing` if `n1` and `n2` are not adjacent and no such edge exists
+(without any error).
+
+Warning: if `net` has parallel edges, there might 2+ (hybrid and partner)
+edges connecting `n1` and `n2`. One of them is returned, arbitrarily.
+"""
+function getconnectingedge(n1num::Int, n2num::Int, net::HybridNetwork)
+    n1i = findfirst(n -> n.number == n1num, net.node)
+    isnothing(n1i) && error("no node numbered $n1num")
+    n1 = net.node[n1i]
+    for e in n1.edge
+        n2 = getOtherNode(e,n1)
+        if n2.number == n2num
+            return e
+        end
+    end
     return nothing
 end
 
 """
-    isconnected(node1::Node, node2::Node)
+    isconnected(n1::Node, n2::Node)
 
-Check if two nodes are connected by an edge. Return true if connected, false
-if not connected.
+`true` if nodes `n1` and `n2` are adjacent, that is, connected by an edge;
+`false` otherwise.
 
 See also [`getconnectingedge`](@ref)
 """

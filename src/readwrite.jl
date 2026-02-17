@@ -1202,18 +1202,30 @@ julia> writemultinewick(net, stdout)         # to write to the screen (standard 
 (G,H,F);
 ```
 """
-function writemultinewick(n::Vector{HybridNetwork},file::AbstractString; append::Bool=false)
+function writemultinewick(
+    n::Vector{HybridNetwork},
+    file::AbstractString;
+    append::Bool=false,
+    kwargs...
+)
     mode = (append ? "a" : "w")
     open(file, mode) do s
-    writemultinewick(n,s)
+    writemultinewick(n,s; kwargs...)
     end # closes file safely
 end
 
-function writemultinewick(net::Vector{HybridNetwork},s::IO)
+function writemultinewick(
+    net::Vector{HybridNetwork},
+    s::IO;
+    round::Bool=false,
+    digits::Integer=3,
+    di::Bool=false,
+    internallabel::Bool=true,
+    support=nothing,
+)
     for i in 1:length(net)
       try
-        # writeTopologyLevel1(net[i],s,false,true,"none",false,false,3)
-        writenewick(net[i],s) # no rounding, not for dendroscope
+        writenewick(net[i],s,round,digits,di,internallabel,support)
         write(s,"\n")
       catch err
         if isa(err, RootMismatch) # continue writing other networks in list
