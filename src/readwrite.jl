@@ -9,7 +9,7 @@ in julia/base/io.jl, except that
 linecomment argument: never actually used here
 =#
 function peekskip(io::IO, linecomment=nothing)
-    for c in readeach(io, Char) # empty iterable if eof(io)
+    for c in readeach(io, Char) # empty iterable if eof(io). requires julia v1.6
         if c === linecomment
             readline(io)
         elseif !isspace(c)

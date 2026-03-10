@@ -206,7 +206,7 @@ articulation nodes.
 So external (pendent) edges are trivial blobs with 0 (non-internal) exit nodes.
 If the network is rooted at a leaf, there may be some pathological behaviors
 depending on the downstream task
-(e.g. this is checked for by [`leaststableancestor`])(@ref)).
+(e.g. this is checked for by [`leaststableancestor`](@ref)).
 """
 number_exitnodes(p::Partition) = length(p.cycle)-1
 ispendent(p::Partition) = (length(p.cycle) == 1)
