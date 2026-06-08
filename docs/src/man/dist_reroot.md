@@ -105,7 +105,7 @@ nothing # hide
 Let's imagine that A1 and A2 are our outgroups, and we estimated the network above.
 According to this network, time must flow from the hybrid node towards A1 and A2.
 So any attempt to reroot the network with A1 as outgroup, or with A2 as outgroup,
-or with the A clade (on edge 11), will fail with a `RootMismatch` error:
+or with the A clade (on edge 10), will fail with a `RootMismatch` error:
 
 ```julia
 rootatnode!(net7taxa, "A1"); # ERROR: RootMismatch: non-leaf node 5 had 0 children. ...
@@ -114,7 +114,7 @@ rootonedge!(net7taxa, 10);   # ERROR: RootMismatch (again)
 ```
 
 In this case, however, it is possible to root the network on either parent edge
-of the hybrid node. These edges have numbers 12 and 5, based on the plot above.
+of the hybrid node. These edges have numbers 11 and 5, based on the plot above.
 We get these 2 rooted versions of the network:
 
 ```@example dist_reroot
