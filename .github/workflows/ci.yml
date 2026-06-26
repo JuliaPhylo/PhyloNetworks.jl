@@ -38,6 +38,14 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v3
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+      - name: Configure RCall
+        shell: bash
+        run: |
+          R_PATH=$(Rscript -e 'cat(R.home())')
+          echo "R_HOME=$R_PATH" >> "$GITHUB_ENV"
+          R_HOME="$R_PATH" julia --project=@. -e 'using Pkg; Pkg.build("RCall")'
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
