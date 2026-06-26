@@ -259,7 +259,8 @@ end
 
 
 """
-    countquartetsintrees(trees [, taxonmap]; which=:all, weight_byallele=false)
+    countquartetsintrees(trees [, taxonmap]; which=:all, weight_byallele=false,
+                         showprogressbar=true)
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should be a dictionary that maps each allele name to it's species name.
@@ -402,8 +403,9 @@ julia> show(DataFrame(nt, copycols=false), allcols=true)
 function countquartetsintrees(
     tree::Vector{HybridNetwork},
     taxonmap::Dict=Dict{String,String}();
-    whichQ::Symbol=:all, weight_byallele::Bool=false,
-    showprogressbar::Bool=true
+    whichQ::Symbol=:all,
+    weight_byallele::Bool=false,
+    showprogressbar::Bool=true,
 )
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
