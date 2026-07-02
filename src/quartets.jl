@@ -259,7 +259,8 @@ end
 
 
 """
-    countquartetsintrees(trees [, taxonmap]; which=:all, weight_byallele=true)
+    countquartetsintrees(trees [, taxonmap]; which=:all, weight_byallele=false,
+                         showprogressbar=true)
 
 Calculate the quartet concordance factors (CF) observed in the `trees` vector.
 If present, `taxonmap` should be a dictionary that maps each allele name to it's species name.
@@ -277,7 +278,7 @@ each species (`a` etc.) will be considered to calculate the quartet CF.
 
 By default, each gene has a weight of 1. So if there are `n_a` alleles from `a`,
 `n_b` alleles from `b` etc. in a given gene, then each set of 4 alleles has a
-weight of `1/(n_a n_b b_c n_c)` in the calculation of the CF for `a,b,c,d`.
+weight of `1/(n_a * n_b * b_c * n_c)` in the calculation of the CF for `a,b,c,d`.
 With option `weight_byallele=true`, then each set of 4 alleles is given a
 weight of 1 instead. This inflates the total number of sets used to calculate
 the quartet CFs (to something larger than the number of genes). This may also
@@ -402,8 +403,9 @@ julia> show(DataFrame(nt, copycols=false), allcols=true)
 function countquartetsintrees(
     tree::Vector{HybridNetwork},
     taxonmap::Dict=Dict{String,String}();
-    whichQ::Symbol=:all, weight_byallele::Bool=false,
-    showprogressbar::Bool=true
+    whichQ::Symbol=:all,
+    weight_byallele::Bool=false,
+    showprogressbar::Bool=true,
 )
     whichQ in [:all, :intrees] || error("whichQ must be either :all or :intrees, but got $whichQ")
     if isempty(taxonmap)
