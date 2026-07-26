@@ -1356,7 +1356,7 @@ function unzip_canonical!(net::HybridNetwork)
     hybpriority = PriorityQueue(h => i for (i,h) in enumerate(net.hybrid))
     nextpriority = length(hybpriority)+1
     while !isempty(hybpriority)
-        h,p = peek(hybpriority)
+        h,p = first(hybpriority) # peek() with DataStructures ≤ 0.18, deprecated in 0.19
         hl = hybladder[h.number]
         if isnothing(hl) || !haskey(hybpriority,hl)
             # hl no longer key because had priority < p, so already dequeued

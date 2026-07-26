@@ -69,9 +69,9 @@ For the PhyloNetworks package in particular, please cite:
   [doi:10.1093/molbev/msx235](https://doi.org/10.1093/molbev/msx235)
 
 > [!NOTE]
-> Version 0.17 of PhyloNetworks is a major change from version v0.16.4. Many
+> Version 0.17 of PhyloNetworks was a major change from version v0.16.4. Many
 > functionalities were moved to other packages (e.g. SNaQ.jl and PhyloTraits.jl),
 > the names of many methods were changed, and various internal functions
 > were improved with breaking changes (e.g. traversal routines).
-> PhyloNetworks v0.17 should serve as a better "core", used by other packages
+> PhyloNetworks v0.17, v1 and up should serve as a "core", used by other packages
 > with more specialized functionalities.
