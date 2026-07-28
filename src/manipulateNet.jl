@@ -630,45 +630,69 @@ end
 
 """
     preorder!(net::HybridNetwork)
+    preorder!(nodevec, visited, net::HybridNetwork)
 
-Update attribute `net.vec_node` in which the nodes are pre-ordered
-(also called topological sorting), such that each node is visited after its parent(s).
-The edges' direction needs to be correct before calling `preorder!`, using `directedges!`
+Topological ordering of the network's nodes: modifies `nodevec`,
+set to `net.vec_node` in the first method, to store the nodes in a pre-order:
+in which each node is visited after its parent(s).
+`visited`, set to `net.vec_bool` in the first method, is used to track
+which nodes have already been visited.
+
+**Assumption**: the edges' direction is correct, directed away from the root.
+Call [`directedges!`](@ref) beforehand to ensure this.
+
+output: true if all nodes have been visited (all values in `visited` are true),
+false otherwise.
+
+1. The second method *appends* nodes to `nodevec`, and
+   assumes `visited` is of the correct size (number of nodes).
+   It modifies `nodevec` and `visited`, but does not modify the network otherwise.
+2. The first method modifies attributes `.vec_node` and `.vec_bool` of `net`.
+   `net.vec_node` is used by other methods to traverse the network in pre-order
+   or post-order (reverse of pre-order).
+   A `RootMismatch` error is thrown if the nodes are not all visited
+   during the traversal.
 """
 function preorder!(net::HybridNetwork)
     net.isrooted || error("net needs to be rooted for preorder!, run root functions or directedges!")
-    net.vec_node = Node[] # path of nodes in preorder.
-    queue = Node[] # problem with PriorityQueue(): dequeue() takes a
-                   # random member if all have the same priority 1.
-    # using net.vec_bool track which nodes have already been *visited*
-    net.vec_bool = [false for i = 1:size(net.node,1)];
-    push!(queue,net.node[net.rooti]) # push root into queue
+    empty!(net.vec_node)
+    resize!(net.vec_bool, length(net.node))
+    fill!(net.vec_bool, false) # false: not visited yet
+    allvisited = preorder!(net.vec_node, net.vec_bool, net)
+    allvisited || throw(RootMismatch(
+        """Not all nodes were visited after 'preorder!'.
+        Were edges directed away from the root? are there multiple roots?"""))
+    return  allvisited
+end
+function preorder!(
+    nodevec::AbstractVector{<:ANode},
+    visited::AbstractVector{Bool},
+    net::HybridNetwork
+)
+    queue = [net.rooti]
     while !isempty(queue)
-        #println("at this moment, queue is $([n.number for n in queue])")
-        curr = pop!(queue); # deliberate choice over shift! for cladewise order
-        currind = findfirst(x -> x===curr, net.node)
+        currind = pop!(queue); # deliberate choice over shift! for cladewise order
+        curr = net.node[currind]
         # the "curr"ent node may have been already visited: because simple loop (2-cycle)
-        !net.vec_bool[currind] || continue
-        net.vec_bool[currind] = true # visit curr node
-        push!(net.vec_node,curr) #push curr into path
+        !visited[currind] || continue
+        visited[currind] = true # visit curr node
+        push!(nodevec, curr)
         for e in curr.edge
             if curr == getparent(e)
                 other = getchild(e)
                 if !e.hybrid
-                    push!(queue,other)
-                    # print("queuing: "); @show other.number
+                    push!(queue, findfirst(x -> x===other, net.node))
                 else
                     e2 = getpartneredge(e, other)
                     parent = getparent(e2)
-                    if net.vec_bool[findfirst(x -> x===parent, net.node)]
-                      push!(queue,other)
-                      # warning: if simple loop, the same node will be pushed twice: child of "curr" via 2 edges
+                    if visited[findfirst(x -> x===parent, net.node)]
+                      push!(queue, findfirst(x -> x===other, net.node))
                     end
                 end
             end
         end
     end
-    # println("path of nodes is $([n.number for n in net.vec_node])")
+    return all(visited)
 end
 
 
