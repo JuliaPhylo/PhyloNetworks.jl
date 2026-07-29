@@ -341,6 +341,59 @@ end
 end
 
 """
+    parentedgesof(cn)
+
+Lazy iterator over the parent edges of a child node `cn`.
+Assumes that edges are correctly directed away from the root,
+e.g. using [`directedges!`](@ref).
+
+See [`getparents`](@ref) to get a vector of parent *nodes* of `cn`,
+and [`getparentedge`](@ref) to the get (single) major parent edge of `cn`,
+if is not the root.
+"""
+struct parentedgesof
+    cnode::Node
+end
+function Base.iterate(obj::parentedgesof, state=1)
+    next = iterate(obj.cnode.edge, state)
+    while next !== nothing
+        (e, st) = next
+        ischildof(obj.cnode, e) && break
+        next = iterate(obj.cnode.edge, st)
+    end
+    return next
+end
+Base.IteratorSize(::Type{parentedgesof}) = Base.SizeUnknown()
+Base.eltype(::Type{parentedgesof}) = Edge
+
+"""
+    childedgesof(pn)
+
+Lazy iterator over the children edges of a parent node `pn`.
+Assumes that edges are correctly directed away from the root,
+e.g. using [`directedges!`](@ref).
+
+See [`getchildren`](@ref) to get a vector of children *nodes* of `pn`,
+and [`getchildedge`](@ref) to the get sigle child edge of `pn`,
+if it has a single child.
+"""
+struct childedgesof
+    pnode::Node
+end
+function Base.iterate(obj::childedgesof, state=1)
+    next = iterate(obj.pnode.edge, state)
+    while next !== nothing
+        (e, st) = next
+        isparentof(obj.pnode, e) && break
+        next = iterate(obj.pnode.edge, st)
+    end
+    return next
+end
+Base.IteratorSize(::Type{childedgesof}) = Base.SizeUnknown()
+Base.eltype(::Type{childedgesof}) = Edge
+# see https://docs.julialang.org/en/v1/manual/interfaces/ for interators
+
+"""
     edgerelation(e::Edge, node::Node, origin::Edge)
 
 Return a symbol:
