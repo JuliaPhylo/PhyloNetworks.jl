@@ -1,6 +1,7 @@
 ```@setup snaqplot
 using PhyloNetworks
 mkpath("../assets/figures")
+figname(x) = joinpath("..", "assets", "figures", x)
 net1 = readnewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","net1.out"))
 rotate!(net1, -6)
 ```
@@ -62,16 +63,15 @@ below each hybrid edge.
 
 ```@example snaqplot
 using PhyloPlots
-using RCall                  # to be able to tweak our plot within R
-R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
-R"svg(name('snaqplot_net23.svg'), width=7, height=3)" # hide
-R"layout(matrix(1:2, 1, 2))" # to get 2 plots into a single figure: 1 row, 2 columns
-R"par"(mar=[0,0,1,0])        # for smaller margins
-plot(net2, showgamma=true);
-R"mtext"("hmax=2")           # add text annotation: title here
-plot(net3, showgamma=true);
-R"mtext"("hmax=3")
-R"dev.off()"; # hide
+using RCall                # to be able to tweak our plot within R
+R"svg"(figname("snaqplot_net23.svg"), width=7, height=3) # hide
+R"layout"([1 2]);          # to get 2 plots into a single figure: 1 row, 2 columns
+R"par"(mar=[0,0,1,0]);     # for smaller margins
+plot(net2, showgamma=true, style=:fulltree, curved=:none);
+R"mtext"("net 2");        # add text annotation: title here
+plot(net3, showgamma=true, style=:fulltree, curved=:none);
+R"mtext"("net 3");
+R"dev.off"(); # hide
 nothing # hide
 ```
 ![net23](../assets/figures/snaqplot_net23.svg)
@@ -80,7 +80,7 @@ Both networks have a single reticulation.
 In both, A is of hybrid origin, 80.4% sister to B,
 and 19.6% sister to E (which is otherwise sister to O).
 C & D are sister to each other, if we were to re-root the networks
-along the edge tha leads to ABEO.
+along the edge that leads to ABEO.
 
 So, these 2 networks appear identical. Are they really? To be sure, we can
 calculate the hardwired-cluster distance between them, which extends the
@@ -88,7 +88,8 @@ Robinson-Foulds distance on trees.
 See [Comparing and manipulating networks](@ref) for more on this dissimilarity.
 
 ```@repl snaqplot
-hardwiredclusterdistance(net2, net3, false) # rooted=false: to consider net2 and net3 as semidirected
+# option rooted=false: to consider net2 and net3 as semidirected
+hardwiredclusterdistance(net2, net3, false)
 ```
 
 Indeed, these networks have the same semidirected topology.
@@ -108,14 +109,15 @@ using RCall      # to send additional commands to R like this: R"..."
 imagefilename = "../assets/figures/snaqplot_net1_2.svg"
 R"svg"(imagefilename, width=4, height=3) # starts image file
 R"par"(mar=[0,0,0,0]) # to reduce margins (no margins at all here)
-plot(net1, showgamma=true, showedgenumber=true); # network is plotted & sent to file
+plot(net1, showgamma=true, showedgenumber=true); # network plotted & sent to file
 R"dev.off()"; # wrap up and save image file
 nothing # hide
 ```
 ![net1_2](../assets/figures/snaqplot_net1_2.svg)
 
-The plot function has many options, to annotate nodes and edges. In the
-example above, hybrid edges were annotated with their γ inheritance values
+The plot function has different styles, and
+many options to annotate nodes and edges.
+In the example above, hybrid edges were annotated with their γ inheritance values
 (in blue: light blue for the minor edge with γ<0.5, and dark blue for the
 major edge with γ>0.5), and edges were annotated with their internal numbers.
 
@@ -129,17 +131,17 @@ To see the list of all options, type `?` to switch to the help mode
 of Julia, then type the name of the function, here `plot`.
 
 Below are two visualizations.
-The first uses the default style (`:fulltree`) and modified edge colors.
-The second uses the `:majortree` style.
-That style doesn't have an arrow by default for minor hybrid edges,
-but we can ask for one by specifying a positive arrow length.
+The first uses the default style (`:majortree`) and modified edge colors.
+The second uses the `:fulltree` style.
+Arrows are shown by default for minor hybrid edges, but we can remove them
+by specifying an arrow length of 0.
 ```@example snaqplot
-R"svg(name('snaqplot_net1_3.svg'), width=7, height=3)" # hide
+R"svg"(figname("snaqplot_net1_3.svg"), width=7, height=3) # hide
 R"par"(mar=[0,0,0,0]) # hide
-R"layout(matrix(1:2,1,2))";
+R"layout"([1 2]);
 plot(net1, showedgelength=true, minorhybridedgecolor="tan");
-plot(net1, style=:majortree, arrowlen=0.07);
-R"dev.off()"; # hide
+plot(net1, arrowlen=0, style=:fulltree, curved=:none);
+R"dev.off"(); # hide
 nothing # hide
 ```
 ![net1_3](../assets/figures/snaqplot_net1_3.svg)
@@ -153,11 +155,12 @@ the taxon names via the `tipoffset` option.
 Also, edge colors were changed, and the nodes numbers are shown (used internally)
 
 ```@example snaqplot
-R"svg(name('snaqplot_net1_4.svg'), width=4, height=3)" # hide
+R"svg"(figname("snaqplot_net1_4.svg"), width=4, height=3) # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, tipoffset=0.5, shownodenumber=true, edgecolor="tomato4",
+plot(net1, curved=:none, style=:majortree,
+     tipoffset=0.5, shownodenumber=true, edgecolor="tomato4",
      minorhybridedgecolor="skyblue", majorhybridedgecolor="tan");
-R"dev.off()"; # hide
+R"dev.off"(); # hide
 nothing # hide
 ```
 ![net1_4](../assets/figures/snaqplot_net1_4.svg)

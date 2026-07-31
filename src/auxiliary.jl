@@ -340,16 +340,39 @@ end
     error("did not find a partner for edge $(edge.number)")
 end
 
-"""
-    parentedgesof(cn)
+# lazy iterators, to avoid allocating memory for new vectors
+# see https://docs.julialang.org/en/v1/manual/interfaces/
 
-Lazy iterator over the parent edges of a child node `cn`.
+@doc"""
+    parentedgesof(cn)
+    parentsof(cn)
+
+Lazy iterator over the parent edges / parent nodes of a child node `cn`.
 Assumes that edges are correctly directed away from the root,
 e.g. using [`directedges!`](@ref).
 
 See [`getparents`](@ref) to get a vector of parent *nodes* of `cn`,
 and [`getparentedge`](@ref) to the get (single) major parent edge of `cn`,
 if is not the root.
+
+# examples
+
+```jldoctest
+julia> net = readnewick("((b:1)#H1:2.2::0.9,(a:1.2,#H1:0.2::0.1):2)root;");
+
+julia> for n in parentsof(net.node[2])
+         println("parent node $(n.number), $(n.name)")
+       end
+parent node -2, root
+parent node -4, 
+
+julia> for e in parentedgesof(net.node[2])
+       println("parent edge $(e.number): hybrid? $(e.hybrid); major? $(e.ismajor)")
+       end
+parent edge 2: hybrid? true; major? true
+parent edge 4: hybrid? true; major? false
+
+```
 """
 struct parentedgesof
     cnode::Node
@@ -366,16 +389,55 @@ end
 Base.IteratorSize(::Type{parentedgesof}) = Base.SizeUnknown()
 Base.eltype(::Type{parentedgesof}) = Edge
 
-"""
-    childedgesof(pn)
+@doc (@doc parentedgesof) parentsof
+struct parentsof
+    cnode::Node
+end
+function Base.iterate(obj::parentsof, state=1)
+    nexte = iterate(obj.cnode.edge, state)
+    next = nothing
+    while nexte !== nothing
+        (e, st) = nexte
+        pn = getparent(e)
+        if obj.cnode !== pn
+            next = (pn, st)
+            break
+        end
+        nexte = iterate(obj.cnode.edge, st)
+    end
+    return next
+end
+Base.IteratorSize(::Type{parentsof}) = Base.SizeUnknown()
+Base.eltype(::Type{parentsof}) = Node
 
-Lazy iterator over the children edges of a parent node `pn`.
+@doc"""
+    childedgesof(pn)
+    childrenof(pn)
+
+Lazy iterator over the child edges / children nodes of a parent node `pn`.
 Assumes that edges are correctly directed away from the root,
 e.g. using [`directedges!`](@ref).
 
 See [`getchildren`](@ref) to get a vector of children *nodes* of `pn`,
 and [`getchildedge`](@ref) to the get sigle child edge of `pn`,
 if it has a single child.
+
+# examples
+
+```jldoctest
+julia> net = readnewick("((b:1)#H1:2.2::0.9,(a:1.2,#H1:0.2::0.1):2)root;");
+
+julia> for n in childrenof(net.node[2])
+       println("child node $(n.number), $(n.name)")
+       end
+child node 1, b
+
+julia> for e in childedgesof(net.node[2])
+       println("child edge $(e.number): hybrid? $(e.hybrid); major? $(e.ismajor)")
+       end
+child edge 1: hybrid? false; major? true
+
+```
 """
 struct childedgesof
     pnode::Node
@@ -391,7 +453,27 @@ function Base.iterate(obj::childedgesof, state=1)
 end
 Base.IteratorSize(::Type{childedgesof}) = Base.SizeUnknown()
 Base.eltype(::Type{childedgesof}) = Edge
-# see https://docs.julialang.org/en/v1/manual/interfaces/ for interators
+
+@doc (@doc childedgesof) childrenof
+struct childrenof
+    pnode::Node
+end
+function Base.iterate(obj::childrenof, state=1)
+    nexte = iterate(obj.pnode.edge, state)
+    next = nothing
+    while nexte !== nothing
+        (e, st) = nexte
+        cn = getchild(e)
+        if obj.pnode !== cn
+            next = (cn, st)
+            break
+        end
+        nexte = iterate(obj.pnode.edge, st)
+    end
+    return next
+end
+Base.IteratorSize(::Type{childrenof}) = Base.SizeUnknown()
+Base.eltype(::Type{childrenof}) = Node
 
 """
     edgerelation(e::Edge, node::Node, origin::Edge)
@@ -765,7 +847,7 @@ and the list of edges attached to it, by their numbers.
 """
 printnodes(x) = printnodes(stdout::IO, x)
 function printnodes(io::IO, net::Network)
-    namepad = max(4, maximum(length.([n.name for n in net.node])))
+    namepad = max(4, maximum(length(n.name) for n in net.node))
     println(io, "node leaf  hybrid ", rpad("name", namepad), " i_cycle edges'numbers")
     for n in net.node
         @printf(io, "%-4d %-5s %-6s ", n.number, n.leaf, n.hybrid)
@@ -1737,7 +1819,7 @@ This makes the network not treechild, assuming it is fully resolved.
 """
 function hashybridladder(net::HybridNetwork)
     for h in net.hybrid
-        if any(n.hybrid for n in getparents(h))
+        if any(e.hybrid for e in childedgesof(h))
             return true
         end
     end
@@ -1771,8 +1853,7 @@ function istreechild(net::HybridNetwork)
     hasWatroot = false # did we already find 1 weak node?
     isTCrooted = true
     for h in net.hybrid
-        par = getparents(h)
-        for n in par
+        for n in parentsof(h)
             n.number ∈ hybparent_visited && continue
             push!(hybparent_visited, n.number)
             ntreechild = 0

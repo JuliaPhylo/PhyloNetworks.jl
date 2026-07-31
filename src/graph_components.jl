@@ -285,7 +285,7 @@ function blobdecomposition(net)
     return net2, blobR
 end
 function blobdecomposition!(net)
-    nextnumber = maximum([n.number for n in net.node])+1
+    nextnumber = maximum(n.number for n in net.node) + 1
     blobR, tmp, tmp = blobinfo(net, true) # true: ignore trivial single-edge blobs
     for r in blobR
         for e in r.edge

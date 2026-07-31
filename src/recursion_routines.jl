@@ -77,8 +77,7 @@ function preorder_nodeupdate!(
     paredge = Edge[]
     parindx = Int[]  # index(es) of parent node(s) in `nodes`
     keepgoing=true # true/false returned from each recursion function to determine if we can stop
-    for e in nodes[i].edge
-        ischildof(nodes[i], e) || continue
+    for e in parentedgesof(nodes[i])
         push!(paredge, e)
         pn = getparent(e)
         push!(parnode, pn)

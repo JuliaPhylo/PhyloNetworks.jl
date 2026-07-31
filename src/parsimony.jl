@@ -12,10 +12,7 @@ output: dictionary with state sets and most parsimonious score
 function parsimonyfitch_bottomup!(node::Node, possibleStates::Dict{Int,Set{T}}, parsimonyscore::Array{Int,1}) where {T}
     node.leaf && return # change nothing if leaf
     childrenStates = Set{T}[] # state sets for the 2 (or more) children
-    for e in node.edge
-        if e.node[e.ischild1 ? 1 : 2] == node continue; end
-        # excluded parent edges only: assuming tree here
-        child = getOtherNode(e, node)
+    for child in childrenof(node) # assume a tree here
         parsimonyfitch_bottomup!(child, possibleStates, parsimonyscore)
         if haskey(possibleStates, child.number) # false if missing data
             push!(childrenStates, possibleStates[child.number])
@@ -49,8 +46,7 @@ the state of the root. Assumes a *tree*: no reticulation.
 output: dictionary with state sets
 """
 function parsimonyfitch_topdown!(node::Node, possibleStates::Dict{Int,Set{T}}) where {T}
-    for e in node.edge
-        child = e.node[e.ischild1 ? 1 : 2]
+    for child in childrenof(node)
         if child == node continue; end # exclude parent edges
         if child.leaf continue; end    # no changing the state of tips
         commonState = intersect(possibleStates[node.number], possibleStates[child.number])

@@ -13,19 +13,19 @@ Random.seed!(5432);
 @test tree.numhybrids == 1
 @test !isnothing(PhyloNetworks.addhybridedge!(tree, true, true)) # should be able to add a hybrid
 @test tree.numhybrids == 2
-@test !any([n.hybrid for n in PhyloNetworks.getparents(tree.hybrid[2])]) # tests if network is treechild
+@test !any(n.hybrid for n in getparents(tree.hybrid[2])) # tests if network is treechild
 
 str_level1 = "(((S8,S9),((((S1,S4),(S5)#H1),(#H1,(S6,S7))))#H2),(#H2,S10));"
 netl1 = readnewick(str_level1)
 @test !isnothing(PhyloNetworks.addhybridedge!(netl1, true, true))
 @test netl1.numhybrids == 3
-@test !any([n.hybrid for n in PhyloNetworks.getparents(netl1.hybrid[3])]) # tests if network has no hybrid ladder
+@test !any(n.hybrid for n in getparents(netl1.hybrid[3])) # tests if network has no hybrid ladder
 
 netl1 = readnewick(str_level1)
 newhybridnode, newhybridedge = PhyloNetworks.addhybridedge!(netl1, false, true)
 @test !isnothing(newhybridnode)
 @test netl1.numhybrids == 3
-PhyloNetworks.deletehybridedge!(netl1, PhyloNetworks.getparentedgeminor(newhybridnode))
+PhyloNetworks.deletehybridedge!(netl1, getparentedgeminor(newhybridnode))
 @test hardwiredclusterdistance(netl1, readnewick(str_level1), true) == 0
 end # of addhybridedge! top function
 

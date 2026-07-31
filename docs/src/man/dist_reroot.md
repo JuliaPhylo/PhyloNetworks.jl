@@ -54,8 +54,8 @@ hardwiredclusterdistance(astraltree, net0, true)
 ```
 ```@example dist_reroot
 using PhyloPlots, RCall
-R"name <- function(x) file.path('..', 'assets', 'figures', x)"
-R"svg(name('net0_O.svg'), width=4, height=4)"
+figname(x) = joinpath("..", "assets", "figures", x)
+R"svg"(figname("net0_O.svg"), width=4, height=4)
 R"par"(mar=[0,0,0,0])
 plot(net0);
 R"dev.off()"
@@ -93,11 +93,12 @@ network below. We plotted the edge numbers, because we will want to use them
 later to place the root.
 
 ```@example dist_reroot
-net7taxa = readnewick("(C,D,((O,(E,#H7:::0.196):0.314):0.664,(((A1,A2))#H7:::0.804,B):10.0):10.0);")
-R"svg(name('reroot_net7taxa_1.svg'), width=4, height=4)" # hide
+net7taxa = readnewick(
+  "(C,D,((O,(E,#H7:::0.196):0.314):0.664,(((A1,A2))#H7:::0.804,B):10.0):10.0);")
+R"svg"(figname("reroot_net7taxa_1.svg"), width=4, height=4) # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net7taxa, showgamma=true, showedgenumber=true, tipoffset=0.2);
-R"dev.off()"; # hide
+plot(net7taxa, showgamma=true, showedgenumber=true, tipoffset=0.2, curved=:none);
+R"dev.off"(); # hide
 nothing # hide
 ```
 ![reroot net7taxa 1](../assets/figures/reroot_net7taxa_1.svg)
@@ -118,17 +119,18 @@ of the hybrid node. These edges have numbers 11 and 5, based on the plot above.
 We get these 2 rooted versions of the network:
 
 ```@example dist_reroot
-R"svg(name('reroot_net7taxa_2.svg'), width=7, height=4)"; # hide
-R"layout(matrix(1:2,1,2))";
+R"svg"(figname("reroot_net7taxa_2.svg"), width=7, height=4); # hide
+R"layout"([1 2]);
 R"par"(mar=[0,0,0.5,0]); # hide
 rootonedge!(net7taxa, 11);
 rotate!(net7taxa, -5)
-plot(net7taxa, showgamma=true, tipoffset=0.2, shownodenumber=true);
+plot(net7taxa, showgamma=true, tipoffset=0.2, style=:fulltree, curved=:none,
+     shownodenumber=true);
 R"mtext"("rooted on hybrid edge 11 (major)", line=-1)
 rootonedge!(net7taxa, 5);
-plot(net7taxa, showgamma=true, tipoffset=0.2);
+plot(net7taxa, showgamma=true, tipoffset=0.2, style=:fulltree, curved=:none);
 R"mtext"("rooted on hybrid edge 5 (minor)", line=-1);
-R"dev.off()"; # hide
+R"dev.off"(); # hide
 nothing # hide
 ```
 ![reroot net7taxa 2](../assets/figures/reroot_net7taxa_2.svg)
@@ -141,12 +143,15 @@ the γ inheritance values to invert the major/minor consideration of the hybrid 
 ```@example dist_reroot
 net7taxa.edge[5] # just to check that it's one of the 2 hybrid edges of interest
 setgamma!(net7taxa.edge[5], 0.501) # switch major/minor edges
-R"svg(name('reroot_net7taxa_3.svg'), width=4, height=4)"; # hide
-R"layout(matrix(1,1,1))"; # hide
+R"svg"(figname("reroot_net7taxa_3.svg"), width=7, height=4); # hide
+R"layout"([1 2]); # hide
 R"par"(mar=[0,0,0,0]); # hide
-plot(net7taxa, tipoffset=0.2); # not showing gamma values, because we changed them artificially
+plot(net7taxa, tipoffset=0.2, # not showing γ's, because we changed them artificially
+     style=:fulltree, curved=:none);
 R"mtext"("rooted on hybrid edge 5 (considered major)", line=-1);
-R"dev.off()"; # hide
+plot(net7taxa, tipoffset=0.2); # same network, default plot style
+R"mtext"("same network, default plot style", line=-1);
+R"dev.off"(); # hide
 nothing # hide
 ```
 ![reroot net7taxa 3](../assets/figures/reroot_net7taxa_3.svg)
@@ -166,24 +171,26 @@ Its placement might be correct, but then its direction would be incorrect.
 
 ## Extracting the major tree
 
-We can also compare the networks estimated with h=0 (`net0`) and h=1 (`net1`):
+We can also compare the networks with h=0 (`net0`) and h=1 (`net1`):
 ```@repl dist_reroot
 rootatnode!(net1, "O"); # the ; suppresses screen output
 hardwiredclusterdistance(net0, net1, true)
 ```
 ```@example dist_reroot
-R"svg(name('net1_O.svg'), width=4, height=4)" # hide
+R"svg"(figname("net1_O.svg"), width=4, height=4) # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(net1, showgamma=true);
-R"dev.off()" # hide
+R"dev.off"() # hide
 nothing # hide
 ```
 ![net1_O](../assets/figures/net1_O.svg)
 
-They differ by 2 clusters: that's because A is of hybrid descent
+They differ by 2 clusters: that's because
+(1) AE is a cluster in `net1` but not in `net0`,
+(2) A forms a cluster of hybrid descent
 in `net1` (descendant of each hybrid edge), not in `net0`.
 
-To beyond this hybrid difference,
+To go beyond this hybrid difference,
 we can extract the major tree from the network with 1 hybridization,
 that is, delete the hybrid edge supported by less than 50% of genes.
 Then we can compare this tree with the ASTRAL/SNaQ tree `net0`.
@@ -192,8 +199,8 @@ tree1 = majortree(net1); # major tree from net1
 hardwiredclusterdistance(net0, tree1, true)
 ```
 They are identical (at distance 0), so here the species network
-with 1 hybrid node is a refinement of the estimated species tree
-(this needs not be the case always).
+with 1 hybrid node is a refinement of the estimated species tree.
+This needs not be the case always.
 
 ## Hardwired-cluster distance
 
@@ -214,10 +221,10 @@ truenet = readnewick("((((D:0.4,C:0.4):4.8,((A:0.8,B:0.8):2.2)#H1:2.2::0.7):4.0,
 (#H1:0::0.3,E:3.0):6.2):2.0,O:11.2);");
 ```
 ```@example dist_reroot
-R"svg(name('truenet_sim.svg'), width=4, height=4)" # hide
+R"svg"(figname("truenet_sim.svg"), width=4, height=4) # hide
 R"par"(mar=[0,0,0,0]) # hide
 plot(truenet, useedgelength=true, showgamma=true);
-R"dev.off()" # hide
+R"dev.off"() # hide
 nothing # hide
 ```
 ![truenet](../assets/figures/truenet_sim.svg)

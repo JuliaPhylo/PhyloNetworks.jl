@@ -317,7 +317,7 @@ function fuseedgesat!(i::Integer, net::HybridNetwork, multgammas::Bool=false)
       error("can't fuse edges at node number $(nodei.number): connected to $(length(nodei.edge)) edges.")
     !(nodei.edge[1].hybrid && nodei.edge[2].hybrid) ||
       error("can't fuse edges at node number $(nodei.number): connected to exactly 2 hybrid edges")
-    j = argmax([e.number for e in nodei.edge])
+    j = argmax(e.number for e in nodei.edge)
     pe = nodei.edge[j] # edge to remove: pe.number > ce.number
     ce = nodei.edge[j==1 ? 2 : 1]
     if pe.hybrid       # unless it's a hybrid: should be --tree--> node i --hybrid-->
@@ -654,7 +654,8 @@ false otherwise.
    during the traversal.
 """
 function preorder!(net::HybridNetwork)
-    net.isrooted || error("net needs to be rooted for preorder!, run root functions or directedges!")
+    net.isrooted ||
+        error("net needs to be rooted for preorder!, run root functions or directedges!")
     empty!(net.vec_node)
     resize!(net.vec_bool, length(net.node))
     fill!(net.vec_bool, false) # false: not visited yet
@@ -677,17 +678,15 @@ function preorder!(
         !visited[currind] || continue
         visited[currind] = true # visit curr node
         push!(nodevec, curr)
-        for e in curr.edge
-            if curr == getparent(e)
-                other = getchild(e)
-                if !e.hybrid
-                    push!(queue, findfirst(x -> x===other, net.node))
-                else
-                    e2 = getpartneredge(e, other)
-                    parent = getparent(e2)
-                    if visited[findfirst(x -> x===parent, net.node)]
-                      push!(queue, findfirst(x -> x===other, net.node))
-                    end
+        for e in childedgesof(curr)
+            cn = getchild(e)
+            if !e.hybrid
+                push!(queue, findfirst(x -> x===cn, net.node))
+            else
+                e2 = getpartneredge(e, cn)
+                parent = getparent(e2)
+                if visited[findfirst(x -> x===parent, net.node)]
+                    push!(queue, findfirst(x -> x===cn, net.node))
                 end
             end
         end

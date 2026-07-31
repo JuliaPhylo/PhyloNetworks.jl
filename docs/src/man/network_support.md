@@ -15,7 +15,9 @@ To demonstrate summarizing a sample of networks, we use here a sample of
 The file containing the 100 networks comes with the package:
 
 ```@example bootstrap
-bootnet = readmultinewick(joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out"));
+bootnet = readmultinewick(
+  joinpath(dirname(pathof(PhyloNetworks)), "..","examples","bootsnaq.out")
+);
 length(bootnet)
 ```
 
@@ -48,9 +50,6 @@ in this example (see below) with a wrong direction inferred sometimes,
 so we re-root our reference network `net1` to the base of O,E, for the figures
 to be less confusing later.
 
-```@setup bootstrap
-rootonedge!(net1, 7)
-```
 ```@example bootstrap
 using PhyloPlots, RCall
 R"name <- function(x) file.path('..', 'assets', 'figures', x)" # hide
@@ -208,7 +207,7 @@ We can plot the support values of the 2 hybrid edges in the best network:
 ```@example bootstrap
 R"svg(name('boot_net_net.svg'), width=4, height=4)" # hide
 R"par"(mar=[0,0,0,0]) # hide
-plot(net1, edgelabel=BSe[:,[:edge,:BS_hybrid_edge]]);
+plot(net1, edgelabel=BSe[:,[:edge,:BS_hybrid_edge]], curved=:none);
 R"dev.off()" # hide
 nothing # hide
 ```
@@ -236,8 +235,8 @@ on the same plot.
 
 ```julia
 tmp = filter(row -> !ismissing(row[:edge]), BSe) # filter rows
-select!(tmp, [:edge,:BS_hybrid_edge])            # select 2 columns only
-rename!(tmp, :BS_hybrid_edge => :proportion)     # rename those columns, to match names in BSe_tree
+select!(tmp, [:edge,:BS_hybrid_edge])        # select 2 columns only
+rename!(tmp, :BS_hybrid_edge => :proportion) # rename columns to match names in BSe_tree
 rename!(tmp, :edge => :edgeNumber)
 tmp = vcat(BSe_tree, tmp)
 plot(net1, edgelabel=tmp, nodelabel=BSn[:, [:hybridnode,:BS_hybrid_samesisters]])
