@@ -353,7 +353,7 @@ e.g. using [`directedges!`](@ref).
 
 See [`getparents`](@ref) to get a vector of parent *nodes* of `cn`,
 and [`getparentedge`](@ref) to the get (single) major parent edge of `cn`,
-if is not the root.
+if it is not the root.
 
 # examples
 
