@@ -352,7 +352,7 @@ Assumes that edges are correctly directed away from the root,
 e.g. using [`directedges!`](@ref).
 
 See [`getparents`](@ref) to get a vector of parent *nodes* of `cn`,
-and [`getparentedge`](@ref) to the get (single) major parent edge of `cn`,
+and [`getparentedge`](@ref) to get the (single) major parent edge of `cn`,
 if it is not the root.
 
 # examples

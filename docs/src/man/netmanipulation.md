@@ -92,9 +92,9 @@ To learn about a node's neighboring edges:
 To iterate over parents or children of a node "lazily", e.g. in `for` loops:
 
 - [`parentedgesof`](@ref) for parent edges,
-  [`parentsof`](@ref PhyloNetworks.parentedgesof) for parent nodes
+  [`parentsof`](@ref) for parent nodes
 - [`childedgesof`](@ref) for child edges,
-  [`childrenof`](@ref PhyloNetworks.childedgesof) for child nodes
+  [`childrenof`](@ref) for child nodes
 
 ### edge information
 
