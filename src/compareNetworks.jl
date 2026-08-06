@@ -297,8 +297,7 @@ for a version that does not use `ischild1`.
 """
 function isdescendant(des::Node, anc::Node)
     visited = Int[]
-    for e in anc.edge
-        anc !== getchild(e) || continue # skip parents of anc
+    for e in childedgesof(anc)
         if isdescendant!(visited, des, e)
             return true
         end
@@ -456,13 +455,12 @@ function ladderpartition(net::HybridNetwork)
         end
         below[nn.number]  = Vector{Vector{Int}}(undef,0) # initialize
         !nn.hybrid || error("ladder partitions not implemented for non-tree networks")
-        children = [getchild(e) for e in nn.edge]
-        filter!(n -> n!=nn, children)
+        children = collect(childrenof(nn))
         for cc in children
             allbelowc = union(below[cc.number]...)
             push!(below[nn.number], allbelowc)
             for cc2 in children
-                cc2 !=cc || continue
+                cc2 !== cc || continue
                 push!(above[cc2.number], allbelowc)
             end
         end

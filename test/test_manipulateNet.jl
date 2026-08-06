@@ -69,6 +69,10 @@ n = deepcopy(net)
 @test_logs deleteleaf!(net, net.node[7], simplify=false)
 deleteleaf!(net, 4, simplify=false); deleteleaf!(net, 5, simplify=false)
 @test net.numnodes == 5; @test net.numedges == 6;
+@test eltype(childrenof(net.node[4])) == PhyloNetworks.Node
+@test eltype(parentsof(net.node[4]))  == PhyloNetworks.Node
+@test eltype(childedgesof(net.node[4]))  == PhyloNetworks.Edge
+@test eltype(parentedgesof(net.node[4])) == PhyloNetworks.Edge
 
 ## test nodeheights functions
 net = readnewick("(((C:1,(A:1)#H1:1.5::0.7):1,(#H1:0.3::0.3,E:2.0):2.2):1.0,O:5.2);")

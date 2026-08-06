@@ -533,7 +533,8 @@ end
 
 """
     mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork;
-        labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
+        labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1),
+        tiplabels(net2))),
         preorder::Bool=true)
 
 Distance or matrix of distances between the networks, considered as rooted,

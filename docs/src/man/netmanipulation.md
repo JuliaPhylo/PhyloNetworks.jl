@@ -64,25 +64,37 @@ About paths from a node or from an edge to other nodes:
 
 ### node information
 
-To learn about nodes and how some might be related or connected, one can use:
+To learn about how nodes might be related, or placed in the network:
 
 - [`PhyloNetworks.isdescendant`](@ref) and [`PhyloNetworks.isconnected`](@ref) 
-  can be used to learn about the relationship between two nodes
+  for the relationship between two nodes
+- [`isrootof`](@ref)
+- [`isleaf`](@ref)
+- [`leaststableancestor_matrix`](@ref) for the LSA of all pairs of taxa
+  (or MRCA on a tree: most recent common ancestor)
 - [`hassinglechild`](@ref)
+
+To learn about a node's neighboring nodes:
+
 - [`getparent`](@ref) or [`getparents`](@ref PhyloNetworks.getparent) if the
   node is a hybrid
 - [`getparentminor`](@ref PhyloNetworks.getparent)
 - [`getchild`](@ref) or [`getchildren`](@ref PhyloNetworks.getchild) if the
   node has more than one child
-- [`isrootof`](@ref)
-- [`leaststableancestor_matrix`](@ref) for the LSA of all pairs of taxa
-  (or MRCA on a tree: most recent common ancestor)
 
-To learn about the edges connected to a given node, one can use:
+To learn about a node's neighboring edges:
+
 - [`getchildedge`](@ref PhyloNetworks.getchild)
 - [`PhyloNetworks.getconnectingedge`](@ref)
 - [`getparentedge`](@ref PhyloNetworks.getparent)
 - [`getparentedgeminor`](@ref PhyloNetworks.getparent) for a hybrid node
+
+To iterate over parents or children of a node "lazily", e.g. in `for` loops:
+
+- [`parentedgesof`](@ref) for parent edges,
+  [`parentsof`](@ref) for parent nodes
+- [`childedgesof`](@ref) for child edges,
+  [`childrenof`](@ref) for child nodes
 
 ### edge information
 
