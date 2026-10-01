@@ -1,3 +1,7 @@
+#####################################################
+## Tree NJ functions
+#####################################################
+
 function check_distance_matrix(D::Matrix{<:Real})
     size(D, 1) > 1 || throw(DomainError(D, "Too few nodes"))
     if any(D .< 0)
@@ -7,6 +11,100 @@ function check_distance_matrix(D::Matrix{<:Real})
         throw(DomainError(D, "Diagonal entry not 0"))
     end
     return nothing
+end
+
+# Find the pair of indices that minimize the Q criterion:
+# Q_ij = (n-2) * D_ij - sum_{a} (D_ia + D_ja)
+# and compute new edge lengths
+function Q_findpair(D::Matrix{<:Real}, active_size::Int)
+    # compute Q matrix and find pair with minimum Q
+    sums = sum(D[1:active_size, 1:active_size], dims = 1)
+    cur = Inf
+    min_index = (0, 0)
+    for i = 1:active_size
+        for j = i:active_size
+            if j != i
+                qij = (active_size-2) * D[i,j] - sums[i] - sums[j]
+                if qij < cur
+                    cur = qij
+                    min_index = (i, j)
+                end
+            end
+        end
+    end
+
+    (i, j) = min_index
+    return i, j, sums
+end
+
+function nj_findbranchlengths(D::Matrix{<:Real}, active_size::Int, sums::Matrix{<:Real}, i, j, force_nonnegative_edges::Bool, neglenp::Int)
+
+    dik = D[i,j] / 2 + (sums[i] - sums[j]) / (2 * (active_size - 2))
+    djk = D[i,j] - dik
+
+    if dik < 0.0
+        neglenp += 1
+        if force_nonnegative_edges dik = 0.0; end
+    end
+    if djk < 0.0
+        neglenp += 1
+        if force_nonnegative_edges djk = 0.0; end
+    end
+
+    return dik, djk, neglenp
+end
+
+# Modify in place D and net to join tips i and j
+function join_ij!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{Node,1}, active_size::Int, i::Int, j::Int, dik::Real, djk::Real)
+    # create new edges and node, update tree
+    edgenum = net.numedges
+    eik = Edge(edgenum + 1, dik)
+    ejk = Edge(edgenum + 2, djk)
+    node_k = Node(net.numnodes+1, false, false, [eik, ejk])
+    node_i = active_nodes[i]
+    node_j = active_nodes[j]
+    setNode!(eik, Node[node_i, node_k]) # correct direction, bc ischild1 true by default
+    setNode!(ejk, Node[node_j, node_k])
+    setEdge!(node_i, eik)
+    setEdge!(node_j, ejk)
+    pushEdge!(net, eik)
+    pushEdge!(net, ejk)
+    pushNode!(net, node_k)
+
+    # Update distances to new node k, placed in position i
+    if i == active_size # swap with j instead, if i is last active position
+        (i,j) = (j,i)
+    end
+    for l in 1:active_size
+        if !(l in [i, j])
+            D[l,i] = (D[l,i] + D[l,j] - D[i,j]) / 2
+            D[i,l] = D[l,i]
+        end
+    end
+    # swap j with last active position using whole column/row operations
+    if j != active_size
+        D[:, j], D[:, active_size] = D[:, active_size], D[:, j]
+        D[j, :], D[active_size, :] = D[active_size, :], D[j, :]
+        active_nodes[j] = active_nodes[active_size]
+    end
+    # inactivate last active position: okay bc k replaces i != active_size
+    active_size -= 1
+    active_nodes[i] = node_k
+
+    return active_size
+end
+
+function join_12!(net::HybridNetwork, active_nodes::Array{Node,1}, d12::Real)
+    node1 = active_nodes[1]
+    node2 = active_nodes[2]
+    newedge = Edge(net.numedges+1, d12)
+    setNode!(newedge, [node1, node2]) # ischild1 = true by default: nodes are [child, parent]
+    if node1.number == net.numnodes
+        newedge.ischild1 = false # direct the edge: last created node -> other node
+    end
+    setEdge!(node1, newedge)
+    setEdge!(node2, newedge)
+    pushEdge!(net, newedge)
 end
 
 """
@@ -47,67 +145,11 @@ function nj!(
 
     while active_size > 2
         # compute Q matrix and find pair with minimum Q
-        sums = sum(D[1:active_size, 1:active_size], dims = 1)
-        cur = Inf
-        min_index = (0, 0)
-        for i = 1:active_size
-            for j = i:active_size
-                if j != i
-                    qij = (active_size-2) * D[i,j] - sums[i] - sums[j]
-                    if qij < cur
-                        cur = qij
-                        min_index = (i, j)
-                    end
-                end
-            end
-        end
-        # connect the nodes, compute the length of the edge
-        (i, j) = min_index
-        dik = D[i,j] / 2 + (sums[i] - sums[j]) / (2 * (active_size - 2))
-        djk = D[i,j] - dik
-        
-        if dik < 0.0
-            neglenp += 1
-            if force_nonnegative_edges dik = 0.0; end
-        end
-        if djk < 0.0
-            neglenp += 1
-            if force_nonnegative_edges djk = 0.0; end
-        end
-        # create new edges and node, update tree
-        edgenum = net.numedges
-        eik = Edge(edgenum + 1, dik)
-        ejk = Edge(edgenum + 2, djk)
-        node_k = Node(net.numnodes+1, false, false, [eik, ejk])
-        node_i = active_nodes[i]
-        node_j = active_nodes[j]
-        setNode!(eik, Node[node_i, node_k]) # correct direction, bc ischild1 true by default
-        setNode!(ejk, Node[node_j, node_k])
-        setEdge!(node_i, eik)
-        setEdge!(node_j, ejk)
-        pushEdge!(net, eik)
-        pushEdge!(net, ejk)
-        pushNode!(net, node_k)
-
-        # Update distances to new node k, placed in position i
-        if i == active_size # swap with j instead, if i is last active position
-            (i,j) = (j,i)
-        end
-        for l in 1:active_size
-            if !(l in [i, j])
-                D[l,i] = (D[l,i] + D[l,j] - D[i,j]) / 2
-                D[i,l] = D[l,i]
-            end
-        end
-        # swap j with last active position using whole column/row operations
-        if j != active_size
-            D[:, j], D[:, active_size] = D[:, active_size], D[:, j]
-            D[j, :], D[active_size, :] = D[active_size, :], D[j, :]
-            active_nodes[j] = active_nodes[active_size]
-        end
-        # inactivate last active position: okay bc k replaces i != active_size
-        active_size -= 1
-        active_nodes[i] = node_k
+        i, j, sums = Q_findpair(D, active_size)
+        # compute the length of the edges
+        dik, djk, neglenp = nj_findbranchlengths(D, active_size, sums, i, j, force_nonnegative_edges, neglenp)
+        # update tree
+        active_size = join_ij!(D, net, active_nodes, active_size, i, j, dik, djk)
     end
 
     # base case: 2 leaves
@@ -115,16 +157,7 @@ function nj!(
         neglenp += 1
         if force_nonnegative_edges D[1,2] = 0.0; end
     end
-    node1 = active_nodes[1]
-    node2 = active_nodes[2]
-    newedge = Edge(net.numedges+1, D[1,2])
-    setNode!(newedge, [node1, node2]) # ischild1 = true by default: nodes are [child, parent]
-    if node1.number == net.numnodes
-        newedge.ischild1 = false # direct the edge: last created node -> other node
-    end
-    setEdge!(node1, newedge)
-    setEdge!(node2, newedge)
-    pushEdge!(net, newedge)
+    join_12!(net, active_nodes, D[1,2])
     net.rooti = net.numnodes # root = last created node, which is internal
     net.isrooted = true # because rooti is valid, and edges are directed away from it
     if neglenp > 0
