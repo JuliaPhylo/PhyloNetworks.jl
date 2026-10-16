@@ -268,50 +268,81 @@ function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{N
     return active_size
 end
 
-# Un-normalized f4 statitic for tips (a,b,c,d) in D
+# Un-normalized f4 statistic for tips (a,b,c,d) in D
 function getf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
     return D[a,d] + D[b,c] - D[a,c] - D[b,d]
 end
 
+function getf4(D::Matrix{<:Real}, t::Tuple)
+    return D[t[1],t[4]] + D[t[2],t[3]] - D[t[1],t[3]] - D[t[2],t[4]]
+end
+
+# pair of f4
 # If (ab|cd) verify the 4 point condition, we should have:
-# getf4(D,a,b,c,d) = 0, getf4(D,a,c,b,d) > 0 and getf4(D,a,d,b,c) > 0
-function getminf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
-    return min(getf4(D,a,b,c,d), getf4(D,a,c,b,d), getf4(D,a,d,b,c))
+# f4(D,a,b,c,d) = 0, f4(D,a,c,b,d) > 0
+function getpairf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
+    return [getf4(D,a,b,c,d), getf4(D,a,c,b,d)]
 end
 
-function getminf4(D::Matrix{<:Real}, t::Tuple)
-    return getminf4(D, t[1], t[2], t[3], t[4])
+function getpairf4(D::Matrix{<:Real}, t::Tuple)
+    return getpairf4(D, t[1], t[2], t[3], t[4])
 end
 
-# Get the min of getminf4 over all possible combinations (a,b,c,d),
-# with a,b in clus_ind, and c,d not in clus_ind
-function minblobf4(D::Matrix{<:Real}, clus_ind::BitVector)
-    minblobf4(D, findall(clus_ind), findall(.!clus_ind))
-end
-
-function minblobf4(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int})
+# matrix of all pair f4
+# column 1 : f4(D,a,b,c,d) (= 0)
+# column 2 : f4(D,a,c,b,d) (> 0)
+function getblobf4(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int})
     # comb_AB is a 4 dim vector, with upper diagonal having the
     # all the (a,b,c,d) with a<b in ind_A and c<d in ind_B
     # (There might be better / more efficient ways ?)
     comb_AB = collect(Iterators.product(ind_A, ind_A, ind_B, ind_B))
-    minblob = Inf
-    for a in 1:(size(ind_A, 1))
-        for b in a:(size(ind_A, 1))
+    n_A = size(ind_A, 1)
+    n_B = size(ind_B, 1)
+    matf4 = zeros(n_A * (n_A - 1) ÷ 2 * n_B * (n_B - 1) ÷ 2, 2)
+    i = 1
+    for a in 1:n_A
+        for b in a:n_A
             if (b != a)
-                for c in 1:(size(ind_B, 1))
-                    for d in c:(size(ind_B, 1))
+                for c in 1:n_B
+                    for d in c:n_B
                         if (d != c)
-                            tmp = getminf4(D, comb_AB[a,b,c,d])
-                            if tmp < minblob
-                                minblob = tmp
-                            end
+                            matf4[i,:] = getpairf4(D, comb_AB[a,b,c,d])
+                            i += 1
                         end
                     end
                 end
             end
         end
     end
-    return minblob
+    return matf4
+end
+
+# lrt statistic assuming V = 1/ngenes * I
+# matf4hat column 1 : f4(D,a,b,c,d) = 0
+# matf4hat column 2 : f4(D,a,c,b,d) > 0
+function getlrtidentity(matf4::Matrix{<:Real}, ngenes::Int)
+    matf4hat = copy(matf4)
+    matf4hat[:, 1] .= 0.0
+    matf4hat[:, 2] = max.(matf4[:, 2], 0.0)
+    return ngenes * sum((matf4hat - matf4).^2)
+end
+
+# Mixture of chi2 distribution
+# Assuming a diagonal V matrix
+# weight[i] = Prob[Z has exactly i positive components] with Z ~ N(0, V)
+function mixtureChi2Diagonal(r)
+    weights = pdf(Binomial(r, 0.5), r:-1:0)
+    return MixtureModel(Chisq, r:2*r, weights)
+end
+
+function cutblobpvalue(D::Matrix{<:Real}, clus_ind::BitVector, ngenes::Int)
+    cutblobpvalue(D, findall(clus_ind), findall(.!clus_ind), ngenes::Int)
+end
+
+function cutblobpvalue(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, ngenes::Int)
+    matf4 = getblobf4(D, ind_A, ind_B)
+    lrt = getlrtidentity(matf4, ngenes)
+    return ccdf(mixtureChi2Diagonal(size(matf4, 1)), lrt)
 end
 
 """
@@ -332,7 +363,8 @@ function nj_treeofblobs!(
     D::Matrix{Float64},
     names::AbstractVector{<:AbstractString}=String[];
     force_nonnegative_edges::Bool=false,
-    epsilon::Float64=sqrt(eps(Float64))
+    threshold::Float64=0.01,
+    ngenes::Int=1000
 )
     check_distance_matrix(D)
     n = size(D, 1)    # number of species
@@ -363,16 +395,16 @@ function nj_treeofblobs!(
         c2 = uniclust[ic2]
         clus_ind = (clusters[1:active_size] .== c1) .|| (clusters[1:active_size] .== c2)
         if ((active_size - sum(clus_ind)) >= 2)
-            minblob = minblobf4(D, clus_ind)
+            blobpval = cutblobpvalue(D, clus_ind, ngenes)
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
-            minblob = 1
+            blobpval = 1
             clusters[1:active_size] .= c1
             clus_ind = clusters[1:active_size] .== c1
         end
         clusterize!(clusters, c1, c2)
         nclust = nclust - 1
         # compute the length of the edges
-        if (minblob >= -epsilon)
+        if (blobpval >= threshold)
             active_size = join_blob!(D, net, active_nodes, active_size, clusters, clus_ind)
         end
     end
@@ -406,6 +438,6 @@ epsilon is the tolerance value for calling blobs.
 See [`nj_treeofblobs!`](@ref) for using a matrix as input,
 and [`nj`](@ref) for the classical neighbor joining algorithm.
 """
-function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, epsilon::Float64=sqrt(eps(Float64)))
-    nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, epsilon = epsilon)
+function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, ngenes::Int=1000)
+    nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, threshold = threshold, ngenes = ngenes)
 end

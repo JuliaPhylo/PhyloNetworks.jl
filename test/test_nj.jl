@@ -33,6 +33,16 @@ end
     njtob = PhyloNetworks.nj_treeofblobs!(copy(oD), tiplabels(onet))
     otob = treeofblobs(onet)
     @test hardwiredclusterdistance(otob, njtob, false) == 0
+
+    # true blob vs no blob
+    @test PN.cutblobpvalue(oD, BitVector([1,1,1,1,0,0,0,0]), 1) == 1
+    @test PN.cutblobpvalue(oD, BitVector([1,1,1,0,1,0,0,0]), 1) ≈ 0 atol=1e-10
 end
+
+# @testset "Mixture Models" begin
+#     mm = PN.mixtureChi2Diagonal(10)
+#     @test cdf(mm, [5.4, 12.3, 23.4]) ≈ [0.0166, 0.3522, 0.9173] atol=1e-4
+# end
+
 
 end
