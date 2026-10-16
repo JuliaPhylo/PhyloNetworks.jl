@@ -281,32 +281,26 @@ end
 # If (ab|cd) verify the 4 point condition, we should have:
 # f4(D,a,b,c,d) = 0, f4(D,a,c,b,d) > 0
 function getpairf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
-    return [getf4(D,a,b,c,d), getf4(D,a,c,b,d)]
+    return getf4(D,a,b,c,d), getf4(D,a,c,b,d)
 end
 
-function getpairf4(D::Matrix{<:Real}, t::Tuple)
-    return getpairf4(D, t[1], t[2], t[3], t[4])
-end
-
-# matrix of all pair f4
-# column 1 : f4(D,a,b,c,d) (= 0)
-# column 2 : f4(D,a,c,b,d) (> 0)
-function getblobf4(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int})
-    # comb_AB is a 4 dim vector, with upper diagonal having the
-    # all the (a,b,c,d) with a<b in ind_A and c<d in ind_B
-    # (There might be better / more efficient ways ?)
-    comb_AB = collect(Iterators.product(ind_A, ind_A, ind_B, ind_B))
+# lrt statistic assuming V = 1/ngenes * I
+# If (ab|cd) verify the 4 point condition, we should have:
+# f4(D,a,b,c,d) = 0
+# f4(D,a,c,b,d) > 0
+function getlrtidentity(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, ngenes::Int)
     n_A = size(ind_A, 1)
     n_B = size(ind_B, 1)
-    matf4 = zeros(n_A * (n_A - 1) ÷ 2 * n_B * (n_B - 1) ÷ 2, 2)
-    i = 1
+    lrt = 0.0
+    i = 0
     for a in 1:n_A
         for b in a:n_A
             if (b != a)
                 for c in 1:n_B
                     for d in c:n_B
                         if (d != c)
-                            matf4[i,:] = getpairf4(D, comb_AB[a,b,c,d])
+                            f1, f2 = getpairf4(D, ind_A[a], ind_A[b], ind_B[c], ind_B[d])
+                            lrt += (f1 - 0.0)^2 + (f2 - max(0, f2))^2
                             i += 1
                         end
                     end
@@ -314,17 +308,7 @@ function getblobf4(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int})
             end
         end
     end
-    return matf4
-end
-
-# lrt statistic assuming V = 1/ngenes * I
-# matf4hat column 1 : f4(D,a,b,c,d) = 0
-# matf4hat column 2 : f4(D,a,c,b,d) > 0
-function getlrtidentity(matf4::Matrix{<:Real}, ngenes::Int)
-    matf4hat = copy(matf4)
-    matf4hat[:, 1] .= 0.0
-    matf4hat[:, 2] = max.(matf4[:, 2], 0.0)
-    return ngenes * sum((matf4hat - matf4).^2)
+    return lrt * ngenes, i
 end
 
 # Mixture of chi2 distribution
@@ -340,9 +324,8 @@ function cutblobpvalue(D::Matrix{<:Real}, clus_ind::BitVector, ngenes::Int)
 end
 
 function cutblobpvalue(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, ngenes::Int)
-    matf4 = getblobf4(D, ind_A, ind_B)
-    lrt = getlrtidentity(matf4, ngenes)
-    return ccdf(mixtureChi2Diagonal(size(matf4, 1)), lrt)
+    lrt, r = getlrtidentity(D, ind_A, ind_B, ngenes)
+    return ccdf(mixtureChi2Diagonal(r), lrt)
 end
 
 """
