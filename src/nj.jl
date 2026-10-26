@@ -190,6 +190,70 @@ function nj(D::DataFrame; force_nonnegative_edges::Bool=false)
 end
 
 #####################################################
+## F2 and f4 fonctions
+#####################################################
+
+# Un-normalized f4 statistic for tips (a,b,c,d) in D
+function getf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
+    return D[a,d] + D[b,c] - D[a,c] - D[b,d]
+end
+
+function getf4(D::Matrix{<:Real}, t::Tuple)
+    return D[t[1],t[4]] + D[t[2],t[3]] - D[t[1],t[3]] - D[t[2],t[4]]
+end
+
+# pair of f4
+# If (ab|cd) verify the 4 point condition, we should have:
+# f4(D,a,b,c,d) = 0, f4(D,a,c,b,d) > 0
+function getpairf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
+    return getf4(D,a,b,c,d), getf4(D,a,c,b,d)
+end
+
+# lrt statistic assuming V = 1/nloci * I
+# If (ab|cd) verify the 4 point condition, we should have:
+# f4(D,a,b,c,d) = 0
+# f4(D,a,c,b,d) > 0
+function getlrtidentity(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, nloci::Int)
+    n_A = size(ind_A, 1)
+    n_B = size(ind_B, 1)
+    lrt = 0.0
+    i = 0
+    for a in 1:n_A
+        for b in a:n_A
+            if (b != a)
+                for c in 1:n_B
+                    for d in c:n_B
+                        if (d != c)
+                            f1, f2 = getpairf4(D, ind_A[a], ind_A[b], ind_B[c], ind_B[d])
+                            lrt += (f1 - 0.0)^2 + (f2 - max(0, f2))^2
+                            i += 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return lrt * nloci, i
+end
+
+# Mixture of chi2 distribution
+# Assuming a diagonal V matrix
+# weight[i] = Prob[Z has exactly i positive components] with Z ~ N(0, V)
+function mixtureChi2Diagonal(r)
+    weights = pdf(Binomial(r, 0.5), r:-1:0)
+    return MixtureModel(Chisq, r:2*r, weights)
+end
+
+function cutblobpvalue(D::Matrix{<:Real}, clus_ind::BitVector, nloci::Int)
+    cutblobpvalue(D, findall(clus_ind), findall(.!clus_ind), nloci::Int)
+end
+
+function cutblobpvalue(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, nloci::Int)
+    lrt, r = getlrtidentity(D, ind_A, ind_B, nloci)
+    return ccdf(mixtureChi2Diagonal(r), lrt)
+end
+
+#####################################################
 ## Tree of blob NJ functions
 #####################################################
 # Find distance between clusters of tips:
@@ -268,66 +332,6 @@ function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{N
     return active_size
 end
 
-# Un-normalized f4 statistic for tips (a,b,c,d) in D
-function getf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
-    return D[a,d] + D[b,c] - D[a,c] - D[b,d]
-end
-
-function getf4(D::Matrix{<:Real}, t::Tuple)
-    return D[t[1],t[4]] + D[t[2],t[3]] - D[t[1],t[3]] - D[t[2],t[4]]
-end
-
-# pair of f4
-# If (ab|cd) verify the 4 point condition, we should have:
-# f4(D,a,b,c,d) = 0, f4(D,a,c,b,d) > 0
-function getpairf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
-    return getf4(D,a,b,c,d), getf4(D,a,c,b,d)
-end
-
-# lrt statistic assuming V = 1/ngenes * I
-# If (ab|cd) verify the 4 point condition, we should have:
-# f4(D,a,b,c,d) = 0
-# f4(D,a,c,b,d) > 0
-function getlrtidentity(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, ngenes::Int)
-    n_A = size(ind_A, 1)
-    n_B = size(ind_B, 1)
-    lrt = 0.0
-    i = 0
-    for a in 1:n_A
-        for b in a:n_A
-            if (b != a)
-                for c in 1:n_B
-                    for d in c:n_B
-                        if (d != c)
-                            f1, f2 = getpairf4(D, ind_A[a], ind_A[b], ind_B[c], ind_B[d])
-                            lrt += (f1 - 0.0)^2 + (f2 - max(0, f2))^2
-                            i += 1
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return lrt * ngenes, i
-end
-
-# Mixture of chi2 distribution
-# Assuming a diagonal V matrix
-# weight[i] = Prob[Z has exactly i positive components] with Z ~ N(0, V)
-function mixtureChi2Diagonal(r)
-    weights = pdf(Binomial(r, 0.5), r:-1:0)
-    return MixtureModel(Chisq, r:2*r, weights)
-end
-
-function cutblobpvalue(D::Matrix{<:Real}, clus_ind::BitVector, ngenes::Int)
-    cutblobpvalue(D, findall(clus_ind), findall(.!clus_ind), ngenes::Int)
-end
-
-function cutblobpvalue(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, ngenes::Int)
-    lrt, r = getlrtidentity(D, ind_A, ind_B, ngenes)
-    return ccdf(mixtureChi2Diagonal(r), lrt)
-end
-
 """
     nj_treeofblobs!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[];
         force_nonnegative_edges::Bool=false, epsilon::Float64=sqrt(eps(Float64))
@@ -347,7 +351,7 @@ function nj_treeofblobs!(
     names::AbstractVector{<:AbstractString}=String[];
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
-    ngenes::Int=1000
+    nloci::Int=1000
 )
     check_distance_matrix(D)
     n = size(D, 1)    # number of species
@@ -378,7 +382,7 @@ function nj_treeofblobs!(
         c2 = uniclust[ic2]
         clus_ind = (clusters[1:active_size] .== c1) .|| (clusters[1:active_size] .== c2)
         if ((active_size - sum(clus_ind)) >= 2)
-            blobpval = cutblobpvalue(D, clus_ind, ngenes)
+            blobpval = cutblobpvalue(D, clus_ind, nloci)
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
             blobpval = 1
             clusters[1:active_size] .= c1
@@ -421,6 +425,6 @@ epsilon is the tolerance value for calling blobs.
 See [`nj_treeofblobs!`](@ref) for using a matrix as input,
 and [`nj`](@ref) for the classical neighbor joining algorithm.
 """
-function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, ngenes::Int=1000)
-    nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, threshold = threshold, ngenes = ngenes)
+function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, nloci::Int=1000)
+    nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, threshold = threshold, nloci = nloci)
 end

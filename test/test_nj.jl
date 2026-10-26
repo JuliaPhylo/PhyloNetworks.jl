@@ -37,6 +37,21 @@ end
     # true blob vs no blob
     @test PN.cutblobpvalue(oD, BitVector([1,1,1,1,0,0,0,0]), 1) == 1
     @test PN.cutblobpvalue(oD, BitVector([1,1,1,0,1,0,0,0]), 1) ≈ 0 atol=1e-10
+
+    # with 2-cycle (invisible from the distance)
+    onet = readnewick("((S1:0.1,(((S2:1,(S3:2)#H1:0.6::0.65):0.2,(#H1:0.6,S4:0.4):0.2):0.2)#H2:0.4):0.3,(#H2:0.2::0.75,(#H3:0.1::0.35,(S5:0.2)#H3:0.1):0.4):0.5);");
+    oD = pairwisetaxondistancematrix(onet)
+    njtob = PhyloNetworks.nj_treeofblobs!(copy(oD), tiplabels(onet))
+    otob = treeofblobs(onet)
+    otob = removedegree2nodes!(otob) # remove degree 2 node leading to S5
+    @test hardwiredclusterdistance(otob, njtob, false) == 0
+
+    # Level 2, galled network
+    onet = readnewick("(((x1:0.1,#H1:0.7::0.7):0.6,((((x2:0.3)#H1:0.3,x3:0.9):0.4,#H2:0.3::0.45):0.3,((x4:0.4)#H2:0.3,x5:0.3):0.3):0.3):2.0,((x6:1,(x7:2.5,(x8:3)#H3:0::0.75):1):1,(#H3:0,x9:2):2):0.5);")
+    oD = pairwisetaxondistancematrix(onet)
+    njtob = PhyloNetworks.nj_treeofblobs!(copy(oD), tiplabels(onet))
+    otob = treeofblobs(onet)
+    @test hardwiredclusterdistance(otob, njtob, false) == 0
 end
 
 # @testset "Mixture Models" begin
