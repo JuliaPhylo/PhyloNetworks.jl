@@ -311,7 +311,7 @@ end
 # If (ab|cd) verify the 4 point condition, we should have:
 # f4(D,a,b,c,d) = 0
 # f4(D,a,c,b,d) > 0
-function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int)
+function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int)
     n_A = size(ind_A, 1)
     n_B = size(ind_B, 1)
     dimf4 = (n_A * (n_A - 1) ÷ 2) * (n_B * (n_B - 1) ÷ 2)
@@ -337,7 +337,33 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
         end
     end
     V = get_covar_f4(Q, indf4, active_size)
-    Vinv = inv(Symmetric(V))
+    # TODO: find a better formula for regularization ?
+    # # EB simple estimator
+    # Vprime = (V + I(size(V,1))) / (nloci - 2 + size(V,1)+1)
+    # Vinv = inv(Symmetric(Vprime))
+
+    # Haff 1980 EB estimator
+    # S ~ W_p(Sigma, k), k = nloci - 1, p = dim(V)
+    k = nloci - 1
+    p = size(V, 1)
+    S = k * V 
+    # Sigma^-1 ~ W(1/gamma I, k'), k' = p+1
+    kprime = p + 1
+    # 3.4:  a = 1/(k+k'-p-1)
+    a = 1 / (k + kprime - p - 1)
+    # 3.7:  pk / (k+k') * 1/tr(S^-1 C), C = I
+    gam = (p * k) / (k + kprime) * 1 / sum(1/eigen(S).values)
+    Vprime = a * (S + gam * I(p))
+    Vinv = inv(Symmetric(Vprime))
+
+    # # Efron Moris 1976
+    # k = nloci - 1
+    # p = size(V,1)
+    # S = k * V 
+    # Sinv = inv(Symmetric(S))
+    # Vinv = (k - p - 1) * Sinv + (p^2 - p - 2)/tr(S) * I(p)
+
+
 
     # d = DAQP.Model()
     # f = - Vinv * f4vec
@@ -379,7 +405,7 @@ function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector
 end
 
 function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int)
-    lrt, r = getlrtQ(D, Q, ind_A, ind_B, active_size)
+    lrt, r = getlrtQ(D, Q, ind_A, ind_B, active_size, nloci)
     return ccdf(mixtureF(r, nloci), lrt)
 end
 
