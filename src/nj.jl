@@ -275,9 +275,9 @@ end
 # Q matrix is sorted in lexicographic order
 function get_index_f2(i::Int, j::Int, n::Int)
     if (i < j)
-    return (i-1) * n - (i-1)*i ÷ 2 + j - i
+        return (i-1) * n - (i-1)*i ÷ 2 + j - i
     else
-    return get_index_f2(j,i,n)
+        return get_index_f2(j,i,n)
     end
 end
 
@@ -295,14 +295,14 @@ function get_covar_f4(Qmatrix::Matrix{Float64}, indf4::Matrix{Int}, n::Int)
     indsign = [1, 1, -1, -1]
     # var
     for iv in 1:dimv
-    for jv in iv:dimv
-        for (i,ia) in enumerate(indf2[iv,:])
-        for (j,jb) in enumerate(indf2[jv,:])
-            v[iv,jv] += Qmatrix[ia,jb] * indsign[i]*indsign[j]
+        for jv in iv:dimv
+            for (i,ia) in enumerate(indf2[iv,:])
+                for (j,jb) in enumerate(indf2[jv,:])
+                    v[iv,jv] += Qmatrix[ia,jb] * indsign[i]*indsign[j]
+                end
+            end
+            v[jv,iv] = v[iv,jv]
         end
-        end
-        v[jv,iv] = v[iv,jv]
-    end
     end
     return v
 end
@@ -367,7 +367,7 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     q = - Vinv * f4vec
     COSMO.assemble!(d, P, q, [constraint1; constraint2])
     res = COSMO.optimize!(d)
-    return 2 * res.obj_val - transpose(f4vec) * q, dimf4
+    return 2 * res.obj_val - transpose(f4vec) * q, 2*dimf4
 
     # transpose(res.x) * Vinv * res.x - 2 * transpose(f4vec) * Vinv * res.x
     # transpose(res.x) * P * res.x + 2 * transpose(q)  * res.x
@@ -387,7 +387,7 @@ end
 # n is the number of blocks in jacknife estimation
 function mixtureF(r::Int, n::Int)
     if r > 1
-        return MixtureModel([(r - 1) / (n - r - 1) * FDist(r - 1, n - r - 1), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
+        return MixtureModel([(r - 1) / (n - r + 1) * FDist(r - 1, n - r + 1), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
     else # Dirac
         return MixtureModel([Normal(0.0, 0.0), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
     end
