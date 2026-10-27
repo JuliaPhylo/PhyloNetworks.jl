@@ -6,7 +6,7 @@ module PhyloNetworks
     using Dates
     using Distributed # used for parsimony search, currently broken
     using LinearAlgebra: diag, I, logdet, norm, LowerTriangular, mul!, lmul!, rmul!,
-            Diagonal, cholesky, qr, BLAS
+            Diagonal, cholesky, qr, BLAS, Symmetric
     # alternative: drop support for julia v1.4, because LinearAlgebra.rotate! requires julia v1.5
     # using LinearAlgebra # bring all of LinearAlgebra into scope
     # import LinearAlgebra.rotate! # allow re-definition of rotate!
@@ -27,6 +27,7 @@ module PhyloNetworks
     using NLopt # for branch lengths optimization
     using StaticArrays # for quartets
     using StatsBase # cov2cor! for vcv
+    using COSMO # for nj tree of blob test from f4
 
     import Base: show, ==, isless
 

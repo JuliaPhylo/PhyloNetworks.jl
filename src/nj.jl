@@ -190,7 +190,7 @@ function nj(D::DataFrame; force_nonnegative_edges::Bool=false)
 end
 
 #####################################################
-## F2 and f4 fonctions
+## F2 and f4 fonctions - diagonal case
 #####################################################
 
 # Un-normalized f4 statistic for tips (a,b,c,d) in D
@@ -198,7 +198,7 @@ function getf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
     return D[a,d] + D[b,c] - D[a,c] - D[b,d]
 end
 
-function getf4(D::Matrix{<:Real}, t::Tuple)
+function getf4(D::Matrix{<:Real}, t::Vector{Int})
     return D[t[1],t[4]] + D[t[2],t[3]] - D[t[1],t[3]] - D[t[2],t[4]]
 end
 
@@ -207,6 +207,10 @@ end
 # f4(D,a,b,c,d) = 0, f4(D,a,c,b,d) > 0
 function getpairf4(D::Matrix{<:Real}, a::Int, b::Int, c::Int, d::Int)
     return getf4(D,a,b,c,d), getf4(D,a,c,b,d)
+end
+
+function getpairf4(D::Matrix{<:Real}, t::Vector{Int})
+    return getf4(D,t), getf4(D,t[[1,3,2,4]])
 end
 
 # lrt statistic assuming V = 1/nloci * I
@@ -251,6 +255,142 @@ end
 function cutblobpvalue(D::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, nloci::Int)
     lrt, r = getlrtidentity(D, ind_A, ind_B, nloci)
     return ccdf(mixtureChi2Diagonal(r), lrt)
+end
+
+#####################################################
+## F2 and f4 fonctions - non-diagonal case
+#####################################################
+
+function check_variance_matrix(Qf2::Matrix{<:Real}, n::Int)
+    if size(Qf2, 1) > 0
+        expdim = n * (n-1) ÷ 2
+        if (size(Qf2, 1) != expdim) || (size(Qf2, 2) != expdim)
+            throw(DomainError(Qf2, "Qf2 should be a square matrix of dimension n(n+1)/2 with n the number of nodes"))
+        end
+    end
+    return nothing
+end
+
+# get the index of the f2 value in the Q matrix
+# Q matrix is sorted in lexicographic order
+function get_index_f2(i::Int, j::Int, n::Int)
+    if (i < j)
+    return (i-1) * n - (i-1)*i ÷ 2 + j - i
+    else
+    return get_index_f2(j,i,n)
+    end
+end
+
+# get all the indexes in Q
+# indf4 is nf4 times 4 the indices of the f4 values
+function get_f4_ind(indf4::Matrix{Int}, n::Int)
+    f(x::Vector) = [get_index_f2(x[1],x[4], n), get_index_f2(x[2],x[3], n), get_index_f2(x[1],x[3], n), get_index_f2(x[2],x[4], n)]
+    return mapslices(f, indf4, dims = 2)
+end
+function get_covar_f4(Qmatrix::Matrix{Float64}, indf4::Matrix{Int}, n::Int)
+    dimv = size(indf4, 1)
+    v = zeros(dimv, dimv)
+    # indexes
+    indf2 = get_f4_ind(indf4, n)
+    indsign = [1, 1, -1, -1]
+    # var
+    for iv in 1:dimv
+    for jv in iv:dimv
+        for (i,ia) in enumerate(indf2[iv,:])
+        for (j,jb) in enumerate(indf2[jv,:])
+            v[iv,jv] += Qmatrix[ia,jb] * indsign[i]*indsign[j]
+        end
+        end
+        v[jv,iv] = v[iv,jv]
+    end
+    end
+    return v
+end
+
+# lrt statistic assuming V = Q
+# If (ab|cd) verify the 4 point condition, we should have:
+# f4(D,a,b,c,d) = 0
+# f4(D,a,c,b,d) > 0
+function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int)
+    n_A = size(ind_A, 1)
+    n_B = size(ind_B, 1)
+    dimf4 = (n_A * (n_A - 1) ÷ 2) * (n_B * (n_B - 1) ÷ 2)
+    f4vec = zeros(2 * dimf4)
+    indf4 = zeros(Int, 2 * dimf4, 4)
+    i = 0
+    for a in 1:n_A
+        for b in a:n_A
+            if (b != a)
+                for c in 1:n_B
+                    for d in c:n_B
+                        if (d != c)
+                            i += 1
+                            indf4[i,:] = [ind_A[a], ind_A[b], ind_B[c], ind_B[d]]
+                            indf4[dimf4 + i,:] = indf4[i,[1,3,2,4]]
+                            f1, f2 = getpairf4(D, indf4[i,:])
+                            f4vec[i] = f1
+                            f4vec[dimf4 + i] = f2
+                        end
+                    end
+                end
+            end
+        end
+    end
+    V = get_covar_f4(Q, indf4, active_size)
+    Vinv = inv(Symmetric(V))
+
+    # d = DAQP.Model()
+    # f = - Vinv * f4vec
+    # A = Matrix(1.0I, 2*dimf4, 2*dimf4)
+    # # blower = zeros(Float64, 2 * dimf4)
+    # # bupper = [zeros(dimf4); 1e16 .* ones(Float64, dimf4)]
+    # blower = -1e16 .* ones(Float64, 2 * dimf4)
+    # bupper = 1e16 .* ones(Float64, 2 * dimf4)
+    # sense = zeros(Cint, 2 * dimf4)
+    # # sense[1:dimf4] .= 5 # equality constraint
+    # DAQP.setup(d,Vinv,f,A,bupper,blower,sense)
+    # DAQP.settings(d, Dict(:iter_limit =>2000))
+    # x,fval,exitflag,info = DAQP.solve(d)
+    # 2 * fval + transpose(f4vec) * Vinv * f4vec
+    # ff = copy(f4vec)
+    # ff[1:dimf4] .=0
+    # transpose(f4vec - ff) * Vinv * (f4vec - ff)
+
+    d = COSMO.Model()
+    Imat = Matrix(1.0I, dimf4, dimf4)
+    # first dimf4 entries equal to zero
+    constraint1 = COSMO.Constraint(hcat(Imat, 0.0*Imat), zeros(dimf4), COSMO.ZeroSet)
+    # last dimf4 entries greater than zero
+    constraint2 = COSMO.Constraint(hcat(0.0Imat, Imat), zeros(dimf4), COSMO.Nonnegatives)
+    # Model
+    P = Vinv
+    q = - Vinv * f4vec
+    COSMO.assemble!(d, P, q, [constraint1; constraint2])
+    res = COSMO.optimize!(d)
+    return 2 * res.obj_val - transpose(f4vec) * q, dimf4
+
+    # transpose(res.x) * Vinv * res.x - 2 * transpose(f4vec) * Vinv * res.x
+    # transpose(res.x) * P * res.x + 2 * transpose(q)  * res.x
+    # transpose(f4vec - res.x) * Vinv * (f4vec - res.x)
+end
+
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int)
+    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci)
+end
+
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int)
+    lrt, r = getlrtQ(D, Q, ind_A, ind_B, active_size)
+    return ccdf(mixtureF(r, nloci), lrt)
+end
+
+# Mixture of f distribution
+# n is the number of blocks in jacknife estimation
+function mixtureF(r::Int, n::Int)
+    if r > 1
+        return MixtureModel([(r - 1) / (n - r - 1) * FDist(r - 1, n - r - 1), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
+    else # Dirac
+        return MixtureModel([Normal(0.0, 0.0), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
+    end
 end
 
 #####################################################
@@ -332,6 +472,93 @@ function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{N
     return active_size
 end
 
+function update_covar_f2(Qmatrix::Matrix{Float64}, clus_ind::Vector{Int}, i::Int, l::Int, active_size::Int)
+    n_in_clus = size(clus_ind, 1)
+    # index to update
+    il = get_index_f2(i, l, active_size)
+    # update
+    for a in 1:active_size
+        for b in a:active_size
+            if (b != a)
+                ab = get_index_f2(a, b, active_size)
+                Qmatrix[il, ab] = 0.0
+                for k in clus_ind
+                    lk = get_index_f2(l, k, active_size)
+                    Qmatrix[il, ab] += Qmatrix[lk, ab] ./ n_in_clus
+                end
+                Qmatrix[ab, il] = Qmatrix[il, ab]  
+            end
+        end
+    end
+end
+
+function reorder_covar_f2(Qmatrix::Matrix{Float64}, j::Int, active_size::Int)
+    for a in 1:active_size
+        if (a != j && a != active_size)
+            aj = get_index_f2(a, j, active_size)
+            aac = get_index_f2(a, active_size, active_size)
+            Qmatrix[:, aj], Qmatrix[:, aac] = Qmatrix[:, aac], Qmatrix[:, aj]
+            Qmatrix[aj, :], Qmatrix[aac, :] = Qmatrix[aac, :], Qmatrix[aj, :]  
+        end
+    end
+end
+
+function join_blob!(D::Matrix{<:Real}, Qf2::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{Node,1}, active_size::Int, clusters::Vector{Int}, clus_ind::BitVector)
+    # create new edges and node, update tree
+    # create a star tree from new node node_k
+    clus_ind = findall(clus_ind)
+    n_in_clus = size(clus_ind, 1)
+    edgenum = net.numedges
+    newEdges = Vector{Edge}(undef, n_in_clus)
+    for (i,a) in enumerate(clus_ind)
+        eak = Edge(edgenum + i, 1.0)
+        setEdge!(active_nodes[a], eak)
+        newEdges[i] = eak
+    end
+    node_k = Node(net.numnodes+1, false, false, newEdges)
+    for (i,a) in enumerate(clus_ind)
+        setNode!(newEdges[i], Node[active_nodes[a], node_k]) # correct direction, bc ischild1 true by default
+        pushEdge!(net, newEdges[i])
+    end
+    pushNode!(net, node_k)
+
+    # Update distances to new node k, placed in position i
+    i = clus_ind[1]
+    for l in 1:active_size
+        if !(l in clus_ind)
+            D[l,i] = sum(D[l,clus_ind]) / n_in_clus
+            D[i,l] = D[l,i]
+            update_covar_f2(Qf2, clus_ind, i, l, active_size)
+        end
+    end
+    # remove all nodes of the blob from the scope
+    for j in reverse(clus_ind[2:n_in_clus])
+        # swap j with last active position using whole column/row operations
+        if j != active_size
+            D[:, j], D[:, active_size] = D[:, active_size], D[:, j]
+            D[j, :], D[active_size, :] = D[active_size, :], D[j, :]
+            reorder_covar_f2(Qf2, j, active_size)
+            active_nodes[j] = active_nodes[active_size]
+            clusters[j] = clusters[active_size]
+        end
+        active_size -= 1
+    end
+    # inactivate last active position: okay bc k replaces i != active_size
+    active_nodes[i] = node_k
+
+    return active_size
+end
+
+function nj_treeofblobs!(
+    D::Matrix{Float64},
+    names::AbstractVector{<:AbstractString}=String[];
+    force_nonnegative_edges::Bool=false,
+    threshold::Float64=0.01,
+    nloci::Int=1000
+)
+    nj_treeofblobs!(D, zeros(0,0), names; force_nonnegative_edges = force_nonnegative_edges, threshold = threshold, nloci = nloci)
+end
+
 """
     nj_treeofblobs!(D::Matrix{Float64}, names::AbstractVector{<:AbstractString}=String[];
         force_nonnegative_edges::Bool=false, epsilon::Float64=sqrt(eps(Float64))
@@ -348,6 +575,7 @@ See [`nj`](@ref) for the classical neighbor joining algorithm.
 """
 function nj_treeofblobs!(
     D::Matrix{Float64},
+    Qf2::Matrix{Float64},
     names::AbstractVector{<:AbstractString}=String[];
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
@@ -359,6 +587,7 @@ function nj_treeofblobs!(
     if isempty(names)
         names = string.(1:n)
     end
+    check_variance_matrix(Qf2, n)
     clusters = collect(1:n)
     nclust = n
     Dclust = copy(D)
@@ -382,7 +611,11 @@ function nj_treeofblobs!(
         c2 = uniclust[ic2]
         clus_ind = (clusters[1:active_size] .== c1) .|| (clusters[1:active_size] .== c2)
         if ((active_size - sum(clus_ind)) >= 2)
-            blobpval = cutblobpvalue(D, clus_ind, nloci)
+            if size(Qf2, 1) == 0
+                blobpval = cutblobpvalue(D, clus_ind, nloci)
+            else
+                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci)
+            end
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
             blobpval = 1
             clusters[1:active_size] .= c1
@@ -392,7 +625,11 @@ function nj_treeofblobs!(
         nclust = nclust - 1
         # compute the length of the edges
         if (blobpval >= threshold)
-            active_size = join_blob!(D, net, active_nodes, active_size, clusters, clus_ind)
+            if size(Qf2, 1) == 0
+                active_size = join_blob!(D, net, active_nodes, active_size, clusters, clus_ind)
+            else
+                active_size = join_blob!(D, Qf2, net, active_nodes, active_size, clusters, clus_ind)
+            end
         end
     end
 
