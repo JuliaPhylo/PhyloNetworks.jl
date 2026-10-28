@@ -311,7 +311,7 @@ end
 # If (ab|cd) verify the 4 point condition, we should have:
 # f4(D,a,b,c,d) = 0
 # f4(D,a,c,b,d) > 0
-function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int)
+function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, lambda::Real=1e-10)
     n_A = size(ind_A, 1)
     n_B = size(ind_B, 1)
     dimf4 = (n_A * (n_A - 1) ÷ 2) * (n_B * (n_B - 1) ÷ 2)
@@ -337,24 +337,36 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
         end
     end
     V = get_covar_f4(Q, indf4, active_size)
+
     # TODO: find a better formula for regularization ?
-    # # EB simple estimator
-    # Vprime = (V + I(size(V,1))) / (nloci - 2 + size(V,1)+1)
+
+    # Simple regularization
+    Vprime = V + lambda .* I(size(V,1))
+    Vinv = inv(Symmetric(Vprime))
+
+    # # EB simple estimator from Montoya 2026
+    # Vprime = (nloci * V + I(size(V,1))) / (nloci - 2 + size(V,1)+1)
     # Vinv = inv(Symmetric(Vprime))
 
-    # Haff 1980 EB estimator
-    # S ~ W_p(Sigma, k), k = nloci - 1, p = dim(V)
-    k = nloci - 1
-    p = size(V, 1)
-    S = k * V 
-    # Sigma^-1 ~ W(1/gamma I, k'), k' = p+1
-    kprime = p + 1
-    # 3.4:  a = 1/(k+k'-p-1)
-    a = 1 / (k + kprime - p - 1)
-    # 3.7:  pk / (k+k') * 1/tr(S^-1 C), C = I
-    gam = (p * k) / (k + kprime) * 1 / sum(1/eigen(S).values)
-    Vprime = a * (S + gam * I(p))
-    Vinv = inv(Symmetric(Vprime))
+    # # EB from Colucci 2015
+    # p = size(V,1)
+    # nu = p + 1
+    # Vprime = (nloci * V + I(p)) / (nloci + nu - p)
+    # Vinv = inv(Symmetric(Vprime))
+
+    # # Haff 1980 EB estimator
+    # # S ~ W_p(Sigma, k), k = nloci - 1, p = dim(V)
+    # k = nloci - 1
+    # p = size(V, 1)
+    # S = k * V 
+    # # Sigma^-1 ~ W(1/gamma I, k'), k' = p+1
+    # kprime = p + 1
+    # # 3.4:  a = 1/(k+k'-p-1)
+    # a = 1 / (k + kprime - p - 1)
+    # # 3.7:  pk / (k+k') * 1/tr(S^-1 C), C = I
+    # gam = (p * k) / (k + kprime) * 1 / sum(1/eigen(S).values)
+    # Vprime = a * (S + gam * I(p))
+    # Vinv = inv(Symmetric(Vprime))
 
     # # Efron Moris 1976
     # k = nloci - 1
@@ -393,20 +405,21 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     q = - Vinv * f4vec
     COSMO.assemble!(d, P, q, [constraint1; constraint2])
     res = COSMO.optimize!(d)
-    return 2 * res.obj_val - transpose(f4vec) * q, 2*dimf4
+    return 2 * res.obj_val - transpose(f4vec) * q, Vprime
 
     # transpose(res.x) * Vinv * res.x - 2 * transpose(f4vec) * Vinv * res.x
     # transpose(res.x) * P * res.x + 2 * transpose(q)  * res.x
     # transpose(f4vec - res.x) * Vinv * (f4vec - res.x)
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int)
-    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci)
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, lambda::Real)
+    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, lambda)
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int)
-    lrt, r = getlrtQ(D, Q, ind_A, ind_B, active_size, nloci)
-    return ccdf(mixtureF(r, nloci), lrt)
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, lambda::Real)
+    lrt, V = getlrtQ(D, Q, ind_A, ind_B, active_size, lambda)
+    # return ccdf(mixtureF(r, nloci), lrt)
+    return ccdf(mixtureChi2(V), lrt)
 end
 
 # Mixture of f distribution
@@ -417,6 +430,27 @@ function mixtureF(r::Int, n::Int)
     else # Dirac
         return MixtureModel([Normal(0.0, 0.0), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
     end
+end
+
+# Mixture of chi2 distribution
+# Assuming a diagonal V matrix
+# weight[i] = Prob[Z has exactly i positive components] with Z ~ N(0, V)
+function mixtureChi2(V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
+    r = size(V, 1) ÷ 2
+    # TODO: more efficient way to do this schur complement ?
+    V11 = view(V, 1:r, 1:r)
+    V22 = view(V, (r+1):(2*r), (r+1):(2*r))
+    V12 = view(V, 1:r, (r+1):(2*r))
+    A = Symmetric(V22 - transpose(V12) * (V11 \ V12))
+    Z = rand(MvNormal(zeros(r), A), nmc)
+    f(x::Vector) = sum(x .> 0.0)
+    npos = mapslices(f, Z, dims = 1)
+    weights = zeros(Int, r + 1)
+    for val in npos
+        weights[val + 1] += 1
+    end
+    weights = weights / nmc
+    return MixtureModel(Chisq, r:2*r, reverse(weights))
 end
 
 #####################################################
@@ -605,7 +639,8 @@ function nj_treeofblobs!(
     names::AbstractVector{<:AbstractString}=String[];
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
-    nloci::Int=1000
+    nloci::Int=1000,
+    lambda::Real=1e-10
 )
     check_distance_matrix(D)
     n = size(D, 1)    # number of species
@@ -640,7 +675,7 @@ function nj_treeofblobs!(
             if size(Qf2, 1) == 0
                 blobpval = cutblobpvalue(D, clus_ind, nloci)
             else
-                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci)
+                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, lambda)
             end
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
             blobpval = 1
@@ -688,6 +723,6 @@ epsilon is the tolerance value for calling blobs.
 See [`nj_treeofblobs!`](@ref) for using a matrix as input,
 and [`nj`](@ref) for the classical neighbor joining algorithm.
 """
-function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, nloci::Int=1000)
-    nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, threshold = threshold, nloci = nloci)
+function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, nloci::Int=1000, lambda::Real=1e-10)
+    nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda)
 end
