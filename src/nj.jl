@@ -442,15 +442,22 @@ end
 # weight[i] = Prob[Z has exactly i positive components] with Z ~ N(0, V)
 function mixtureChi2(V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
     r = size(V, 1) ÷ 2
-    # TODO: more efficient way to do this schur complement ?
+    ## Compute A = V22 - V12' * inv(V11) * V12
+    ## Naive approach
     # V11 = view(V, 1:r, 1:r)
     # V22 = view(V, (r+1):(2*r), (r+1):(2*r))
     # V12 = view(V, 1:r, (r+1):(2*r))
-    # A = V22 - V12' * inv(V11) * V12
     # A = Symmetric(V22 - transpose(V12) * (V11 \ V12))
-    # block Cholesky, cf https://math.stackexchange.com/questions/1384769/proving-that-l-22l-22t-s-is-the-schur-complement-of-a-cholesky-factorizat
+    ## Using block Cholesky, cf https://math.stackexchange.com/questions/1384769/proving-that-l-22l-22t-s-is-the-schur-complement-of-a-cholesky-factorizat
     L_V = cholesky(V).L
-    L_A = L_V[(r+1):(2*r), (r+1):(2*r)]
+    L_A = view(L_V, (r+1):(2*r), (r+1):(2*r))
+    ## Other approach : cholesky of smaller matrices
+    # L_1 = cholesky(view(V, 1:r, 1:r)).L
+    # L_12t = L_1 \ view(V, 1:r, (r+1):(2*r))
+    # A = view(V, (r+1):(2*r), (r+1):(2*r)) - L_12t' * L_12t
+    # L_A = cholesky(A).L
+
+    ## Draw Z and count positives
     # Z = L_A * rand(MvNormal(zeros(r), I), nmc)
     Z = L_A * reshape(rand(Normal(0,1), nmc * r), r, nmc)
     npos = mapslices(x -> sum(x .> 0.0), Z, dims = 1)
