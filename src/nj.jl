@@ -341,7 +341,12 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     # TODO: find a better formula for regularization ?
 
     # Simple regularization
-    Vprime = V + lambda .* I(size(V,1))
+    Vprime = V + lambda .* tr(V) .* I(size(V,1)) 
+    # in admixtools, they add diag_f3 * trace(Q) * Identity matrix, with diag_f3 = 1e-5 by default
+    # See https://github.com/uqrmaie1/admixtools/blob/472d04e98ac8aa70e5c9cbe65722c7e5dfbe8200/R/qpgraph.R#L524
+    # and https://github.com/uqrmaie1/admixtools/blob/472d04e98ac8aa70e5c9cbe65722c7e5dfbe8200/R/qpgraph.R#L204
+    # in poolfstat, they just add Q.lambda, default to zero
+    # see https://github.com/cran/poolfstat/blob/47d0fe5e1bc867d27362a5bbd6edddd632d3ea7d/R/fit.graph.R#L19
     Vinv = inv(Symmetric(Vprime))
 
     # # EB simple estimator from Montoya 2026
@@ -438,13 +443,17 @@ end
 function mixtureChi2(V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
     r = size(V, 1) ÷ 2
     # TODO: more efficient way to do this schur complement ?
-    V11 = view(V, 1:r, 1:r)
-    V22 = view(V, (r+1):(2*r), (r+1):(2*r))
-    V12 = view(V, 1:r, (r+1):(2*r))
-    A = Symmetric(V22 - transpose(V12) * (V11 \ V12))
-    Z = rand(MvNormal(zeros(r), A), nmc)
-    f(x::Vector) = sum(x .> 0.0)
-    npos = mapslices(f, Z, dims = 1)
+    # V11 = view(V, 1:r, 1:r)
+    # V22 = view(V, (r+1):(2*r), (r+1):(2*r))
+    # V12 = view(V, 1:r, (r+1):(2*r))
+    # A = V22 - V12' * inv(V11) * V12
+    # A = Symmetric(V22 - transpose(V12) * (V11 \ V12))
+    # block Cholesky, cf https://math.stackexchange.com/questions/1384769/proving-that-l-22l-22t-s-is-the-schur-complement-of-a-cholesky-factorizat
+    L_V = cholesky(V).L
+    L_A = L_V[(r+1):(2*r), (r+1):(2*r)]
+    # Z = L_A * rand(MvNormal(zeros(r), I), nmc)
+    Z = L_A * reshape(rand(Normal(0,1), nmc * r), r, nmc)
+    npos = mapslices(x -> sum(x .> 0.0), Z, dims = 1)
     weights = zeros(Int, r + 1)
     for val in npos
         weights[val + 1] += 1
@@ -723,6 +732,6 @@ epsilon is the tolerance value for calling blobs.
 See [`nj_treeofblobs!`](@ref) for using a matrix as input,
 and [`nj`](@ref) for the classical neighbor joining algorithm.
 """
-function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, nloci::Int=1000, lambda::Real=1e-10)
+function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, nloci::Int=1000, lambda::Real=1e-5)
     nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda)
 end
