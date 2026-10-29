@@ -27,7 +27,7 @@ module PhyloNetworks
     using NLopt # for branch lengths optimization
     using StaticArrays # for quartets
     using StatsBase # cov2cor! for vcv
-    using COSMO # for nj tree of blob test from f4
+    using DAQP # for nj tree of blob test from f4
 
     import Base: show, ==, isless
 

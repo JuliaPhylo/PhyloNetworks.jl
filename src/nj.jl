@@ -347,17 +347,14 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     # and https://github.com/uqrmaie1/admixtools/blob/472d04e98ac8aa70e5c9cbe65722c7e5dfbe8200/R/qpgraph.R#L204
     # in poolfstat, they just add Q.lambda, default to zero
     # see https://github.com/cran/poolfstat/blob/47d0fe5e1bc867d27362a5bbd6edddd632d3ea7d/R/fit.graph.R#L19
-    Vinv = inv(Symmetric(Vprime))
 
     # # EB simple estimator from Montoya 2026
     # Vprime = (nloci * V + I(size(V,1))) / (nloci - 2 + size(V,1)+1)
-    # Vinv = inv(Symmetric(Vprime))
 
     # # EB from Colucci 2015
     # p = size(V,1)
     # nu = p + 1
     # Vprime = (nloci * V + I(p)) / (nloci + nu - p)
-    # Vinv = inv(Symmetric(Vprime))
 
     # # Haff 1980 EB estimator
     # # S ~ W_p(Sigma, k), k = nloci - 1, p = dim(V)
@@ -371,7 +368,6 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     # # 3.7:  pk / (k+k') * 1/tr(S^-1 C), C = I
     # gam = (p * k) / (k + kprime) * 1 / sum(1/eigen(S).values)
     # Vprime = a * (S + gam * I(p))
-    # Vinv = inv(Symmetric(Vprime))
 
     # # Efron Moris 1976
     # k = nloci - 1
@@ -380,37 +376,36 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     # Sinv = inv(Symmetric(S))
     # Vinv = (k - p - 1) * Sinv + (p^2 - p - 2)/tr(S) * I(p)
 
+    Vinv = inv(cholesky(Vprime))
 
-
-    # d = DAQP.Model()
-    # f = - Vinv * f4vec
-    # A = Matrix(1.0I, 2*dimf4, 2*dimf4)
-    # # blower = zeros(Float64, 2 * dimf4)
-    # # bupper = [zeros(dimf4); 1e16 .* ones(Float64, dimf4)]
-    # blower = -1e16 .* ones(Float64, 2 * dimf4)
-    # bupper = 1e16 .* ones(Float64, 2 * dimf4)
-    # sense = zeros(Cint, 2 * dimf4)
-    # # sense[1:dimf4] .= 5 # equality constraint
-    # DAQP.setup(d,Vinv,f,A,bupper,blower,sense)
+    d = DAQP.Model()
+    f = - Vinv * f4vec
+    A = Matrix(1.0I, 2*dimf4, 2*dimf4)
+    blower = zeros(Float64, 2 * dimf4)
+    bupper = [zeros(dimf4); 1e16 .* ones(Float64, dimf4)]
+    sense = zeros(Cint, 2 * dimf4)
+    # sense[1:dimf4] .= 5 # equality constraint
+    DAQP.setup(d,Vinv,f,A,bupper,blower,sense)
     # DAQP.settings(d, Dict(:iter_limit =>2000))
-    # x,fval,exitflag,info = DAQP.solve(d)
-    # 2 * fval + transpose(f4vec) * Vinv * f4vec
+    _,fval,_,_ = DAQP.solve(d)
+    return 2 * fval + transpose(f4vec) * Vinv * f4vec, Vprime
     # ff = copy(f4vec)
     # ff[1:dimf4] .=0
     # transpose(f4vec - ff) * Vinv * (f4vec - ff)
+    # transpose(f4vec - x) * Vinv * (f4vec - x)
 
-    d = COSMO.Model()
-    Imat = Matrix(1.0I, dimf4, dimf4)
-    # first dimf4 entries equal to zero
-    constraint1 = COSMO.Constraint(hcat(Imat, 0.0*Imat), zeros(dimf4), COSMO.ZeroSet)
-    # last dimf4 entries greater than zero
-    constraint2 = COSMO.Constraint(hcat(0.0Imat, Imat), zeros(dimf4), COSMO.Nonnegatives)
-    # Model
-    P = Vinv
-    q = - Vinv * f4vec
-    COSMO.assemble!(d, P, q, [constraint1; constraint2])
-    res = COSMO.optimize!(d)
-    return 2 * res.obj_val - transpose(f4vec) * q, Vprime
+    # d = COSMO.Model()
+    # Imat = Matrix(1.0I, dimf4, dimf4)
+    # # first dimf4 entries equal to zero
+    # constraint1 = COSMO.Constraint(hcat(Imat, 0.0*Imat), zeros(dimf4), COSMO.ZeroSet)
+    # # last dimf4 entries greater than zero
+    # constraint2 = COSMO.Constraint(hcat(0.0Imat, Imat), zeros(dimf4), COSMO.Nonnegatives)
+    # # Model
+    # P = Vinv
+    # q = - Vinv * f4vec
+    # COSMO.assemble!(d, P, q, [constraint1; constraint2])
+    # res = COSMO.optimize!(d)
+    # return 2 * res.obj_val - transpose(f4vec) * q, Vprime
 
     # transpose(res.x) * Vinv * res.x - 2 * transpose(f4vec) * Vinv * res.x
     # transpose(res.x) * P * res.x + 2 * transpose(q)  * res.x
@@ -630,9 +625,10 @@ function nj_treeofblobs!(
     names::AbstractVector{<:AbstractString}=String[];
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
-    nloci::Int=1000
+    nloci::Int=1000,
+    lambda::Real=1e-10
 )
-    nj_treeofblobs!(D, zeros(0,0), names; force_nonnegative_edges = force_nonnegative_edges, threshold = threshold, nloci = nloci)
+    nj_treeofblobs!(D, zeros(0,0), names; force_nonnegative_edges = force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda)
 end
 
 """
