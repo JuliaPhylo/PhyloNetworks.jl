@@ -244,7 +244,8 @@ end
 # Assuming a diagonal V matrix
 # weight[i] = Prob[Z has exactly i positive components] with Z ~ N(0, V)
 function mixtureChi2Diagonal(r)
-    weights = pdf(Binomial(r, 0.5), r:-1:0)
+    # weights = pdf(Binomial(r, 0.5), r:-1:0) # deprecation warning
+    weights = map(Base.Fix1(pdf, Binomial(r, 0.5)), r:-1:0)
     return MixtureModel(Chisq, r:2*r, weights)
 end
 
@@ -412,13 +413,13 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     # transpose(f4vec - res.x) * Vinv * (f4vec - res.x)
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, lambda::Real)
-    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, lambda)
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, conditionalCutTest::Bool)
+    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci, lambda, conditionalCutTest)
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, lambda::Real)
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int, lambda::Real, conditionalCutTest::Bool)
     lrt, V = getlrtQ(D, Q, ind_A, ind_B, active_size, lambda)
-    # return ccdf(mixtureF(r, nloci), lrt)
+    if (!conditionalCutTest) return ccdf(mixtureF(size(V, 1), nloci), lrt / nloci) end
     return ccdf(mixtureChi2(V), lrt)
 end
 
@@ -436,7 +437,13 @@ end
 # Assuming a diagonal V matrix
 # weight[i] = Prob[Z has exactly i positive components] with Z ~ N(0, V)
 function mixtureChi2(V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
+    mixtureChi2fast(Random.default_rng(), V, nmc)
+end
+
+# this version is faster, but uses (much) more memory (generate Z matrix all at once)
+function mixtureChi2fast(rng::Random.AbstractRNG, V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
     r = size(V, 1) ÷ 2
+    r == 1 && return MixtureModel(Chisq, 1:2, [0.5, 0.5])
     ## Compute A = V22 - V12' * inv(V11) * V12
     ## Naive approach
     # V11 = view(V, 1:r, 1:r)
@@ -445,7 +452,8 @@ function mixtureChi2(V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
     # A = Symmetric(V22 - transpose(V12) * (V11 \ V12))
     ## Using block Cholesky, cf https://math.stackexchange.com/questions/1384769/proving-that-l-22l-22t-s-is-the-schur-complement-of-a-cholesky-factorizat
     L_V = cholesky(V).L
-    L_A = view(L_V, (r+1):(2*r), (r+1):(2*r))
+    # L_A = view(L_V, (r+1):(2*r), (r+1):(2*r))
+    L_A = LowerTriangular(L_V[(r+1):(2*r), (r+1):(2*r)]) # matrix multiplication is more efficient without the view
     ## Other approach : cholesky of smaller matrices
     # L_1 = cholesky(view(V, 1:r, 1:r)).L
     # L_12t = L_1 \ view(V, 1:r, (r+1):(2*r))
@@ -454,13 +462,41 @@ function mixtureChi2(V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
 
     ## Draw Z and count positives
     # Z = L_A * rand(MvNormal(zeros(r), I), nmc)
-    Z = L_A * reshape(rand(Normal(0,1), nmc * r), r, nmc)
-    npos = mapslices(x -> sum(x .> 0.0), Z, dims = 1)
-    weights = zeros(Int, r + 1)
-    for val in npos
-        weights[val + 1] += 1
+    # Z = L_A * reshape(rand(Normal(0,1), nmc * r), r, nmc)
+    Z = Random.randn(rng, r, nmc)
+    lmul!(L_A, Z) # in place multiplication
+    # npos = mapslices(x -> sum(x .> 0.0), Z, dims = 1) # much slower
+    npos = vec(sum(>(0.0), Z, dims=1)) # slightly slower but less allocations
+    # npos = count.(>(0.0), eachcol(Z)) # slightly faster but more allocations
+    weights = counts(npos, 0:r) / nmc
+    # weights = zeros(Int, r + 1)
+    # for val in npos
+    #     weights[val + 1] += 1
+    # end
+    # weights = weights / nmc
+    return MixtureModel(Chisq, r:2*r, reverse(weights))
+end
+
+# this version is slower, but uses (much) less memory (generate Z vectors sequentially)
+function mixtureChi2light(rng::Random.AbstractRNG, V::Matrix{<:Real}, nmc::Int=10000*size(V,1))
+    r = size(V, 1) ÷ 2
+    r == 1 && return MixtureModel(Chisq, 1:2, [0.5, 0.5])
+
+    ## Compute A = V22 - V12' * inv(V11) * V12
+    ## Using block Cholesky, cf https://math.stackexchange.com/questions/1384769/proving-that-l-22l-22t-s-is-the-schur-complement-of-a-cholesky-factorizat
+    L_V = cholesky(V).L
+    # L_A = view(L_V, (r+1):(2*r), (r+1):(2*r))
+    L_A = LowerTriangular(L_V[(r+1):(2*r), (r+1):(2*r)]) # matrix multiplication is more efficient without the view
+
+    ## Draw Z and count positives
+    Z = zeros(r, 1)
+    weights = zeros(r+1)
+    for _ in 1:nmc
+        randn!(rng, Z)
+        lmul!(L_A, Z)
+        weights[sum(>(0.0), Z) + 1] += 1
     end
-    weights = weights / nmc
+    weights = weights ./ nmc
     return MixtureModel(Chisq, r:2*r, reverse(weights))
 end
 
@@ -652,7 +688,8 @@ function nj_treeofblobs!(
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
     nloci::Int=1000,
-    lambda::Real=1e-10
+    lambda::Real=1e-10,
+    conditionalCutTest::Bool=true
 )
     check_distance_matrix(D)
     n = size(D, 1)    # number of species
@@ -687,7 +724,7 @@ function nj_treeofblobs!(
             if size(Qf2, 1) == 0
                 blobpval = cutblobpvalue(D, clus_ind, nloci)
             else
-                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, lambda)
+                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci, lambda, conditionalCutTest)
             end
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
             blobpval = 1
