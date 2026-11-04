@@ -82,11 +82,15 @@ end
         ]
 
     njtob = PhyloNetworks.nj_treeofblobs!(copy(D), nloci = 100000)
-    njtob2 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2))
+    njtob2 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2); cutTest=:chi2ind)
     @test hardwiredclusterdistance(njtob, njtob2, false) == 0
 
-    njtob3 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2); conditionalCutTest=false)
+    njtob3 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2); cutTest=:chi2)
+    njtob4 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2); cutTest=:ftest)
     @test PN.isEqual(njtob2,njtob3)
+    @test PN.isEqual(njtob2,njtob4)
+
+    njtob5 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2); cutTest=:chi2ind, lrtType=:diag)
 
 end
 

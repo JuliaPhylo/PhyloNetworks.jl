@@ -288,12 +288,13 @@ function get_f4_ind(indf4::Matrix{Int}, n::Int)
     f(x::Vector) = [get_index_f2(x[1],x[4], n), get_index_f2(x[2],x[3], n), get_index_f2(x[1],x[3], n), get_index_f2(x[2],x[4], n)]
     return mapslices(f, indf4, dims = 2)
 end
+
 function get_covar_f4(Qmatrix::Matrix{Float64}, indf4::Matrix{Int}, n::Int)
     dimv = size(indf4, 1)
     v = zeros(dimv, dimv)
     # indexes
     indf2 = get_f4_ind(indf4, n)
-    indsign = [1, 1, -1, -1]
+    indsign = [1.0, 1.0, -1.0, -1.0]
     # var
     for iv in 1:dimv
         for jv in iv:dimv
@@ -308,11 +309,7 @@ function get_covar_f4(Qmatrix::Matrix{Float64}, indf4::Matrix{Int}, n::Int)
     return v
 end
 
-# lrt statistic assuming V = Q
-# If (ab|cd) verify the 4 point condition, we should have:
-# f4(D,a,b,c,d) = 0
-# f4(D,a,c,b,d) > 0
-function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, lambda::Real=1e-10)
+function getf4vecvar(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int)
     n_A = size(ind_A, 1)
     n_B = size(ind_B, 1)
     dimf4 = (n_A * (n_A - 1) ÷ 2) * (n_B * (n_B - 1) ÷ 2)
@@ -338,16 +335,33 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
         end
     end
     V = get_covar_f4(Q, indf4, active_size)
+    return f4vec, V
+end
 
-    # TODO: find a better formula for regularization ?
-
-    # Simple regularization
-    Vprime = V + lambda .* tr(V) .* I(size(V,1)) 
-    # in admixtools, they add diag_f3 * trace(Q) * Identity matrix, with diag_f3 = 1e-5 by default
-    # See https://github.com/uqrmaie1/admixtools/blob/472d04e98ac8aa70e5c9cbe65722c7e5dfbe8200/R/qpgraph.R#L524
-    # and https://github.com/uqrmaie1/admixtools/blob/472d04e98ac8aa70e5c9cbe65722c7e5dfbe8200/R/qpgraph.R#L204
-    # in poolfstat, they just add Q.lambda, default to zero
-    # see https://github.com/cran/poolfstat/blob/47d0fe5e1bc867d27362a5bbd6edddd632d3ea7d/R/fit.graph.R#L19
+# TODO: find a better formula for regularization ?
+function regularizeVariance!(V::Matrix{<:Real}, nloci::Int, lambda::Real, varReg::Symbol)
+    if varReg == :simple
+        # Simple regularization
+        V .+= lambda .* tr(V) .* I(size(V,1)) 
+        # in admixtools, they add diag_f3 * trace(Q) * Identity matrix, with diag_f3 = 1e-5 by default
+        # See https://github.com/uqrmaie1/admixtools/blob/472d04e98ac8aa70e5c9cbe65722c7e5dfbe8200/R/qpgraph.R#L524
+        # and https://github.com/uqrmaie1/admixtools/blob/472d04e98ac8aa70e5c9cbe65722c7e5dfbe8200/R/qpgraph.R#L204
+        # in poolfstat, they just add Q.lambda, default to zero
+        # see https://github.com/cran/poolfstat/blob/47d0fe5e1bc867d27362a5bbd6edddd632d3ea7d/R/fit.graph.R#L19
+    elseif varReg == :oas
+        ## OAS Chen et al 2010, formula 23
+        p = size(V,1)
+        trS = tr(V)
+        trsqS = trS^2
+        trSsq = sum(abs2, V) # tr(V^2)
+        rho_OAS = ((1 - 2.0/p) * trSsq + trsqS) / ((nloci + 1 - 2.0/p) * (trSsq - trsqS/p))
+        V .*= (1 - rho_OAS)
+        V .+= rho_OAS .* trS / p .* I(p)
+    elseif varReg == :none
+        # do nothing
+    else
+        throw(ArgumentError("Unsupported variance regularisation method $varReg."))
+    end
 
     # # EB simple estimator from Montoya 2026
     # Vprime = (nloci * V + I(size(V,1))) / (nloci - 2 + size(V,1)+1)
@@ -374,22 +388,29 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     # k = nloci - 1
     # p = size(V,1)
     # S = k * V 
-    # Sinv = inv(Symmetric(S))
+    # Sinv = inv(cholesky(S))
     # Vinv = (k - p - 1) * Sinv + (p^2 - p - 2)/tr(S) * I(p)
 
-    Vinv = inv(cholesky(Vprime))
+end
 
+# lrt statistic assuming V full
+# If (ab|cd) verify the 4 point condition, we should have:
+# f4(D,a,b,c,d) = 0
+# f4(D,a,c,b,d) > 0
+function getlrtV(f4vec::Vector{<:Real}, Vinv::Matrix{<:Real})
+    dimf4 = size(f4vec, 1) ÷ 2
     d = DAQP.Model()
     f = - Vinv * f4vec
     A = Matrix(1.0I, 2*dimf4, 2*dimf4)
     blower = zeros(Float64, 2 * dimf4)
-    bupper = [zeros(dimf4); 1e16 .* ones(Float64, dimf4)]
+    bupper = [zeros(Float64, dimf4); 1e16 .* ones(Float64, dimf4)]
     sense = zeros(Cint, 2 * dimf4)
     # sense[1:dimf4] .= 5 # equality constraint
     DAQP.setup(d,Vinv,f,A,bupper,blower,sense)
     # DAQP.settings(d, Dict(:iter_limit =>2000))
     _,fval,_,_ = DAQP.solve(d)
-    return 2 * fval + transpose(f4vec) * Vinv * f4vec, Vprime
+    return 2 * fval + transpose(f4vec) * Vinv * f4vec
+
     # ff = copy(f4vec)
     # ff[1:dimf4] .=0
     # transpose(f4vec - ff) * Vinv * (f4vec - ff)
@@ -413,14 +434,59 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     # transpose(f4vec - res.x) * Vinv * (f4vec - res.x)
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, conditionalCutTest::Bool)
-    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci, lambda, conditionalCutTest)
+# lrt statistic assuming V = diag(V)
+# If (ab|cd) verify the 4 point condition, we should have:
+# f4(D,a,b,c,d) = 0
+# f4(D,a,c,b,d) > 0
+function getlrtdiagonal(f4vec::Vector{<:Real}, Vinv::Matrix{<:Real})
+    r = size(Vinv,1) ÷ 2
+    lrt = 0
+    for i in 1:r
+        lrt += Vinv[i,i] * f4vec[i]^2
+        lrt += Vinv[r+i,r+i] * (f4vec[r+i] - max(0, f4vec[r+i]))^2
+    end
+    return lrt
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int, lambda::Real, conditionalCutTest::Bool)
-    lrt, V = getlrtQ(D, Q, ind_A, ind_B, active_size, lambda)
-    if (!conditionalCutTest) return ccdf(mixtureF(size(V, 1), nloci), lrt / nloci) end
-    return ccdf(mixtureChi2(V), lrt)
+# lrt statistic assuming V full
+# If (ab|cd) verify the 4 point condition, we should have:
+# f4(D,a,b,c,d) = 0
+# f4(D,a,c,b,d) > 0
+function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, lrtType::Symbol)
+    
+    f4vec, V = getf4vecvar(D, Q, ind_A, ind_B, active_size)
+
+    regularizeVariance!(V, nloci, lambda, varReg)
+
+    Vinv = inv(cholesky(V))
+
+    if lrtType == :full
+        lrt = getlrtV(f4vec, Vinv)
+    elseif lrtType == :diag
+        lrt = getlrtdiagonal(f4vec, Vinv)
+    else
+        throw(ArgumentError("Unsupported lrt type $lrtType."))
+    end
+
+    return lrt, V
+end
+
+
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol)
+    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci, lambda, varReg, cutTest, lrtType)
+end
+
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol)
+    lrt, V = getlrtQ(D, Q, ind_A, ind_B, active_size, nloci, lambda, varReg, lrtType)
+    if cutTest==:ftest
+        return ccdf(mixtureF(size(V, 1), nloci), lrt / (nloci-1))
+    elseif cutTest==:chi2
+        return ccdf(mixtureChi2(V), lrt)
+    elseif cutTest==:chi2ind
+        return ccdf(mixtureChi2Diagonal(size(V,1) ÷ 2), lrt)
+    else
+        throw(ArgumentError("Unsupported cut test $cutTest."))
+    end
 end
 
 # Mixture of f distribution
@@ -687,9 +753,11 @@ function nj_treeofblobs!(
     names::AbstractVector{<:AbstractString}=String[];
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
-    nloci::Int=1000,
-    lambda::Real=1e-10,
-    conditionalCutTest::Bool=true
+    nloci::Int=10000,
+    lambda::Real=1e-5,
+    varReg::Symbol=:oas,
+    cutTest::Symbol=:ftest,
+    lrtType::Symbol=:full
 )
     check_distance_matrix(D)
     n = size(D, 1)    # number of species
@@ -724,10 +792,10 @@ function nj_treeofblobs!(
             if size(Qf2, 1) == 0
                 blobpval = cutblobpvalue(D, clus_ind, nloci)
             else
-                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci, lambda, conditionalCutTest)
+                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci, lambda, varReg, cutTest, lrtType)
             end
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
-            blobpval = 1
+            blobpval = 1.0
             clusters[1:active_size] .= c1
             clus_ind = clusters[1:active_size] .== c1
         end
@@ -772,6 +840,6 @@ epsilon is the tolerance value for calling blobs.
 See [`nj_treeofblobs!`](@ref) for using a matrix as input,
 and [`nj`](@ref) for the classical neighbor joining algorithm.
 """
-function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, nloci::Int=1000, lambda::Real=1e-5)
+function nj_treeofblobs(D::DataFrame; force_nonnegative_edges::Bool=false, threshold::Float64=0.01, nloci::Int=100000, lambda::Real=1/nloci)
     nj_treeofblobs!(Matrix{Float64}(D), names(D); force_nonnegative_edges=force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda)
 end
