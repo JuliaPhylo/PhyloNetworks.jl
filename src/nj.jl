@@ -597,11 +597,46 @@ function clusterize!(clusters::Vector{Int}, c1::Int, c2::Int)
     clusters[clusters .== c2] .= newclust
 end
 
+function nj_findbranchlengths(D::Matrix{<:Real}, clus_ind::BitVector, force_nonnegative_edges::Bool, neglenp::Int)
+
+    not_clus_ind = findall(.!clus_ind)
+    clus_ind = findall(clus_ind)
+    n_in_clus = size(clus_ind, 1)
+    bl = zeros(n_in_clus)
+
+    if (size(not_clus_ind, 1) > 0) # at least one remaining tip outside blob
+        DA = sum(D[clus_ind, not_clus_ind], dims = 2) ./ size(not_clus_ind, 1)
+        for (iu, u) in enumerate(clus_ind)
+            for (iv, v) in enumerate(clus_ind)
+                if iv != iu
+                    bl[iu] += D[u,v] + DA[iu] - DA[iv]
+                end
+            end
+            if bl[iu] < 0.0
+                neglenp += 1
+                if force_nonnegative_edges bl[iu] = 0.0; end
+            end
+        end
+        bl ./= 2 * (n_in_clus - 1)
+    else # no remaining tip outside blob
+        for (iu, u) in enumerate(clus_ind)
+            clus_ind_minus_u = clus_ind[clus_ind .!= u]
+            bl[iu] = sum(D[u,clus_ind_minus_u]) / (n_in_clus-1) - sum(D[clus_ind_minus_u, clus_ind_minus_u]) / 2 / (n_in_clus - 1) / (n_in_clus - 2)
+            if bl[iu] < 0.0
+                neglenp += 1
+                if force_nonnegative_edges bl[iu] = 0.0; end
+            end
+        end
+    end
+
+    return bl, neglenp
+end
+
 # Join all the tips of a blob into a single tip
 # Tips of the blob form a star tree from the new tip
 # Branch lengths are arbitrarily set to 1.0
 # Distance of the new node to all other nodes is the average distance to the nodes of the blob
-function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{Node,1}, active_size::Int, clusters::Vector{Int}, clus_ind::BitVector)
+function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{Node,1}, active_size::Int, clusters::Vector{Int}, clus_ind::BitVector, bl::Vector{<:Real})
     # create new edges and node, update tree
     # create a star tree from new node node_k
     clus_ind = findall(clus_ind)
@@ -609,7 +644,7 @@ function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{N
     edgenum = net.numedges
     newEdges = Vector{Edge}(undef, n_in_clus)
     for (i,a) in enumerate(clus_ind)
-        eak = Edge(edgenum + i, 1.0)
+        eak = Edge(edgenum + i, bl[i])
         setEdge!(active_nodes[a], eak)
         newEdges[i] = eak
     end
@@ -620,11 +655,13 @@ function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{N
     end
     pushNode!(net, node_k)
 
+    # constant distance
+    Kdist = sum(D[clus_ind, clus_ind]) / 2 / n_in_clus / (n_in_clus - 1)
     # Update distances to new node k, placed in position i
     i = clus_ind[1]
     for l in 1:active_size
         if !(l in clus_ind)
-            D[l,i] = sum(D[l,clus_ind]) / n_in_clus
+            D[l,i] = sum(D[l,clus_ind]) / n_in_clus - Kdist
             D[i,l] = D[l,i]
         end
     end
@@ -796,15 +833,16 @@ function nj_treeofblobs!(
             end
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
             blobpval = 1.0
-            clusters[1:active_size] .= c1
-            clus_ind = clusters[1:active_size] .== c1
+            # clusters[1:active_size] .= c1
+            # clus_ind = clusters[1:active_size] .== c1
         end
         clusterize!(clusters, c1, c2)
         nclust = nclust - 1
         # compute the length of the edges
         if (blobpval >= threshold)
             if size(Qf2, 1) == 0
-                active_size = join_blob!(D, net, active_nodes, active_size, clusters, clus_ind)
+                bl, neglenp = nj_findbranchlengths(D, clus_ind, force_nonnegative_edges, neglenp)
+                active_size = join_blob!(D, net, active_nodes, active_size, clusters, clus_ind, bl)
             else
                 active_size = join_blob!(D, Qf2, net, active_nodes, active_size, clusters, clus_ind)
             end
@@ -813,7 +851,11 @@ function nj_treeofblobs!(
 
     # base case: 2 leaves
     if active_size >= 2
-        join_12!(net, active_nodes, 1.0)
+        if D[1,2] < 0.0
+            neglenp += 1
+            if force_nonnegative_edges D[1,2] = 0.0; end
+        end
+        join_12!(net, active_nodes, D[1,2])
     end
     net.rooti = net.numnodes # root = last created node, which is internal
     net.isrooted = true # because rooti is valid, and edges are directed away from it

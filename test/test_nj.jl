@@ -26,6 +26,18 @@ end
     # read results from ape implementation of nj
     apetree = readnewick(joinpath(@__DIR__, "..", "examples", "caudata_dist_nj.txt"))
     @test hardwiredclusterdistance(tree, apetree, false) == 0
+    # also check branch lengths (more or less)
+    @test sort!([e.length for e in tree.edge]) ≈ sort!([e.length for e in apetree.edge])
+
+    # example tree but non binary (polytomies)
+    onet = readnewick("((a:1,b:2,c:2,d:3):1,(e:2,f:1,g:4,h:3):2);");
+    oD = pairwisetaxondistancematrix(onet)
+    njtob = PhyloNetworks.nj_treeofblobs!(copy(oD), tiplabels(onet))
+    njD = pairwisetaxondistancematrix(njtob)
+    @test oD ≈ njD 
+    # tree represents exactly the distance matrix, 
+    # but nj but has zero length branches instead of polytomies
+    # polytomies do not break the 4 point condition
 
     # example with two blobs
     onet = readnewick("(((a:6,(b:2,(h:1.5)#H1:0::0.65):1):2,(#H1:0,c:3):3):1,((d:1,(e:2.5,(hh:3)#H2:0::0.75):1):1,(#H2:0,f:2):2):0.5);");
@@ -45,6 +57,10 @@ end
     otob = treeofblobs(onet)
     otob = removedegree2nodes!(otob) # remove degree 2 node leading to S5
     @test hardwiredclusterdistance(otob, njtob, false) == 0
+    njD = pairwisetaxondistancematrix(njtob)
+    tobD = pairwisetaxondistancematrix(otob)
+    @test sum(abs, oD - njD) < sum(abs, oD - tobD)
+    # NJ tob has branch lengths making it more similar to original distance matrix
 
     # Level 2, galled network
     onet = readnewick("(((x1:0.1,#H1:0.7::0.7):0.6,((((x2:0.3)#H1:0.3,x3:0.9):0.4,#H2:0.3::0.45):0.3,((x4:0.4)#H2:0.3,x5:0.3):0.3):0.3):2.0,((x6:1,(x7:2.5,(x8:3)#H3:0::0.75):1):1,(#H3:0,x9:2):2):0.5);")
@@ -52,6 +68,10 @@ end
     njtob = PhyloNetworks.nj_treeofblobs!(copy(oD), tiplabels(onet))
     otob = treeofblobs(onet)
     @test hardwiredclusterdistance(otob, njtob, false) == 0
+    njD = pairwisetaxondistancematrix(njtob)
+    tobD = pairwisetaxondistancematrix(otob)
+    @test sum(abs, oD - njD) < sum(abs, oD - tobD)
+
 end
 
 # @testset "Mixture Models" begin
