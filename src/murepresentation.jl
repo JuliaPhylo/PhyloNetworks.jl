@@ -53,6 +53,17 @@ function has_0μentries_at(ms::Tuple{MuVector,MuVector}, i)
     return b
 end
 
+struct TaggedMuVector
+    "tag"
+    mutag::MuTag
+    "μ0 to hybrids & μ-vector to tips"
+    muvec::MuVector
+end
+function Base.show(io::IO, obj::TaggedMuVector)
+    print(io, "tag=$(obj.tag) ")
+    show(io, obj.muvec)
+end
+
 abstract type MuRepresentation end
 
 tiplabels(m::MuRepresentation) = m.tiplabels
@@ -444,6 +455,7 @@ function edge_murepresentation(
     rμ0 = rho.mu_hybs
     rμv = rho.mu_tips
     mumap_rootcomp = Dict{Int, Tuple{MuVector,MuVector}}()
+    # todo: add mumap_incident, or modify structures
     mumap_directed = Dict{Int, Tuple{MuTag,MuVector,}}()
     for ee in net.edge
         enum = ee.number

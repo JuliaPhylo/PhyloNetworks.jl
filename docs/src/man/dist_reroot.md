@@ -306,7 +306,7 @@ mudistance_semidirected(net1, truenet)
 
 When considered as undirected, the μ-distance is greater here: this is because
 each edge is considered in each direction it can take if its direction may
-change depending on the root. To math edges between 2 networks,
+change depending on the root. To match edges between 2 networks,
 the edges' number of paths to taxa need to match -- in both directions (unlike
 when the networks are considered rooted).
 Here, each network has 6 internal edges (after suppressing the root) and none
