@@ -43,15 +43,15 @@ labels = ["A","B","C","D"] # from net2, but sorted
 @test μ1 != μ2
 @test PN.mudistance(μ1, μ2) == 2 # root and degree-2 node above D
 @test ((@test_logs (:warn,r"leaf") (:warn,r"leaf") (:warn,r"leaf") mudistance_semidirected(
-    net1, net2; preorder=false, labels=["A","B"]))) == 2
+    net1, net2; preorder=false, labels=["A","B"]))) == 3
 
 μ2o = PN.edge_murepresentation(net2; preorder=false)
 s2o = string(μ2o)
 @test startswith(s2o, """PhyloNetworks.EdgeMuRepresentation
 4 taxa in μ-vectors: ["A", "B", "C", "D"]
 root μ-vector: μ0=2 μ=[1, 2, 1, 1]
-maps edge number => μ-entry:
-3 tree edges in the root component
+map edge number => μ-entry:
+3 edges in or incident to the root component
 """)
 for ss in [
 "  4 => μ0=1 μ=[1, 1, 0, 0]; μ0=1 μ=[0, 1, 1, 1]",
@@ -92,8 +92,8 @@ s1 = string(μ1)
 PhyloNetworks.EdgeMuRepresentation
 4 taxa in μ-vectors: ["a", "b", "c", "d"]
 root μ-vector: μ0=2 μ=[2, 2, 1, 1]
-maps edge number => μ-entry:
-1 tree edges in the root component
+map edge number => μ-entry:
+1 edges in or incident to the root component
 """)
 for ss in [
 "  6 => μ0=2 μ=[2, 2, 0, 0]; μ0=0 μ=[0, 0, 1, 1]",

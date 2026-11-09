@@ -1,14 +1,22 @@
+"""
+    MuTag
+
+μ-tag to tag μ-vectors, one of `:r` for root components, `:t` for tree edges,
+`:h` for hybrid edges, or `:i` for edges incident to (but not in)
+a root component, for when we place the root along the edge and follow it
+in its opposite direction.
+"""
 struct MuTag
     tag::Int8
 end
-# integer that happens to match in-degree
+# integer that happens to match in-degree for non-incident tag
 const mutag_r = MuTag( 0) # root node. integer that matches in-degree
 const mutag_t = MuTag( 1) # tree edges / nodes
 const mutag_h = MuTag( 2) # hybrid edges / nodes
-const mutag_i = MuTag(-1) # incident to root component
+const mutag_i = MuTag( 3) # incident to root component. ordered last by `isless`
 function Base.show(io::IO, obj::MuTag)
     tag = obj.tag
-    s = (tag==0 ? "root" : (tag==1 ? "tree" : (tag==2 ? "hybrid" : "incident")))
+    s = (tag==0 ? ":r" : (tag==1 ? ":t" : (tag==2 ? ":h" : ":i")))
     print(io, s)
 end
 Base.isless(t1::MuTag, t2::MuTag) = isless(t1.tag, t2.tag)
@@ -48,21 +56,40 @@ function Base.isless(m1::MuVector, m2::MuVector)
     return isless(m1.mu_hybs, m2.mu_hybs)
 end
 has_0μentries_at(m::MuVector, i) = all(m.mu_tips[i] .== 0)
-function has_0μentries_at(ms::Tuple{MuVector,MuVector}, i)
-    b = has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
-    return b
-end
+has_0μentries_at(ms::Tuple{MuVector,MuVector}, i) =
+    has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
 
-struct TaggedMuVector
+"""
+    TagMuVector
+
+Tagged μ-vector, which wraps a tag [`MuTag`](@ref)
+and a "simple" μ-vector [`MuVector`](@ref).
+See [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780) and
+[Ribas, Pons & Ané (2026)](https://arxiv.org/abs/2605.06243).
+"""
+struct TagMuVector
     "tag"
-    mutag::MuTag
+    mu_tag::MuTag
     "μ0 to hybrids & μ-vector to tips"
-    muvec::MuVector
+    mu_vec::MuVector
 end
-function Base.show(io::IO, obj::TaggedMuVector)
-    print(io, "tag=$(obj.tag) ")
-    show(io, obj.muvec)
+function Base.show(io::IO, obj::TagMuVector)
+    print(io, "tag=$(obj.mu_tag) ")
+    show(io, obj.mu_vec)
 end
+function ==(m1::TagMuVector, m2::TagMuVector)
+    return m1.mu_tag == m2.mu_tag && m1.mu_vec == m2.mu_vec
+end
+# comparing tagged μ-vectors: compare the tag first, then the μ-vector
+function Base.isless(m1::TagMuVector, m2::TagMuVector)
+    if m1.mu_tag == m2.mu_tag
+        return isless(m1.mu_vec, m2.mu_vec)
+    end
+    return isless(m1.mu_tag, m2.mu_tag)
+end
+has_0μentries_at(m::TagMuVector, i) = has_0μentries_at(m.mu_vec, i)
+has_0μentries_at(ms::Tuple{TagMuVector,TagMuVector}, i) =
+    has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
 
 abstract type MuRepresentation end
 
@@ -77,15 +104,17 @@ number of paths from that node to each leaf.
 `tiplabels` gives the order of leaves in μ-vectors.
 
 [`node_murepresentation`](@ref) constructs such an object, with a μ-vector
-for each non-leaf node only (not for tips), because leaf nodes have trivial
-μ-vectors (all 0s but one 1) that would match across any network with that leaf.
+for each node. Leaf nodes may be included, but are excluded by default because
+leaves have trivial μ-vectors (all 0s but one 1) that match across any network
+on the same leaf set. Including leaves is useful if networks don't have the
+same taxa, or for building a edge-based μ-representation.
 
 See [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
 """
 struct NodeMuRepresentation <: MuRepresentation
     "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
     tiplabels::Vector{String}
-    "Dictionary: maps node number => [`MuVector`](@ref) object for that node"
+    "Dictionary: maps node number => [`MuVector`](@ref) for that node"
     mu_map::Dict{Int, MuVector}
     "sorted vector of μ-vectors"
     mu_vec::Vector{MuVector}
@@ -171,75 +200,106 @@ end
 """
     EdgeMuRepresentation
 
-Representation of a semidirected network with one μ-entry for each edge.
-See [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
-[`edge_murepresentation`](@ref) constructs such an object, with μ-entries
-for internal edges only (not external to a tip).
+Representation of a semidirected network with one μ-entry for each edge,
+as described in [Ribas, Pons & Ané (2026)](https://arxiv.org/abs/2605.06243).
+See also [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780),
+which does not have the extension to count the number of paths to hybrid nodes,
+or to distinguish directed edges where the root might be placed.
+[`edge_murepresentation`](@ref) constructs such an object.
+Each μ-entry is a set of 1 or 2 tagged μ-vectors.
 
 1. If an edge is in the root component, that is, both of its incident nodes can
-   root the network, then its μ-entry is a set of 2 μ-vectors, one corresponding
-   to each direction of the edge. (Each μ-vector would get a tree tag because
-   such edges must be tree edges, so these tags are not stored).
-2. If an edge has a fixed direction regardless of where the network is rooted:
-   its μ-entry is 1 tagged μ-vector corresponding to the edge's direction.
-   * if the edge is not adjacent to the root component, then the tag says
-     whether the edge is a tree edge or a hybrid edge.
-   * if the edge is adjacent to the root component (one of its incident nodes
-     could be the root), then the root may be placed along the edge.
-     Then its tag indicates so -- departing from Maxfield, Xu & Ané (2025).
-     For semidirected induced by a rooted network in the standard way,
-     these edges must be hybrid edges, and there is no information loss.
+   root the network, then its μ-entry is a set of 2 tree-tagged μ-vectors,
+   one corresponding to each direction of the edge.
+2. If an edge may contain the root but only 1 of its node can root the network,
+   then the other node is either a hybrid or a leaf. In this case,
+   the edge's μ-entry has 2 tagged μ-vectors:
+   * one corresponding to the edge's direction, tagged by the type of its child
+     node (hybrid or tree), and
+   * one tagged 'incident', corresponding to the edge in its opposite direction,
+     as if it was subdivided into 2 segments by placing the root along the edge.
+3. Otherwise, the edge may not contain the root and neither of its two nodes
+   may root the network either. Then the edge's μ-entry is 1 μ-vector tagged by
+   the edge type (tree or hybrid) and corresponds to the edge's direction, which
+   is independent of where the network is rooted.
 
 All μ-vectors include the number of paths to hybrids, defined for rooted networks
 by [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
-See [`MuVector`](@ref).
+See [`MuVector`](@ref) and [`TagMuVector`](@ref).
+
+!!! info "version info"
+    In PhyloNetworks v1.4.0:
+    - external edges to a leaf, which are tree edges with a trivial μ-vector,
+      were not included in the μ-representation;
+    - the 'tree' tag of edges in the root component was not stored;
+    - the μ-entry for a hybrid edge adjacent to the root component had a single
+      μ-vector, tagged as 'incident', which departs from Maxfield, Xu & Ané (2025)
+      (which tag it as 'hybrid') and from Ribas, Pons & Ané (2026), which build
+      it with 2 tagged μ-vectors (one with the 'hybrid' tag and one with the
+      'incident' tag).
+
 """
 struct EdgeMuRepresentation <: MuRepresentation
     "vector of tip (leaf) labels: listed in the same order as in μ-vectors"
     tiplabels::Vector{String}
     "root μ-vector, assuming the network has a single root component"
     mu_root::MuVector
-    "dictionary for root components: edge number => (μ-vector1, μ-vector2)"
-    mumap_rootcomp::Dict{Int, Tuple{MuVector,MuVector}}
-    "dictionary for fixed direction: edge number => (μ-vector, tag)"
-    mumap_directed::Dict{Int, Tuple{MuTag,MuVector}}
-    "sorted vector of sorted μ-entries in the root component"
-    muvec_rootcomp::Vector{Tuple{MuVector,MuVector}}
+    """dictionary for edges in a root component:
+       edge number => ((:t, μ-vector1), (:t, μ-vector2))"""
+    mumap_rootcomp::Dict{Int, Tuple{TagMuVector,TagMuVector}}
+    """dictionary for directed edges incident to a root component:
+       edge number => ((:t or :h, μ-vector1), (:i, μ-vector2))"""
+    mumap_incident::Dict{Int, Tuple{TagMuVector,TagMuVector}}
+    """dictionary for directed edges that may not contain the root:
+       edge number => tagged μ-vector"""
+    mumap_directed::Dict{Int, TagMuVector}
+    "sorted vector of sorted μ-entries in a root component"
+    muvec_rootcomp::Vector{Tuple{TagMuVector,TagMuVector}}
+    "sorted vector of sorted μ-entries incident to a root component"
+    muvec_incident::Vector{Tuple{TagMuVector,TagMuVector}}
     "sorted vector of μ-entries in the directed part"
-    muvec_directed::Vector{Tuple{MuTag,MuVector}}
+    muvec_directed::Vector{TagMuVector}
 end
 function Base.show(io::IO, obj::EdgeMuRepresentation)
     labs = tiplabels(obj)
     s = "$(typeof(obj))\n$(length(labs)) taxa in μ-vectors: $labs\n"
     s *= "root μ-vector: $(obj.mu_root)\n"
-    s *= "maps edge number => μ-entry:"
-    s *= "\n$(length(obj.mumap_rootcomp)) tree edges in the root component"
+    s *= "map edge number => μ-entry:"
+    s *= "\n$(length(obj.mumap_rootcomp)) edges in the root component"
     for (k,v) in obj.mumap_rootcomp
         s *= "\n  $k => $(v[1]); $(v[2])"
     end
-    s *= "\n$(length(obj.mumap_directed)) edges in the directed part:"
-    for (k,v) in obj.mumap_directed
+    s *= "\n$(length(obj.mumap_incident)) edges incident to the root component"
+    for (k,v) in obj.mumap_incident
         s *= "\n  $k => $(v[1]); $(v[2])"
+    end
+    s *= "\n$(length(obj.mumap_directed)) directed edges that may not contain the root"
+    for (k,v) in obj.mumap_directed
+        s *= "\n  $k => $v"
     end
     print(io, s)
 end
 
 # constructor: builds sorted vectors from dictionaries
 #              re-using memory for each μ-vector
-function EdgeMuRepresentation(labels, mu_root, map_rootcomp, map_directed)
-    vec_root = Vector{Tuple{MuVector,MuVector}}()
-    for (v1,v2) in values(map_rootcomp)
-        if v1 < v2
+# root component edges: assumes all have 2 'tree' tags
+# incident edges: assumes that the μ-vector tagged 'incident' comes second
+function EdgeMuRepresentation(labels, mu_root, map_root, map_inc, map_dir)
+    vec_root = Vector{Tuple{TagMuVector,TagMuVector}}()
+    for (v1,v2) in values(map_root)
+        if v1.mu_vec < v2.mu_vec # assumes both have the same tag (:t)
             push!(vec_root, (v1,v2))
         else
             push!(vec_root, (v2,v1))
         end
     end
     sort!(vec_root)
-    vec_dir = collect(values(map_directed))
+    vec_inc = collect(values(map_inc)) # assumes (:?, :i) with :? < :i, so swap not needed
+    sort!(vec_inc)
+    vec_dir = collect(values(map_dir))
     sort!(vec_dir)
-    return EdgeMuRepresentation(labels, mu_root, map_rootcomp, map_directed,
-                                vec_root, vec_dir)
+    return EdgeMuRepresentation(labels, mu_root, map_root, map_inc, map_dir,
+                                vec_root, vec_inc, vec_dir)
 end
 
 function has_0μentries_at(m::EdgeMuRepresentation, i)
@@ -247,8 +307,11 @@ function has_0μentries_at(m::EdgeMuRepresentation, i)
     for mr in m.muvec_rootcomp
         has_0μentries_at(mr, i) || return false
     end
+    for mr in m.muvec_incident
+        has_0μentries_at(mr, i) || return false
+    end
     for md in m.muvec_directed
-        has_0μentries_at(md[2], i) || return false
+        has_0μentries_at(md, i) || return false
     end
     return true
 end
@@ -262,9 +325,11 @@ Equality of two [`EdgeMuRepresentation`](@ref) objects, requiring that:
   but absent from the original network, and not tracked in `m2`.
   Vice versa: labels in `m2` but not in `m1` should have 0 entries in `m2`.
 - `m1` and `m2` should have the same number of μ-entries of the same type
-  (either in the root component, or directed with the same tags).
-- All μ-entries should have the same subvectors corresponding to the labels
+  (either in, incident to the root component, or directed with the same tags).
+- All tagged μ-entries should have the same μ-vectors corresponding to the labels
   shared by `m1` and `m2`.
+
+Assumes that when present, the :i-tagged μ-vector is second.
 """
 function ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
     # order for μ-vectors: tiplabels(m1)[o1] == tiplabels(m2)[o2], others are 0
@@ -274,19 +339,25 @@ function ==(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation)
     m1.mu_root.mu_hybs == m2.mu_root.mu_hybs || return false
     m1.mu_root.mu_tips[o1] == m2.mu_root.mu_tips[o2] || return false
     length(m1.muvec_rootcomp) == length(m2.muvec_rootcomp) || return false
+    length(m1.muvec_incident) == length(m2.muvec_incident) || return false
     length(m1.muvec_directed) == length(m2.muvec_directed) || return false
     # below: assumes that labels are sorted in both m1 and m2, such that
     # lexicographic sorting of mu-vectors gives the same order in m1 and m2
     for (ms1, ms2) in zip(m1.muvec_rootcomp, m2.muvec_rootcomp)
-        ms1[1].mu_hybs == ms2[1].mu_hybs || return false
-        ms1[1].mu_tips[o1] == ms2[1].mu_tips[o2] || return false
+        ms1[1].mu_vec.mu_hybs == ms2[1].mu_vec.mu_hybs || return false
+        ms1[1].mu_vec.mu_tips[o1] == ms2[1].mu_vec.mu_tips[o2] || return false
         # no need to check second vector: bc 1 root and same root μ-vector
-        # ms1[2][o1] == ms2[2][o2] || return false
+    end
+    for (ms1, ms2) in zip(m1.muvec_incident, m2.muvec_incident)
+        ms1[1].mu_tag == ms2[1].mu_tag || return false
+        ms1[1].mu_vec.mu_hybs == ms2[1].mu_vec.mu_hybs || return false
+        ms1[1].mu_vec.mu_tips[o1] == ms2[1].mu_vec.mu_tips[o2] || return false
+        # no need to check second vector (:i tag), because 1 root μ-vector
     end
     for (ms1, ms2) in zip(m1.muvec_directed, m2.muvec_directed)
-        ms1[1] == ms2[1] || return false # same tags
-        ms1[2].mu_hybs == ms2[2].mu_hybs || return false # same μ-vectors
-        ms1[2].mu_tips[o1] == ms2[2].mu_tips[o2] || return false
+        ms1.mu_tag == ms2.mu_tag || return false # same tags
+        ms1.mu_vec.mu_hybs == ms2.mu_vec.mu_hybs || return false # same μ-vectors
+        ms1.mu_vec.mu_tips[o1] == ms2.mu_vec.mu_tips[o2] || return false
     end
     return true
 end
@@ -295,17 +366,18 @@ end
 """
     node_murepresentation(net::HybridNetwork,
         labels::AbstractVector{<:AbstractString}=sort!(tiplabels(net));
-        preorder::Bool=true)
+        preorder::Bool=true,
+        includeleaves::Bool=false)
 
 [`NodeMuRepresentation`](@ref) object for network `net` considered as rooted,
 including a mapping from each non-leaf node in `net` to its μ-vector: vector
 integers representing the number of paths from the node to each leaf,
 with leaves ordered as in `labels`.
 
-`net` is assumed to have a single root.
-
+`net` is assumed to have a single root.  
 `preorder`: whether to preprocess the network with [`directedges!`](@ref) and
-[`preorder!`](@ref).
+[`preorder!`](@ref).  
+`includeleaves`: if `true` then the trivial μ-vectors of leaf nodes are included.
 
 Assumptions about tip labels:
 - technical: `labels` should be sorted alphabetically
@@ -325,7 +397,7 @@ julia> net = readnewick("(((C,(A)#H1),(#H1,E)),O);");
 
 julia> # using PhyloPlots; plot(net, shownodenumber=true);
 
-julia> PhyloNetworks.node_murepresentation(net)
+julia> PhyloNetworks.node_murepresentation(net) # internal nodes only
 PhyloNetworks.NodeMuRepresentation
 4 taxa in μ-vectors: ["A", "C", "E", "O"]
 5 nodes, map node number => μ0 to hybrids and μ-vector to taxa:
@@ -339,8 +411,11 @@ PhyloNetworks.NodeMuRepresentation
 function node_murepresentation(
     net::HybridNetwork,
     labels::AbstractVector{<:AbstractString}=sort!(tiplabels(net));
-    preorder::Bool=true
+    preorder::Bool=true,
+    includeleaves::Bool=false,
 )
+    rn = getroot(net)
+    rn.leaf && error("please re-root the network: it's leaf $(rn.name)")
     issorted(labels) || error("labels should be sorted. consider using sort() or sort!().")
     allunique_sorted(labels) || error("some input tip labels are repeated.")
     # map: label => index in μ-vectors, for quick access later
@@ -365,7 +440,8 @@ function node_murepresentation(
     mu_hybs = Dict(node.number => (node.hybrid ? 1 : 0) for node in net.node)
 
     # postorder traversal from the tips to the root: reverse of preorder
-    for currnode in reverse(net.vec_node)
+    for ni in length(net.vec_node):-1:1
+        currnode = net.vec_node[ni]
         currnum = currnode.number
         if currnode.leaf # current node can only reach itself
             if haskey(label_map, currnode.name)
@@ -373,6 +449,7 @@ function node_murepresentation(
                 mu_tips[currnum][index] = 1
             end
             # other entries remain as initialized at 0
+            # mu_hybs[currnum]=1 already if this leaf is also a hybrid (!)
             continue
         end
         for curredge in currnode.edge
@@ -385,7 +462,7 @@ function node_murepresentation(
     end 
     mu_dict = Dict{Int, MuVector}()
     for no in net.node
-        no.leaf && continue # do *not* store the trivial μ-vectors of leaves
+        no.leaf && !includeleaves && continue # exclude trivial μ-vectors of leaves
         num = no.number
         push!(mu_dict, num => MuVector(mu_hybs[num], mu_tips[num]))
     end
@@ -399,9 +476,15 @@ end
         suppressroot::Bool=true)
 
 [`EdgeMuRepresentation`](@ref) object for network `net`, considered as a
-semidirected network. This representation maps each internal edge in `net` to
-its μ-entry (1 or 2 tagged μ-vectors). A μ-vector contains the number of paths
-from the edge to each leaf, with leaves ordered as in `labels`. It also contains
+semidirected network, as described in
+[Ribas, Pons & Ané (2026)](https://arxiv.org/abs/2605.06243).
+See also the "basic" edge-based μ-representation first described in
+[Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
+This representation maps each edge in `net` to its μ-entry: a set of
+1 or 2 tagged μ-vectors).
+A tagged μ-vector has a tag and a simple μ-vector.
+The simple μ-vector contains the number of paths from the edge to each leaf,
+with leaves ordered as in `labels`. It also contains
 the number of paths from the edge to a (any) hybrid node.
 
 External edges are edges whose child is a leaf. They are excluded here because
@@ -422,6 +505,12 @@ in `net`.
 
 Used by [`mudistance_semidirected`](@ref).
 
+!!! info "version info"
+    In PhyloNetworks v1.4.0 external edges to a leaf were excluded, because
+    - they have trivial μ-vectors under the common assumption that leaves are
+      incident to a single edge (that is, leaves must not be hybrid nodes), and
+    - those incident to the root were given 1 tagged μ-vector, not 2.
+
 ## example
 
 ```jldoctest
@@ -433,13 +522,19 @@ julia> PhyloNetworks.edge_murepresentation(net)
 PhyloNetworks.EdgeMuRepresentation
 4 taxa in μ-vectors: ["A", "C", "E", "O"]
 root μ-vector: μ0=2 μ=[2, 1, 1, 1]
-maps edge number => μ-entry:
-2 tree edges in the root component
-  4 => μ0=1 μ=[1, 1, 0, 0]; μ0=1 μ=[1, 0, 1, 1]
-  7 => μ0=1 μ=[1, 0, 1, 0]; μ0=1 μ=[1, 1, 0, 1]
-2 edges in the directed part:
-  5 => incident; μ0=1 μ=[1, 0, 0, 0]
-  3 => incident; μ0=1 μ=[1, 0, 0, 0]
+map edge number => μ-entry:
+2 edges in the root component
+  4 => tag=:t μ0=1 μ=[1, 1, 0, 0]; tag=:t μ0=1 μ=[1, 0, 1, 1]
+  7 => tag=:t μ0=1 μ=[1, 0, 1, 0]; tag=:t μ0=1 μ=[1, 1, 0, 1]
+5 edges incident to the root component
+  5 => tag=:h μ0=1 μ=[1, 0, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]
+  6 => tag=:t μ0=0 μ=[0, 0, 1, 0]; tag=:i μ0=2 μ=[2, 1, 0, 1]
+  9 => tag=:t μ0=0 μ=[0, 0, 0, 1]; tag=:i μ0=2 μ=[2, 1, 1, 0]
+  3 => tag=:h μ0=1 μ=[1, 0, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]
+  1 => tag=:t μ0=0 μ=[0, 1, 0, 0]; tag=:i μ0=2 μ=[2, 0, 1, 1]
+1 directed edges that may not contain the root
+  2 => tag=:t μ0=0 μ=[1, 0, 0, 0]
+
 ```
 """
 function edge_murepresentation(
@@ -448,42 +543,43 @@ function edge_murepresentation(
     preorder::Bool=true,
     suppressroot::Bool=true,
 )
-    nodemu = node_murepresentation(net, labels; preorder=preorder).mu_map
-    rn = getroot(net)
-    rn.leaf && error("please re-root the network: it's leaf $(rn.name)")
+    nodemu = node_murepresentation(net, labels; preorder=preorder,
+        includeleaves=true).mu_map
+    rn = getroot(net) # node_murepresentation already checked it's not a leaf
     rho = nodemu[rn.number]
     rμ0 = rho.mu_hybs
     rμv = rho.mu_tips
-    mumap_rootcomp = Dict{Int, Tuple{MuVector,MuVector}}()
-    # todo: add mumap_incident, or modify structures
-    mumap_directed = Dict{Int, Tuple{MuTag,MuVector,}}()
+    mumap_root = Dict{Int, Tuple{TagMuVector,TagMuVector}}()
+    mumap_inc  = Dict{Int, Tuple{TagMuVector,TagMuVector}}()
+    mumap_dir  = Dict{Int, TagMuVector}()
     for ee in net.edge
         enum = ee.number
         cn = getchild(ee)
-        if cn.leaf
-            ee.hybrid && @warn("edge $enum is hybrid yet has a leaf child: its μ-entry won't be stored")
-            continue # skip this edge
-        end
         cmu = nodemu[cn.number]
-        if !ee.hybrid && ee.containroot
-            mu_otherdirection = MuVector(rμ0 - cmu.mu_hybs, rμv - cmu.mu_tips)
-            push!(mumap_rootcomp, enum => (cmu, mu_otherdirection))
+        tmu = TagMuVector((ee.hybrid ? mutag_h : mutag_t), cmu)
+        if ee.containroot
+            mu_o = MuVector(rμ0 - cmu.mu_hybs, rμv - cmu.mu_tips)
+            if !ee.hybrid && !cn.leaf # inside root component
+                push!(mumap_root, enum => (tmu, TagMuVector(mutag_t, mu_o)))
+            else # insident, place the :i-tagged μ-vector second
+                push!(mumap_inc,  enum => (tmu, TagMuVector(mutag_i, mu_o)))
+            end
         else
-            tag = (ee.containroot ? mutag_i : (ee.hybrid ? mutag_h : mutag_t))
-            push!(mumap_directed, enum => (tag, cmu))
+            push!(mumap_dir, enum => tmu)
         end
     end
     re = rn.edge
     if suppressroot && length(re)==2 && !(re[1].hybrid && re[2].hybrid)
+        # then exclude an edge in the root component: non-external tree edge
         i1,i2 = (re[1].number < re[2].number ? (1,2) : (2,1))
-        e = re[i2] # ignore edge with larger number, if possible
+        e = re[i2] # exclude edge with larger number, if both are eligible
         if e.hybrid || isexternal(e)
             e = re[i1]
             e.hybrid && error("oops: root adjacent to 1 leaf and 1 hybrid")
         end
-        delete!(mumap_rootcomp, e.number)
+        delete!(mumap_root, e.number)
     end
-    return EdgeMuRepresentation(labels, rho, mumap_rootcomp, mumap_directed)
+    return EdgeMuRepresentation(labels, rho, mumap_root, mumap_inc, mumap_dir)
 end
 
 """
@@ -545,9 +641,9 @@ end
 
 """
     mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork;
-        labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1),
-        tiplabels(net2))),
+        labels=sort!(union(tiplabels(net1), tiplabels(net2))),
         preorder::Bool=true)
+    mudistance_rooted(nets::AbstractVector{HybridNetwork}; preorder::Bool=true)
 
 Distance or matrix of distances between the networks, considered as rooted,
 based on their node-based μ-representation: number of nodes in one network
@@ -635,6 +731,7 @@ function mudistance(
     userootμ::Bool
 )
     d  = symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed)
+    d  = symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident)
     d += symmetricdistance_sorted(m1.muvec_rootcomp, m2.muvec_rootcomp)
     if userootμ
         if m1.mu_root != m2.mu_root
@@ -650,20 +747,17 @@ end
 
 Distance or matrix of distances between the networks, considered as semidirected,
 based on their edge-based μ-representation: number of edges in one network
-whose μ-entry does not match with that of an edge in the other network.
+whose μ-entry does not match with that of an edge in the other network,
+as defined by [Ribas, Pons & Ané (2026)](https://arxiv.org/abs/2605.06243).
 
-The μ-vector of an edge, assigned some specific direction, has n+1 coordinates:
-one for each tip taxon, and one for hybrids. Each value counts the number of
-paths starting with the edge (directed as specified) and ending at a specific
-leaf, or ending at a (any) hybrid node. For more details, see
-[Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780).
-The implementation here departs from Maxfield, Xu & Ané (2025) by considering
-μ-vectors "extended" with the counts of paths ending at hybrids, as defined
-on rooted networks by [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
+The "simple" μ-vector of an edge, assigned some specific direction,
+has n+1 coordinates: one for hybrids and one for each tip taxon.
+Each value counts the number of paths starting with the edge (directed as
+specified) and ending at a (any) hybrid node, or ending at a specific leaf.
 
 Each μ-entry includes 1 or 2 μ-vector(s) and tag(s) indicating the edge type
-(e.g. hybrid). The number of μ-vector(s) depends on the direction(s) that an
-edge may have under different rootings.
+(e.g. hybrid). The number of μ-vector(s) depends on whether the root can be
+placed along the edge or not.
 
 If the networks have different tip labels, the union of all their labels
 is considered to build μ-vectors, and the resulting distance must be positive.
@@ -680,7 +774,8 @@ See also [`edge_murepresentation`](@ref).
   [`directedges!`](@ref) and [`preorder!`](@ref).
 - `userootμ=false` controls whether the root μ-vector in included in the set of
   μ-entries being compared. It is ignored by default (departing from
-  [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780))
+  [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780) and
+  [Ribas, Pons & Ané 2026](https://arxiv.org/abs/2605.06243)),
   because different root μ-vectors for networks with a single root would cause
   all μ-entries in their root components to be different.
 - `suppressroot=true` to exclude one internal tree edge incident to the root,
@@ -701,6 +796,16 @@ If a non-default `label` set is used, such as the sorted shared taxon set
 as the number of paths to non-shared taxa will be ignored. But *all* edges still
 count towards the distance, whereas edges below degree-2 nodes would be
 suppressed in subnetworks.
+
+!!! info "version info"
+    In PhyloNetworks v1.4.0, this distance was closer to the original μ-distance
+    of [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780),
+    although it was not identical, because the μ-entry for a hybrid edge adjacent
+    to the root component had a single μ-vector, tagged as 'incident',
+    and by considering "extended" μ-vectors with the counts of paths ending at
+    hybrids, as defined on rooted networks by
+    [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
+
 """
 function mudistance_semidirected(
     net1::HybridNetwork,
