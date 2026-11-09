@@ -397,7 +397,7 @@ end
 # If (ab|cd) verify the 4 point condition, we should have:
 # f4(D,a,b,c,d) = 0
 # f4(D,a,c,b,d) > 0
-function getlrtV(f4vec::Vector{<:Real}, Vinv::Matrix{<:Real})
+function getlrtVinv(f4vec::Vector{<:Real}, Vinv::Matrix{<:Real})
     dimf4 = size(f4vec, 1) ÷ 2
     d = DAQP.Model()
     f = - Vinv * f4vec
@@ -434,16 +434,55 @@ function getlrtV(f4vec::Vector{<:Real}, Vinv::Matrix{<:Real})
     # transpose(f4vec - res.x) * Vinv * (f4vec - res.x)
 end
 
+# Solves the dual problem
+# min 1/4 x^T SV x - f4^T x for R_1 x <= 0
+# minus solution is the solution of the dual
+function getlrtV(f4vec::Vector{<:Real}, V::Matrix{<:Real})
+    dimf4 = size(f4vec, 1) ÷ 2
+    d = DAQP.Model()
+    f = -f4vec
+    A = Matrix(1.0I, 2*dimf4, 2*dimf4)
+    blower = - 1e16 .* ones(Float64, 2 * dimf4)
+    bupper = [1e16 .* ones(Float64, dimf4); zeros(Float64, dimf4)]
+    sense = zeros(Cint, 2 * dimf4)
+    # sense[1:dimf4] .= 5 # equality constraint
+    DAQP.setup(d, V ./ 2, f, A, bupper, blower, sense)
+    # DAQP.settings(d, Dict(:iter_limit =>2000))
+    _,fval,_,_ = DAQP.solve(d)
+    return -fval
+end
+
 # lrt statistic assuming V = diag(V)
 # If (ab|cd) verify the 4 point condition, we should have:
 # f4(D,a,b,c,d) = 0
 # f4(D,a,c,b,d) > 0
-function getlrtdiagonal(f4vec::Vector{<:Real}, Vinv::Matrix{<:Real})
+function getlrtdiagonalInv(f4vec::Vector{<:Real}, Vinv::Matrix{<:Real})
     r = size(Vinv,1) ÷ 2
     lrt = 0
     for i in 1:r
         lrt += Vinv[i,i] * f4vec[i]^2
         lrt += Vinv[r+i,r+i] * (f4vec[r+i] - max(0, f4vec[r+i]))^2
+    end
+    return lrt
+end
+
+# Solves the dual problem
+# min 1/4 x^T SV x - f4^T x for R_1 x <= 0
+# for S diagonal
+# for the first unconstrained equations:
+# x^* = 2 * f4 / V_ii
+# lrt_i = -f4^2 / V_ii
+# for the las constrained equations:
+# x^* = min(0; 2 * f4 / V_ii)
+# = -f4^2 / V_ii or 0
+function getlrtdiagonal(f4vec::Vector{<:Real}, V::Matrix{<:Real})
+    r = size(V,1) ÷ 2
+    lrt = 0
+    for i in 1:r
+        lrt += f4vec[i]^2 / V[i,i]
+        if (f4vec[r+i] <= 0)
+            lrt += f4vec[r+i]^2 / V[r+i,r+i]
+        end
     end
     return lrt
 end
@@ -456,14 +495,14 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     
     f4vec, V = getf4vecvar(D, Q, ind_A, ind_B, active_size)
 
-    regularizeVariance!(V, nloci, lambda, varReg)
+    # regularizeVariance!(V, nloci, lambda, varReg)
 
-    Vinv = inv(cholesky(V))
+    # Vinv = inv(cholesky(V))
 
     if lrtType == :full
-        lrt = getlrtV(f4vec, Vinv)
+        lrt = getlrtV(f4vec, V)
     elseif lrtType == :diag
-        lrt = getlrtdiagonal(f4vec, Vinv)
+        lrt = getlrtdiagonal(f4vec, V)
     else
         throw(ArgumentError("Unsupported lrt type $lrtType."))
     end
@@ -481,6 +520,7 @@ function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int},
     if cutTest==:ftest
         return ccdf(mixtureF(size(V, 1), nloci), lrt / (nloci-1))
     elseif cutTest==:chi2
+        regularizeVariance!(V, nloci, lambda, varReg)
         return ccdf(mixtureChi2(V), lrt)
     elseif cutTest==:chi2ind
         return ccdf(mixtureChi2Diagonal(size(V,1) ÷ 2), lrt)
