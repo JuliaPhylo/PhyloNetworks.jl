@@ -112,6 +112,18 @@ end
 
     njtob5 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2); cutTest=:chi2ind, lrtType=:diag)
 
+    # test lrt computations
+    # solving the dual problem with V is the same as the primal with Vinv
+    ind_A = [4, 5]
+    ind_B = [1, 2, 3]
+    f4vec, V = PN.getf4vecvar(D, Qf2, ind_A, ind_B, 5)
+    Vnoreg = copy(V)
+    PN.regularizeVariance!(V, 100000, 1e-5, :oas)
+    Vinv = inv(cholesky(V))
+    @test PN.getlrtV(f4vec, Vnoreg) ≈ PN.getlrtVinv(f4vec, Vinv) atol=1e-3
+    Vdiaginv = diagm(1.0 ./ diag(Vnoreg))
+    @test PN.getlrtdiagonal(f4vec, Vnoreg) ≈ PN.getlrtdiagonalInv(f4vec, Vdiaginv) atol=1e-5
+
 end
 
 end
