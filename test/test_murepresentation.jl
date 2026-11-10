@@ -51,19 +51,28 @@ s2o = string(μ2o)
 4 taxa in μ-vectors: ["A", "B", "C", "D"]
 root μ-vector: μ0=2 μ=[1, 2, 1, 1]
 map edge number => μ-entry:
-3 edges in or incident to the root component
+3 edges in the root component
 """)
 for ss in [
-"  4 => μ0=1 μ=[1, 1, 0, 0]; μ0=1 μ=[0, 1, 1, 1]",
-"  7 => μ0=1 μ=[0, 1, 1, 0]; μ0=1 μ=[1, 1, 0, 1]",
-"  8 => μ0=2 μ=[1, 2, 1, 0]; μ0=0 μ=[0, 0, 0, 1]",
-"2 edges in the directed part:",
-"  5 => incident; μ0=1 μ=[0, 1, 0, 0]",
-"  3 => incident; μ0=1 μ=[0, 1, 0, 0]"]
+"  4 => tag=:t μ0=1 μ=[1, 1, 0, 0]; tag=:t μ0=1 μ=[0, 1, 1, 1]",
+"  7 => tag=:t μ0=1 μ=[0, 1, 1, 0]; tag=:t μ0=1 μ=[1, 1, 0, 1]",
+"  8 => tag=:t μ0=2 μ=[1, 2, 1, 0]; tag=:t μ0=0 μ=[0, 0, 0, 1]",
+"5 edges incident to the root component",
+"  5 => tag=:h μ0=1 μ=[0, 1, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]",
+"  6 => tag=:t μ0=0 μ=[0, 0, 1, 0]; tag=:i μ0=2 μ=[1, 2, 0, 1]",
+"  9 => tag=:t μ0=0 μ=[0, 0, 0, 1]; tag=:i μ0=2 μ=[1, 2, 1, 0]",
+"  3 => tag=:h μ0=1 μ=[0, 1, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]",
+"  1 => tag=:t μ0=0 μ=[1, 0, 0, 0]; tag=:i μ0=2 μ=[0, 2, 1, 1]",
+"1 directed edges that may not contain the root",
+"  2 => tag=:t μ0=0 μ=[0, 1, 0, 0]",
+  ]
   @test occursin(ss, s2o)
 end
 
-deleteleaf!(net2, "D")
+deleteleaf!(net2, "D"; keeporiginalroot=true)
+@test_throws ["root with at most 1",
+  "deleteleaf!(yournetworkname, 8; index=true"] PN.edge_murepresentation(net2, labels)
+deleteleaf!(net2, 8; index=true)
 μ2 = (@test_logs PN.node_murepresentation(net2, labels))
 @test μ1 == μ2
 @test PN.mudistance(μ1, μ2) == 0

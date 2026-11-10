@@ -487,10 +487,6 @@ The simple μ-vector contains the number of paths from the edge to each leaf,
 with leaves ordered as in `labels`. It also contains
 the number of paths from the edge to a (any) hybrid node.
 
-External edges are edges whose child is a leaf. They are excluded here because
-they have trivial μ-vectors under the common assumption that leaves are incident
-to a single edge (that is, leaves must not be hybrid nodes).
-
 - `preorder`: whether to preprocess the network (direct edges away from the root
   and calculate a pre-ordering of nodes).
 - `suppressroot`: whether to exclude one internal tree edge incident to the root,
@@ -546,6 +542,17 @@ function edge_murepresentation(
     nodemu = node_murepresentation(net, labels; preorder=preorder,
         includeleaves=true).mu_map
     rn = getroot(net) # node_murepresentation already checked it's not a leaf
+    re = rn.edge
+    rdeg = length(re)
+    if (rdeg==0 && !rn.leaf) || (rdeg==1 && !isexternal(re[1]))
+        error("""root with at most 1 child edge:
+        please treat the network as a rooted network, or suppress the root,
+        e.g. with deleteleaf!(yournetworkname, $(net.rooti); index=true) .""")
+    end
+    deg2root = rdeg==2
+    resolvedroot = deg2root && ( # the only alternative placement for the root
+        (re[1].hybrid && re[2].hybrid) || # is along either of its 2 child edges
+        (isexternal(re[1]) && isexternal(re[2]))) # but they give the same net
     rho = nodemu[rn.number]
     rμ0 = rho.mu_hybs
     rμv = rho.mu_tips
@@ -558,6 +565,10 @@ function edge_murepresentation(
         cmu = nodemu[cn.number]
         tmu = TagMuVector((ee.hybrid ? mutag_h : mutag_t), cmu)
         if ee.containroot
+            if resolvedroot && getparent(ee) === rn
+                push!(mumap_dir, enum => tmu)
+                continue
+            end
             mu_o = MuVector(rμ0 - cmu.mu_hybs, rμv - cmu.mu_tips)
             if !ee.hybrid && !cn.leaf # inside root component
                 push!(mumap_root, enum => (tmu, TagMuVector(mutag_t, mu_o)))
@@ -568,14 +579,13 @@ function edge_murepresentation(
             push!(mumap_dir, enum => tmu)
         end
     end
-    re = rn.edge
-    if suppressroot && length(re)==2 && !(re[1].hybrid && re[2].hybrid)
+    if suppressroot && deg2root && !resolvedroot
         # then exclude an edge in the root component: non-external tree edge
         i1,i2 = (re[1].number < re[2].number ? (1,2) : (2,1))
         e = re[i2] # exclude edge with larger number, if both are eligible
         if e.hybrid || isexternal(e)
             e = re[i1]
-            e.hybrid && error("oops: root adjacent to 1 leaf and 1 hybrid")
+            e.hybrid && error("root adjacent to 1 leaf and 1 hybrid")
         end
         delete!(mumap_root, e.number)
     end
