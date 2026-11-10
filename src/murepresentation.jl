@@ -211,17 +211,19 @@ Each μ-entry is a set of 1 or 2 tagged μ-vectors.
 1. If an edge is in the root component, that is, both of its incident nodes can
    root the network, then its μ-entry is a set of 2 tree-tagged μ-vectors,
    one corresponding to each direction of the edge.
-2. If an edge may contain the root but only 1 of its node can root the network,
-   then the other node is either a hybrid or a leaf. In this case,
-   the edge's μ-entry has 2 tagged μ-vectors:
+2. If only the edge's parent may be used to root the network but not its child,
+   then this child is either a hybrid or a leaf. If, in addition, the edge's
+   parent is *not* the only possible root (rooting along the edge would give a
+   different rooted network), then the edge's μ-entry has 2 tagged μ-vectors:
    * one corresponding to the edge's direction, tagged by the type of its child
      node (hybrid or tree), and
    * one tagged 'incident', corresponding to the edge in its opposite direction,
      as if it was subdivided into 2 segments by placing the root along the edge.
-3. Otherwise, the edge may not contain the root and neither of its two nodes
-   may root the network either. Then the edge's μ-entry is 1 μ-vector tagged by
-   the edge type (tree or hybrid) and corresponds to the edge's direction, which
-   is independent of where the network is rooted.
+3. Otherwise, we may not root the network along the edge: its child cannot root
+   the root and its parent cannot either (or can but is the only possible root).
+   Then the edge's μ-entry is 1 μ-vector tagged by
+   the edge type (tree or hybrid) and corresponds to the edge's direction,
+   which is independent of where the network is rooted.
 
 All μ-vectors include the number of paths to hybrids, defined for rooted networks
 by [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
