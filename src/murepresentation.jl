@@ -784,12 +784,21 @@ See also [`edge_murepresentation`](@ref).
 
 - `preorder=true` indicates whether to preprocess each network with
   [`directedges!`](@ref) and [`preorder!`](@ref).
-- `userootμ=false` controls whether the root μ-vector in included in the set of
-  μ-entries being compared. It is ignored by default (departing from
+- `ignore=(:rootμ,)`: set of properties of each network μ-representation
+  to be ignored.
+  By default, `:rootμ` is in this set, to ignore the root μ-entry.
+  This default departs from
   [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780) and
   [Ribas, Pons & Ané 2026](https://arxiv.org/abs/2605.06243)),
-  because different root μ-vectors for networks with a single root would cause
-  all μ-entries in their root components to be different.
+  but this default choices is made here because we assume networks have
+  a single root. If two single-rooted networks have a different
+  root μ-entry, they would also have different μ-entries for all edges
+  that can contain their root.
+  * To include this root μ-vector and all properties, use `ignore = nothing`.
+  * To ignore this root μ-vector and other properties, such as the μ-vectors
+    with an `:i` tag, use `ignore = (:rootμ, :itag)`
+  * Other recognized property that can be ignored: `:μ0`, the number of paths
+    to some (any) hybrid node.
 - `suppressroot=true` to exclude one internal tree edge incident to the root,
   in case the root is incident to exactly 2 edges which are not both hybrid edges.
   In that case, re-rooting the network would suppress that internal tree edge,
@@ -823,9 +832,11 @@ function mudistance_semidirected(
     net1::HybridNetwork,
     net2::HybridNetwork;
     labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
-    userootμ::Bool=false,
+    ignore::Union{Nothing,NTuple{N,Symbol} where N}=(:userootμ,),
     kwargs...
 )
+    ignoreset = Set(ignore)
+    userootμ = !(:rootμ in ignoreset)
     m1 = edge_murepresentation(net1, labels; kwargs...)
     m2 = edge_murepresentation(net2, labels; kwargs...)
     return mudistance(m1, m2, userootμ)
