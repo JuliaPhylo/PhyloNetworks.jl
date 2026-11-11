@@ -46,14 +46,21 @@ end
 function ==(m1::MuVector, m2::MuVector)
     return m1.mu_hybs == m2.mu_hybs && m1.mu_tips == m2.mu_tips
 end
-# comparing μ-vectors: lexicographic order using
-# 1. μ0, number of paths to hybrids
-# 2. μ-vector itself, lexicographically
+#= comparing μ-vectors: lexicographic order on (μ-vector to leaves..., μ0)
+   such that ignoring μ0 does not affect the order (see option useμ0)
+!!! info "version info"
+    In PhyloNetworks v1.4.0, the order was reversed: μ0 was compared first,
+    aka using the lexicographic order on (μ0, μ-vectors to leaves...)
+=#
 function Base.isless(m1::MuVector, m2::MuVector)
-    if m1.mu_hybs == m2.mu_hybs
-        return isless(m1.mu_tips, m2.mu_tips)
+    sgn = cmp(m1.mu_tips, m2.mu_tips) # -1, 0 if equal, 1
+    if sgn == 0
+        return isless(m1.mu_hybs, m2.mu_hybs)
     end
-    return isless(m1.mu_hybs, m2.mu_hybs)
+    return sgn == -1
+end
+function Base.isless_μtips(m1::MuVector, m2::MuVector)
+    return isless(m1.mu_tips, m2.mu_tips)
 end
 has_0μentries_at(m::MuVector, i) = all(m.mu_tips[i] .== 0)
 has_0μentries_at(ms::Tuple{MuVector,MuVector}, i) =
@@ -599,19 +606,24 @@ Symmetric distance between two vectors, assumed sorted in ascending order:
 number of elements in one vector but not in the order, each element considered
 as many times as it appears (with multiplicity). The vectors are *not* mutated.
 """
-function symmetricdistance_sorted(v1::Vector{T}, v2::Vector{T}) where T
+function symmetricdistance_sorted(
+    v1::Vector{T},
+    v2::Vector{T},
+    lt=isless,
+) where T
     d = 0
     l1 = length(v1); l2 = length(v2)
     l1==0 && return l2
     l2==0 && return l1
     x1 = v1[l1]; x2 = v2[l2] # last: largest
     while true
-        if x1 > x2
+        sgn = comp(lt, x1, x2)
+        if sgn == 1 # x1>x2
             l1 -= 1; d += 1
             if l1>0
                 x1 = v1[l1]
             else break; end
-        elseif x2 > x1
+        elseif sgn == -1 # x2>x1
             l2 -= 1; d += 1
             if l2>0
                 x2 = v2[l2]
@@ -638,24 +650,32 @@ function allunique_sorted(v::AbstractVector)
 end
 
 """
-    mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
+    mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation, useμ0::Bool)
 
 Distance between two node-based μ-representations: number of μ-vectors,
 considered with their multiplicity, in one but not in the other.
+If `useμ0` is false, then only the number of paths to leaves are compared,
+otherwise the number of paths to hybrid nodes is also compared.
 
 Warning: this method assumes, without checking, that `m1` and `m2` have the same
 labels (and in the same order), for efficiency.
 """
-function mudistance(m1::NodeMuRepresentation, m2::NodeMuRepresentation)
+function mudistance(
+    m1::NodeMuRepresentation,
+    m2::NodeMuRepresentation,
+    useμ0::Bool,
+)
     # algorithm based on `mu_vec` being already sorted, in ascending order
-    return symmetricdistance_sorted(m1.mu_vec, m2.mu_vec)
+    lt = useμ0 ? isless : isless_μtips
+    return symmetricdistance_sorted(m1.mu_vec, m2.mu_vec, lt)
 end
 
 """
     mudistance_rooted(net1::HybridNetwork, net2::HybridNetwork;
         labels=sort!(union(tiplabels(net1), tiplabels(net2))),
-        preorder::Bool=true)
-    mudistance_rooted(nets::AbstractVector{HybridNetwork}; preorder::Bool=true)
+        preorder::Bool=true,
+        useμ0::Bool=true)
+    mudistance_rooted(nets::AbstractVector{HybridNetwork}; kwargs...)
 
 Distance or matrix of distances between the networks, considered as rooted,
 based on their node-based μ-representation: number of nodes in one network
@@ -663,6 +683,7 @@ whose μ-vector does not match with that of a node in the other network.
 The μ-vector of a node has n+1 coordinates: one for each tip taxon, and one
 for hybrids. Each value counts the number of paths starting at the node and
 ending at a specific leaf, or ending at a hybrid node (any hybrid node).
+With `useμ0=false`, the number of paths to hybrids is ignored in the comparison.
 
 See [Cardona, Rossello & Valiente (2009)](https://doi.org/10.1109/TCBB.2007.70270)
 for the original μ-distance, and
@@ -701,14 +722,16 @@ function mudistance_rooted(
     net2::HybridNetwork;
     labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
     preorder::Bool=true,
+    useμ0::Bool=true,
 )
     nodemu1 = node_murepresentation(net1, labels; preorder=preorder)
     nodemu2 = node_murepresentation(net2, labels; preorder=preorder)
-    return mudistance(nodemu1, nodemu2)
+    return mudistance(nodemu1, nodemu2, useμ0)
 end
 function mudistance_rooted(
     nets::AbstractVector{HybridNetwork};
     preorder::Bool=true,
+    useμ0::Bool=true,
 )
     labs = sort!(tiplabels(nets)) # union
     nn = length(nets)
@@ -716,7 +739,7 @@ function mudistance_rooted(
     mr = [node_murepresentation(n, labs; preorder=preorder) for n in nets]
     for (i1, m1) in enumerate(mr)
         for i2 in 1:(i1-1)
-            d = mudistance(m1, mr[i2])
+            d = mudistance(m1, mr[i2], useμ0)
             M[i1,i2] = d; M[i2,i1] = d
         end
     end
@@ -725,14 +748,20 @@ end
 
 """
     mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation,
-               userootμ::Bool)
+               userootμ::Bool, useitag::Bool, useμ0::Bool)
 
 Distance between two edge-based μ-representations: number of μ-entries,
 considered with their multiplicities, in one but not in the other.
-`userootμ` controls whether the root μ-vector in included in the
-set of μ-entries being compared. It is ignored by default, because different
-root μ-vectors for networks with a single root would cause all μ-entries in
-their root components to be different.
+- `userootμ` controls whether the root μ-vector in included in the
+  set of μ-entries being compared. It is ignored by default, because different
+  root μ-vectors for networks with a single root would cause all μ-entries in
+  their root components to be different.
+- If `useitag` is false, then the μ-vectors with an `:i` tag in μ-entries that
+  have such an `:i`-tagged μ-vector are ignored.
+  Only their other μ-vector are compared, treating such edges like those
+  with a fixed direction and on which the root cannot be placed.
+- If `useμ0` is false, then only the number of paths to leaves are compared,
+  otherwise the number of paths to hybrid nodes is also compared.
 
 Warning: this method assumes, without checking, that `m1` and `m2` have the same
 labels (and in the same order), for efficiency.
@@ -740,7 +769,9 @@ labels (and in the same order), for efficiency.
 function mudistance(
     m1::EdgeMuRepresentation,
     m2::EdgeMuRepresentation,
-    userootμ::Bool
+    userootμ::Bool,
+    useitag::Bool,
+    useμ0::Bool,
 )
     d  = symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed)
     d += symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident)
@@ -784,21 +815,6 @@ See also [`edge_murepresentation`](@ref).
 
 - `preorder=true` indicates whether to preprocess each network with
   [`directedges!`](@ref) and [`preorder!`](@ref).
-- `ignore=(:rootμ,)`: set of properties of each network μ-representation
-  to be ignored.
-  By default, `:rootμ` is in this set, to ignore the root μ-entry.
-  This default departs from
-  [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780) and
-  [Ribas, Pons & Ané 2026](https://arxiv.org/abs/2605.06243)),
-  but this default choices is made here because we assume networks have
-  a single root. If two single-rooted networks have a different
-  root μ-entry, they would also have different μ-entries for all edges
-  that can contain their root.
-  * To include this root μ-vector and all properties, use `ignore = nothing`.
-  * To ignore this root μ-vector and other properties, such as the μ-vectors
-    with an `:i` tag, use `ignore = (:rootμ, :itag)`
-  * Other recognized property that can be ignored: `:μ0`, the number of paths
-    to some (any) hybrid node.
 - `suppressroot=true` to exclude one internal tree edge incident to the root,
   in case the root is incident to exactly 2 edges which are not both hybrid edges.
   In that case, re-rooting the network would suppress that internal tree edge,
@@ -818,6 +834,24 @@ as the number of paths to non-shared taxa will be ignored. But *all* edges still
 count towards the distance, whereas edges below degree-2 nodes would be
 suppressed in subnetworks.
 
+Other keyword arguments are to ignore some properties of the network's
+μ-representation, which cause a shorter dissimilarity, and also may lead
+to some distinct (non-isomorphic) networks to have dissimilarity 0.
+- `userootμ=false` to ignore the root μ-entry.
+  This default is made because we assume here that networks have a single root.
+  If two single-rooted networks have a different root μ-entry, they also have
+  different μ-entries for all edges that can contain their root.
+- `useitag=true`: set to `false` to ignore the μ-vectors with an `:i` tag,
+  in μ-entries that have such an `:i`-tagged μ-vector.
+- `useμ0=true`: set to `false` to ignore the the number of paths to some (any)
+  hybrid in each μ-vector.
+
+The μ-dissimilarity in
+[Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780)
+corresponds to `userootμ=true, useitag=false, useμ0=false`. The μ-dissimilarity
+in [Ribas, Pons & Ané 2026](https://arxiv.org/abs/2605.06243) corresponds to
+`userootμ=true, useitag=true, useμ0=true`.
+
 !!! info "version info"
     In PhyloNetworks v1.4.0, this distance was closer to the original μ-distance
     of [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780),
@@ -832,19 +866,21 @@ function mudistance_semidirected(
     net1::HybridNetwork,
     net2::HybridNetwork;
     labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
-    ignore::Union{Nothing,NTuple{N,Symbol} where N}=(:userootμ,),
+    userootμ::Bool=false,
+    useitag::Bool=true,
+    useμ0::Bool=true,
     kwargs...
 )
-    ignoreset = Set(ignore)
-    userootμ = !(:rootμ in ignoreset)
     m1 = edge_murepresentation(net1, labels; kwargs...)
     m2 = edge_murepresentation(net2, labels; kwargs...)
-    return mudistance(m1, m2, userootμ)
+    return mudistance(m1, m2, userootμ, useitag, useμ0)
 end
 function mudistance_semidirected(
     nets::AbstractVector{HybridNetwork};
     labels::AbstractVector{<:AbstractString}=sort!(tiplabels(nets)),
     userootμ::Bool=false,
+    useitag::Bool=true,
+    useμ0::Bool=true,
     kwargs...
 )
     nn = length(nets)
@@ -852,7 +888,7 @@ function mudistance_semidirected(
     mr = [edge_murepresentation(n, labels; kwargs...) for n in nets]
     for (i1, m1) in enumerate(mr)
         for i2 in 1:(i1-1)
-            d = mudistance(m1, mr[i2], userootμ)
+            d = mudistance(m1, mr[i2], userootμ, useitag, useμ0)
             M[i1,i2] = d; M[i2,i1] = d
         end
     end

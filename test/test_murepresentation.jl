@@ -139,7 +139,7 @@ deleteleaf!(net1r,"d")
 @test length(μ1r.muvec_directed) == 5
 netab = readnewick("(a,b);")
 μab = PN.edge_murepresentation(netab)
-@test PN.mudistance(μ1r,μab,false) == 3 # edges above cherry
+@test PN.mudistance(μ1r,μab,false,true,true) == 3 # edges above cherry
 
 # non-orchard network, with all tag types
 nwkstr1 = "((b1:1,((a1:1)#H12:3,#H1:0)r1:2):1,((x1:.5,((#H21:1,#H3:.5)w1:1)#H1:1):1,((((c:1)#H3:.5,#H12:1)w2:1)#H2:1,x2:.5):1):1,((#H2:0,(a2:1)#H21:3)r2:2,b2:1):1);"
