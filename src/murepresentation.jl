@@ -59,9 +59,8 @@ function Base.isless(m1::MuVector, m2::MuVector)
     end
     return sgn == -1
 end
-function Base.isless_μtips(m1::MuVector, m2::MuVector)
-    return isless(m1.mu_tips, m2.mu_tips)
-end
+# isless_μtips: to ignore μ0, used for option `useμ0=false`
+isless_μtips(m1::MuVector, m2::MuVector) = isless(m1.mu_tips, m2.mu_tips)
 has_0μentries_at(m::MuVector, i) = all(m.mu_tips[i] .== 0)
 has_0μentries_at(ms::Tuple{MuVector,MuVector}, i) =
     has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
@@ -94,6 +93,20 @@ function Base.isless(m1::TagMuVector, m2::TagMuVector)
     end
     return isless(m1.mu_tag, m2.mu_tag)
 end
+isless_μtips(m1::TagMuVector, m2::TagMuVector) = isless_μtips(m1.mu_vec, m2.mu_vec)
+
+# To compare μ-entries with 1 and 2 tagged μ-vectors: use the 1st μ-vector
+# to ignore the :i-tagged μ-vector (2nd from incident edges): see option
+# `useitag=false`. Not meant to be used for edges in the root component.
+Base.isless(m1::TagMuVector, m2::Tuple{TagMuVector,TagMuVector}) =
+    isless(m1, m2[1])
+Base.isless(m1::Tuple{TagMuVector,TagMuVector}, m2::TagMuVector) =
+    isless(m1[1], m2)
+isless_μtips(m1::TagMuVector, m2::Tuple{TagMuVector,TagMuVector}) =
+    isless_μtips(m1, m2[1])
+isless_μtips(m1::Tuple{TagMuVector,TagMuVector}, m2::TagMuVector) =
+    isless_μtips(m1[1], m2)
+
 has_0μentries_at(m::TagMuVector, i) = has_0μentries_at(m.mu_vec, i)
 has_0μentries_at(ms::Tuple{TagMuVector,TagMuVector}, i) =
     has_0μentries_at(ms[1],i) && has_0μentries_at(ms[2],i)
@@ -637,6 +650,46 @@ function symmetricdistance_sorted(
     end
     return d + l1 + l2 # at least one of them is 0
 end
+# to ignore i-tagged μ-vectors on the fly, without allocating memory
+function symmetricdistance_sorted_ignoreitag(
+    v1i::Vector{Tuple{T,T}},
+    v1d::Vector{T},
+    v2i::Vector{Tuple{T,T}},
+    v2d::Vector{T},
+    lt=isless,
+) where T
+    d = 0
+    l1i = length(v1i); l1d = length(v1d)
+    l2i = length(v2i); l2d = length(v2d)
+    l1i + l1d == 0 && return l2i + l2d
+    l2i + l2d == 0 && return l1i + l1d
+    nextmaxlist(vi, vd, li, ld) = (li == 0 ?
+        (vd, ld) : (ld == 0 ? (vi, li) :
+        (lt(vd[ld], vi[li]) ? (vi, li) : (vd, ld))))
+    x1 = l1i == 0 ? v1d[l1d] : (l1d == 0 ? v1d[l1i][1] :
+    (comp(lt, v1i[l1i], v1d[l1d]) == 1 ? v1i[l1i] : v1d[l1d]))
+    x2 = v2[l2] # last: largest
+    while true
+        sgn = comp(lt, x1, x2)
+        if sgn == 1 # x1>x2
+            l1 -= 1; d += 1
+            if l1>0
+                x1 = v1[l1]
+            else break; end
+        elseif sgn == -1 # x2>x1
+            l2 -= 1; d += 1
+            if l2>0
+                x2 = v2[l2]
+            else break; end
+        else
+            l1 -= 1; l2 -= 1
+            if l1>0 && l2>0
+                x1 = v1[l1]; x2 = v2[l2]
+            else break; end
+        end
+    end
+    return d + l1 + l2 # at least one of them is 0
+end
 
 function allunique_sorted(v::AbstractVector)
     length(v) < 2 && return true
@@ -686,7 +739,7 @@ ending at a specific leaf, or ending at a hybrid node (any hybrid node).
 With `useμ0=false`, the number of paths to hybrids is ignored in the comparison.
 
 See [Cardona, Rossello & Valiente (2009)](https://doi.org/10.1109/TCBB.2007.70270)
-for the original μ-distance, and
+for the original μ-distance (correspondint to `useμ0=false`) and
 [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390) for the
 extension using paths ending at hybrids.
 
@@ -748,20 +801,20 @@ end
 
 """
     mudistance(m1::EdgeMuRepresentation, m2::EdgeMuRepresentation,
-               userootμ::Bool, useitag::Bool, useμ0::Bool)
+               useμ0::Bool, useitag::Bool, userootμ::Bool)
 
 Distance between two edge-based μ-representations: number of μ-entries,
 considered with their multiplicities, in one but not in the other.
-- `userootμ` controls whether the root μ-vector in included in the
-  set of μ-entries being compared. It is ignored by default, because different
-  root μ-vectors for networks with a single root would cause all μ-entries in
-  their root components to be different.
+- If `useμ0` is false, then only the number of paths to leaves are compared,
+  otherwise the number of paths to hybrid nodes is also compared.
 - If `useitag` is false, then the μ-vectors with an `:i` tag in μ-entries that
   have such an `:i`-tagged μ-vector are ignored.
   Only their other μ-vector are compared, treating such edges like those
   with a fixed direction and on which the root cannot be placed.
-- If `useμ0` is false, then only the number of paths to leaves are compared,
-  otherwise the number of paths to hybrid nodes is also compared.
+- `userootμ` controls whether the root μ-vector in included in the
+  set of μ-entries being compared. It is ignored by default, because different
+  root μ-vectors for networks with a single root would cause all μ-entries in
+  their root components to be different.
 
 Warning: this method assumes, without checking, that `m1` and `m2` have the same
 labels (and in the same order), for efficiency.
@@ -769,13 +822,14 @@ labels (and in the same order), for efficiency.
 function mudistance(
     m1::EdgeMuRepresentation,
     m2::EdgeMuRepresentation,
-    userootμ::Bool,
-    useitag::Bool,
     useμ0::Bool,
+    useitag::Bool,
+    userootμ::Bool,
 )
-    d  = symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed)
-    d += symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident)
-    d += symmetricdistance_sorted(m1.muvec_rootcomp, m2.muvec_rootcomp)
+    lt = useμ0 ? isless : isless_μtips
+    d  = symmetricdistance_sorted(m1.muvec_rootcomp, m2.muvec_rootcomp, lt)
+    d += symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed, lt)
+    d += symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident, lt)
     if userootμ
         if m1.mu_root != m2.mu_root
             d += 1
@@ -837,14 +891,14 @@ suppressed in subnetworks.
 Other keyword arguments are to ignore some properties of the network's
 μ-representation, which cause a shorter dissimilarity, and also may lead
 to some distinct (non-isomorphic) networks to have dissimilarity 0.
+- `useμ0=true`: set to `false` to ignore the the number of paths to some (any)
+  hybrid in each μ-vector.
+- `useitag=true`: set to `false` to ignore the μ-vectors with an `:i` tag,
+  in μ-entries that have such an `:i`-tagged μ-vector.
 - `userootμ=false` to ignore the root μ-entry.
   This default is made because we assume here that networks have a single root.
   If two single-rooted networks have a different root μ-entry, they also have
   different μ-entries for all edges that can contain their root.
-- `useitag=true`: set to `false` to ignore the μ-vectors with an `:i` tag,
-  in μ-entries that have such an `:i`-tagged μ-vector.
-- `useμ0=true`: set to `false` to ignore the the number of paths to some (any)
-  hybrid in each μ-vector.
 
 The μ-dissimilarity in
 [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780)
@@ -866,21 +920,21 @@ function mudistance_semidirected(
     net1::HybridNetwork,
     net2::HybridNetwork;
     labels::AbstractVector{<:AbstractString}=sort!(union(tiplabels(net1), tiplabels(net2))),
-    userootμ::Bool=false,
-    useitag::Bool=true,
     useμ0::Bool=true,
+    useitag::Bool=true,
+    userootμ::Bool=false,
     kwargs...
 )
     m1 = edge_murepresentation(net1, labels; kwargs...)
     m2 = edge_murepresentation(net2, labels; kwargs...)
-    return mudistance(m1, m2, userootμ, useitag, useμ0)
+    return mudistance(m1, m2, useμ0, useitag, userootμ)
 end
 function mudistance_semidirected(
     nets::AbstractVector{HybridNetwork};
     labels::AbstractVector{<:AbstractString}=sort!(tiplabels(nets)),
-    userootμ::Bool=false,
-    useitag::Bool=true,
     useμ0::Bool=true,
+    useitag::Bool=true,
+    userootμ::Bool=false,
     kwargs...
 )
     nn = length(nets)
@@ -888,7 +942,7 @@ function mudistance_semidirected(
     mr = [edge_murepresentation(n, labels; kwargs...) for n in nets]
     for (i1, m1) in enumerate(mr)
         for i2 in 1:(i1-1)
-            d = mudistance(m1, mr[i2], userootμ, useitag, useμ0)
+            d = mudistance(m1, mr[i2], useμ0, useitag, userootμ)
             M[i1,i2] = d; M[i2,i1] = d
         end
     end
