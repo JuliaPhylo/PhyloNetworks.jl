@@ -490,6 +490,17 @@ function node_murepresentation(
     end
     return NodeMuRepresentation(labels, mu_dict)
 end
+# check for unique values, assuming the vector is sorted
+function allunique_sorted(v::AbstractVector)
+    length(v) < 2 && return true
+    x1 = v[1]
+    for i in 2:length(v)
+        x2 = v[i]
+        x2 == x1 && return false
+        x1 = x2
+    end
+    return true
+end
 
 """
     edge_murepresentation(net::HybridNetwork,
@@ -630,7 +641,7 @@ function symmetricdistance_sorted(
     l2==0 && return l1
     x1 = v1[l1]; x2 = v2[l2] # last: largest
     while true
-        sgn = comp(lt, x1, x2)
+        sgn = cmp(lt, x1, x2)
         if sgn == 1 # x1>x2
             l1 -= 1; d += 1
             if l1>0
@@ -659,47 +670,45 @@ function symmetricdistance_sorted_ignoreitag(
     lt=isless,
 ) where T
     d = 0
-    l1i = length(v1i); l1d = length(v1d)
-    l2i = length(v2i); l2d = length(v2d)
-    l1i + l1d == 0 && return l2i + l2d
-    l2i + l2d == 0 && return l1i + l1d
-    nextmaxlist(vi, vd, li, ld) = (li == 0 ?
-        (vd, ld) : (ld == 0 ? (vi, li) :
-        (lt(vd[ld], vi[li]) ? (vi, li) : (vd, ld))))
-    x1 = l1i == 0 ? v1d[l1d] : (l1d == 0 ? v1d[l1i][1] :
-    (comp(lt, v1i[l1i], v1d[l1d]) == 1 ? v1i[l1i] : v1d[l1d]))
-    x2 = v2[l2] # last: largest
+    l1i = length(v1i); l1d = length(v1d); l1 = l1i + l1d
+    l2i = length(v2i); l2d = length(v2d); l2 = l2i + l2d
+    l1 == 0 && return l2
+    l2 == 0 && return l1
+    cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d)
+    cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d)
     while true
-        sgn = comp(lt, x1, x2)
+        sgn = cmp(lt, x1, x2)
         if sgn == 1 # x1>x2
             l1 -= 1; d += 1
+            if cat1 == :i; l1i -= 1; else l1d -= 1; end
             if l1>0
-                x1 = v1[l1]
+                cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d)
             else break; end
         elseif sgn == -1 # x2>x1
             l2 -= 1; d += 1
+            if cat2 == :i; l2i -= 1; else l2d -= 1; end
             if l2>0
-                x2 = v2[l2]
+                cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d)
             else break; end
         else
             l1 -= 1; l2 -= 1
+            if cat1 == :i; l1i -= 1; else l1d -= 1; end
+            if cat2 == :i; l2i -= 1; else l2d -= 1; end
             if l1>0 && l2>0
-                x1 = v1[l1]; x2 = v2[l2]
+                cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d)
+                cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d)
             else break; end
         end
     end
     return d + l1 + l2 # at least one of them is 0
 end
-
-function allunique_sorted(v::AbstractVector)
-    length(v) < 2 && return true
-    x1 = v[1]
-    for i in 2:length(v)
-        x2 = v[i]
-        x2 == x1 && return false
-        x1 = x2
+function nextmaxcat(vi, vd, li, ld)
+    if li == 0
+        return (:d, vd[ld])
+    elseif ld == 0 || lt(vd[ld], vi[li])
+        return (:i, vi[li])
     end
-    return true
+    return (:d, vd[ld])
 end
 
 """
@@ -828,12 +837,17 @@ function mudistance(
 )
     lt = useμ0 ? isless : isless_μtips
     d  = symmetricdistance_sorted(m1.muvec_rootcomp, m2.muvec_rootcomp, lt)
-    d += symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed, lt)
-    d += symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident, lt)
+    if useitag
+        d += symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed, lt)
+        d += symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident, lt)
+    else
+        d += symmetricdistance_sorted_ignoreitag(
+            m1.muvec_incident, m1.muvec_directed,
+            m2.muvec_incident, m2.muvec_directed, lt)
+    end
     if userootμ
-        if m1.mu_root != m2.mu_root
-            d += 1
-        end
+        d += (useμ0 ? m1.mu_root != m2.mu_root :
+              m1.mu_root.mu_tips != m2.mu_root.mu_tips)
     end
     return d
 end
