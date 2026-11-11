@@ -3,6 +3,13 @@
 exdir = joinpath(@__DIR__,"..","examples")
 # exdir = joinpath(dirname(pathof(PhyloNetworks)), "..","examples")
 
+@testset "readmultinewick_files" begin
+# CSV.read(joinpath(exdir, "treefilelist.txt"), NamedTuple; header=["f"], select=[1])[:f]
+res = readmultinewick_files(joinpath(exdir, "treefilelist.txt"))
+@test length(res) == 2
+@test length.(res) == [10,10]
+end
+
 @testset "testing hybridclades_support" begin
 bestnet = readnewick(joinpath(exdir,"fish2hyb.net"));
 bootnet = readmultinewick(joinpath(exdir,"fish3hyb_20boostrap.net"));

@@ -15,12 +15,14 @@ if not given as absolute paths.
 """
 function readmultinewick_files(filelist::AbstractString; relative2listfile::Bool=true)
     filelistdir = dirname(filelist)
-    bootfiles = DataFrame(CSV.File(filelist, header=false, types=Dict(1=>String));
-        copycols=false)
-    size(bootfiles)[2] > 0 ||
-        error("there should be a column in file $filelist: with a single bootstrap file name on each row (no header)")
-    ngenes = size(bootfiles)[1]
-    bf = (relative2listfile ? joinpath.(filelistdir, bootfiles[!,1]) : bootfiles[!,1])
+    bootfiles = try
+        CSV.read(filelist, NamedTuple; select=[1], header=["f"], types=[String])[:f]
+    catch err
+        @error "there should be a column in file $filelist: with a single bootstrap file name on each row (no header)"
+        rethrow()
+    end
+    ngenes = length(bootfiles)
+    bf = (relative2listfile ? joinpath.(filelistdir, bootfiles) : bootfiles)
     treelists = Array{Vector{HybridNetwork}}(undef, ngenes)
     for igene in 1:ngenes
         treelists[igene] = readmultinewick(bf[igene])
