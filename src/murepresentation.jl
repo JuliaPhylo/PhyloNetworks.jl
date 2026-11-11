@@ -743,7 +743,7 @@ function mudistance(
     userootμ::Bool
 )
     d  = symmetricdistance_sorted(m1.muvec_directed, m2.muvec_directed)
-    d  = symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident)
+    d += symmetricdistance_sorted(m1.muvec_incident, m2.muvec_incident)
     d += symmetricdistance_sorted(m1.muvec_rootcomp, m2.muvec_rootcomp)
     if userootμ
         if m1.mu_root != m2.mu_root

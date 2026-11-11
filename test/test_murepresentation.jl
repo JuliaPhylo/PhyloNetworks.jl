@@ -123,13 +123,23 @@ net1r = deepcopy(net1); rootatnode!(net1r, 4);
   "(tag=:t μ0=0 μ=[0, 0, 1, 1], tag=:t μ0=2 μ=[2, 2, 0, 0])"
 @test mudistance_semidirected([net1, net1r]; userootμ=true) == [0 0; 0 0]
 
-# networks with differen leaf sets
+# networks with different leaf sets
 deleteleaf!(net1r,"c")
 @test mudistance_rooted(net1, net1r) == 3
 @test (@test_logs (:warn, r"leaf c") mudistance_semidirected(net1, net1r,
   labels=["a","b","d"], userootμ=true)) == 2
 @test mudistance_semidirected(net1, net1r; preorder=false) == 8 # only edges 1,2,3 match 
 @test mudistance_semidirected(net1, net1r; preorder=false, userootμ=true) == 9
+
+# resolved root cases
+deleteleaf!(net1r,"d")
+μ1r = PN.edge_murepresentation(net1r)
+@test length(μ1r.muvec_rootcomp) == 0
+@test length(μ1r.muvec_incident) == 0
+@test length(μ1r.muvec_directed) == 5
+netab = readnewick("(a,b);")
+μab = PN.edge_murepresentation(netab)
+@test PN.mudistance(μ1r,μab,false) == 3 # edges above cherry
 
 # non-orchard network, with all tag types
 nwkstr1 = "((b1:1,((a1:1)#H12:3,#H1:0)r1:2):1,((x1:.5,((#H21:1,#H3:.5)w1:1)#H1:1):1,((((c:1)#H3:.5,#H12:1)w2:1)#H2:1,x2:.5):1):1,((#H2:0,(a2:1)#H21:3)r2:2,b2:1):1);"
@@ -152,8 +162,9 @@ di = μ1.muvec_incident
 dv = μ1.muvec_directed
 @test length(di) == 10 # 4 external
 @test length(dv) ==  9 # 3 external
-@test [m[1] for m in dv] == vcat(repeat([PN.mutag_i],6),repeat([PN.mutag_t],2),
-    repeat([PN.mutag_h],4))
+@test all(m[2].mu_tag == PN.mutag_i for m in di)
+@test [m[1].mu_tag for m in di] == vcat(repeat([PN.mutag_t],4), repeat([PN.mutag_h],6))
+@test [m.mu_tag for m in dv] == vcat(repeat([PN.mutag_t],5), repeat([PN.mutag_h],4))
 
 # swap b1 and b2: different topology, yet same hardwired clusters etc
 nwkstr2 = replace(replace(replace(nwkstr1,"b1"=>"tmp"), "b2"=>"b1"), "tmp"=>"b2")
