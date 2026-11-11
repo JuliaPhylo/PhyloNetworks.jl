@@ -102,26 +102,34 @@ PhyloNetworks.EdgeMuRepresentation
 4 taxa in μ-vectors: ["a", "b", "c", "d"]
 root μ-vector: μ0=2 μ=[2, 2, 1, 1]
 map edge number => μ-entry:
-1 edges in or incident to the root component
+1 edges in the root component
 """)
 for ss in [
-"  6 => μ0=2 μ=[2, 2, 0, 0]; μ0=0 μ=[0, 0, 1, 1]",
-"3 edges in the directed part:",
-"  5 => incident; μ0=1 μ=[1, 1, 0, 0]",
-"  4 => incident; μ0=1 μ=[1, 1, 0, 0]",
-"  3 => tree; μ0=0 μ=[1, 1, 0, 0]"]
+"  6 => tag=:t μ0=2 μ=[2, 2, 0, 0]; tag=:t μ0=0 μ=[0, 0, 1, 1]",
+"4 edges incident to the root component",
+"  4 => tag=:h μ0=1 μ=[1, 1, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]",
+"  5 => tag=:h μ0=1 μ=[1, 1, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]",
+"  8 => tag=:t μ0=0 μ=[0, 0, 0, 1]; tag=:i μ0=2 μ=[2, 2, 1, 0]",
+"  7 => tag=:t μ0=0 μ=[0, 0, 1, 0]; tag=:i μ0=2 μ=[2, 2, 0, 1]",
+"3 directed edges that may not contain the root",
+"  3 => tag=:t μ0=0 μ=[1, 1, 0, 0]",
+"  2 => tag=:t μ0=0 μ=[1, 0, 0, 0]",
+"  1 => tag=:t μ0=0 μ=[0, 1, 0, 0]"]
   @test occursin(ss, s1)
 end
 net1r = deepcopy(net1); rootatnode!(net1r, 4);
 μ1r = PN.edge_murepresentation(net1r, labs)
-@test string(μ1r.mumap_rootcomp[6]) == "(μ0=0 μ=[0, 0, 1, 1], μ0=2 μ=[2, 2, 0, 0])"
+@test string(μ1r.mumap_rootcomp[6]) ==
+  "(tag=:t μ0=0 μ=[0, 0, 1, 1], tag=:t μ0=2 μ=[2, 2, 0, 0])"
 @test mudistance_semidirected([net1, net1r]; userootμ=true) == [0 0; 0 0]
 
 # networks with differen leaf sets
 deleteleaf!(net1r,"c")
 @test mudistance_rooted(net1, net1r) == 3
-@test mudistance_semidirected(net1, net1r) == 1
-@test mudistance_semidirected(net1, net1r; preorder=false, userootμ=true) == 2
+@test (@test_logs (:warn, r"leaf c") mudistance_semidirected(net1, net1r,
+  labels=["a","b","d"], userootμ=true)) == 2
+@test mudistance_semidirected(net1, net1r; preorder=false) == 8 # only edges 1,2,3 match 
+@test mudistance_semidirected(net1, net1r; preorder=false, userootμ=true) == 9
 
 # non-orchard network, with all tag types
 nwkstr1 = "((b1:1,((a1:1)#H12:3,#H1:0)r1:2):1,((x1:.5,((#H21:1,#H3:.5)w1:1)#H1:1):1,((((c:1)#H3:.5,#H12:1)w2:1)#H2:1,x2:.5):1):1,((#H2:0,(a2:1)#H21:3)r2:2,b2:1):1);"
@@ -134,13 +142,16 @@ o = [2,6,1,7,4,3,5] # = sortperm(labs)
 @test μ1.mu_root == PN.MuVector(14, [1,3,1,4,1,3,1][o])
 rv = μ1.muvec_rootcomp
 @test length(rv) == 7
-@test [(m[1].mu_hybs, m[2].mu_hybs) for m in rv] == [(3,11),(3,11),(4,10),(4,10),(4,10),(4,10),(6,8)]
-@test rv[1][1].mu_tips == [0,0,1,1,0,1,0][o]
-@test rv[1][2].mu_tips == [1,3,0,3,1,2,1][o]
-@test rv[7][1].mu_tips == [0,1,1,2,1,1,0][o]
-@test rv[7][2].mu_tips == [1,2,0,2,0,2,1][o]
+@test all(m[i].mu_tag == PN.mutag_t for i in 1:2 for m in rv)
+@test [(m[1].mu_vec.mu_hybs, m[2].mu_vec.mu_hybs) for m in rv] == [(3,11),(3,11),(4,10),(4,10),(4,10),(4,10),(6,8)]
+@test rv[1][1].mu_vec.mu_tips == [0,0,1,1,0,1,0][o]
+@test rv[1][2].mu_vec.mu_tips == [1,3,0,3,1,2,1][o]
+@test rv[7][1].mu_vec.mu_tips == [0,1,1,2,1,1,0][o]
+@test rv[7][2].mu_vec.mu_tips == [1,2,0,2,0,2,1][o]
+di = μ1.muvec_incident
 dv = μ1.muvec_directed
-@test length(dv) == 12
+@test length(di) == 10 # 4 external
+@test length(dv) ==  9 # 3 external
 @test [m[1] for m in dv] == vcat(repeat([PN.mutag_i],6),repeat([PN.mutag_t],2),
     repeat([PN.mutag_h],4))
 
