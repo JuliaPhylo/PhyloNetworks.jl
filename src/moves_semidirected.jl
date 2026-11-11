@@ -779,7 +779,7 @@ individual. If a species is in the network but not listed in the mapping file,
 the tip for that species is left as is. Species listed in the mapping file
 but not present in the network are ignored.
 
-The mapping file should be readable by `CSV.File` and contain two columns:
+The mapping file should be in csv format and contain two columns:
 one for the species names and one for the individual (or allele) names.
 fixit: make this function more flexible by accepting column names
 
@@ -811,7 +811,7 @@ julia> species_constraints
 ```
 """
 function mapindividuals(net::HybridNetwork, mappingFile::String)
-    mappingDF = DataFrame(CSV.File(mappingFile); copycols=false)
+    mappingDF = CSV.read(mappingFile, DataFrame)
     specieslist = unique(mappingDF[:, 1])
     individualnet = deepcopy(net)
     constraints = TopologyConstraint[]
