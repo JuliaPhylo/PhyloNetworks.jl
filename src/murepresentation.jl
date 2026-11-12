@@ -94,18 +94,16 @@ function Base.isless(m1::TagMuVector, m2::TagMuVector)
     return isless(m1.mu_tag, m2.mu_tag)
 end
 isless_μtips(m1::TagMuVector, m2::TagMuVector) = isless_μtips(m1.mu_vec, m2.mu_vec)
-
-# To compare μ-entries with 1 and 2 tagged μ-vectors: use the 1st μ-vector
-# to ignore the :i-tagged μ-vector (2nd from incident edges): see option
-# `useitag=false`. Not meant to be used for edges in the root component.
-Base.isless(m1::TagMuVector, m2::Tuple{TagMuVector,TagMuVector}) =
-    isless(m1, m2[1])
-Base.isless(m1::Tuple{TagMuVector,TagMuVector}, m2::TagMuVector) =
-    isless(m1[1], m2)
-isless_μtips(m1::TagMuVector, m2::Tuple{TagMuVector,TagMuVector}) =
-    isless_μtips(m1, m2[1])
-isless_μtips(m1::Tuple{TagMuVector,TagMuVector}, m2::TagMuVector) =
-    isless_μtips(m1[1], m2)
+# below: used when both m1,m2 in a root component
+# assumes that: μ-vector[1] ≤ μ-vector[2] for each tuple μ-entry
+function isless_μtips(
+    m1::Tuple{TagMuVector,TagMuVector},
+    m2::Tuple{TagMuVector,TagMuVector}
+)
+    isless_μtips(m1[1], m2[1]) && return true
+    isless_μtips(m2[1], m1[1]) && return false
+    return isless_μtips(m1[2], m2[2])
+end
 
 has_0μentries_at(m::TagMuVector, i) = has_0μentries_at(m.mu_vec, i)
 has_0μentries_at(ms::Tuple{TagMuVector,TagMuVector}, i) =
@@ -641,13 +639,12 @@ function symmetricdistance_sorted(
     l2==0 && return l1
     x1 = v1[l1]; x2 = v2[l2] # last: largest
     while true
-        sgn = cmp(lt, x1, x2)
-        if sgn == 1 # x1>x2
+        if lt(x2,x1) # x1>x2
             l1 -= 1; d += 1
             if l1>0
                 x1 = v1[l1]
             else break; end
-        elseif sgn == -1 # x2>x1
+        elseif lt(x1,x2) # x2>x1
             l2 -= 1; d += 1
             if l2>0
                 x2 = v2[l2]
@@ -674,39 +671,38 @@ function symmetricdistance_sorted_ignoreitag(
     l2i = length(v2i); l2d = length(v2d); l2 = l2i + l2d
     l1 == 0 && return l2
     l2 == 0 && return l1
-    cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d)
-    cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d)
+    cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d, lt)
+    cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d, lt)
     while true
-        sgn = cmp(lt, x1, x2)
-        if sgn == 1 # x1>x2
+        if lt(x2,x1) # x1>x2
             l1 -= 1; d += 1
             if cat1 == :i; l1i -= 1; else l1d -= 1; end
             if l1>0
-                cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d)
+                cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d, lt)
             else break; end
-        elseif sgn == -1 # x2>x1
+        elseif lt(x1,x2) # x2>x1
             l2 -= 1; d += 1
             if cat2 == :i; l2i -= 1; else l2d -= 1; end
             if l2>0
-                cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d)
+                cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d, lt)
             else break; end
         else
             l1 -= 1; l2 -= 1
             if cat1 == :i; l1i -= 1; else l1d -= 1; end
             if cat2 == :i; l2i -= 1; else l2d -= 1; end
             if l1>0 && l2>0
-                cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d)
-                cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d)
+                cat1, x1 = nextmaxcat(v1i, v1d, l1i, l1d, lt)
+                cat2, x2 = nextmaxcat(v2i, v2d, l2i, l2d, lt)
             else break; end
         end
     end
     return d + l1 + l2 # at least one of them is 0
 end
-function nextmaxcat(vi, vd, li, ld)
+function nextmaxcat(vi, vd, li, ld, lt=isless)
     if li == 0
         return (:d, vd[ld])
-    elseif ld == 0 || lt(vd[ld], vi[li])
-        return (:i, vi[li])
+    elseif ld == 0 || lt(vd[ld], vi[li][1])
+        return (:i, vi[li][1])
     end
     return (:d, vd[ld])
 end

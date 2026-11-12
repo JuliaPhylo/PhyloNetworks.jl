@@ -42,8 +42,13 @@ labels = ["A","B","C","D"] # from net2, but sorted
 μ2 = (@test_logs PN.node_murepresentation(net2))
 @test μ1 != μ2
 @test PN.mudistance(μ1, μ2, true) == 2 # root and degree-2 node above D
+@test PN.mudistance(μ1, μ2, false) == 2
 @test ((@test_logs (:warn,r"leaf") (:warn,r"leaf") (:warn,r"leaf") mudistance_semidirected(
     net1, net2; preorder=false, labels=["A","B"]))) == 3
+tre2 = readnewick("(((A,(B)H1),C),(D));") # net2 less 1 hybrid edge & 1 nde (not 2)
+μt2 = PN.node_murepresentation(tre2)
+@test PN.mudistance(μt2, μ2, true)  == 9
+@test PN.mudistance(μt2, μ2, false) == 5
 
 μ2o = PN.edge_murepresentation(net2; preorder=false)
 s2o = string(μ2o)
@@ -91,11 +96,12 @@ end
 net1 = readnewick("((((b,a))#H1,#H1)h2,c,d)R;")
 net2 = readnewick("(((((a,b))#H1,c)h2,#H1),d)R;")
 @test mudistance_rooted([net1, net2]) == [0 3; 3 0]
-@test mudistance_semidirected([net1, net2]; preorder=false, userootμ=true) == [0 2; 2 0]
+@test mudistance_semidirected([net1, net2]; preorder=false,
+  userootμ=true, useμ0=false, useitag=false) == [0 2; 2 0]
 
 labs = ["a","b","c","d"]
 μ1  = PN.edge_murepresentation(net1; preorder=false)
-@test tiplabels(μ1) == labs # different order as in tiplabels(net1)
+@test tiplabels(μ1) == labs # ≠ in tiplabels(net1): b,a,c,d
 s1 = string(μ1)
 @test startswith(s1, """
 PhyloNetworks.EdgeMuRepresentation
@@ -140,6 +146,14 @@ deleteleaf!(net1r,"d")
 netab = readnewick("(a,b);")
 μab = PN.edge_murepresentation(netab)
 @test PN.mudistance(μ1r,μab,true,true,false) == 3 # edges above cherry
+
+# impact of itag and μ0
+net1 = readnewick("(c,b,a);")
+net2 = readnewick("((b,a)#H1,#H1,c);")
+μ1 = PN.edge_murepresentation(net1)
+μ2 = PN.edge_murepresentation(net2)
+@test PN.mudistance(μ1,μ2,true,true,false) == 8 # none of the edges match
+@test PN.mudistance(μ1,μ2,true,false,false) == 2 # external edges match
 
 # non-orchard network, with all tag types
 nwkstr1 = "((b1:1,((a1:1)#H12:3,#H1:0)r1:2):1,((x1:.5,((#H21:1,#H3:.5)w1:1)#H1:1):1,((((c:1)#H3:.5,#H12:1)w2:1)#H2:1,x2:.5):1):1,((#H2:0,(a2:1)#H21:3)r2:2,b2:1):1);"
