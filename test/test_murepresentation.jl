@@ -153,11 +153,11 @@ o = [2,6,1,7,4,3,5] # = sortperm(labs)
 rv = μ1.muvec_rootcomp
 @test length(rv) == 7
 @test all(m[i].mu_tag == PN.mutag_t for i in 1:2 for m in rv)
-@test [(m[1].mu_vec.mu_hybs, m[2].mu_vec.mu_hybs) for m in rv] == [(3,11),(3,11),(4,10),(4,10),(4,10),(4,10),(6,8)]
+@test [(m[1].mu_vec.mu_hybs, m[2].mu_vec.mu_hybs) for m in rv] == [(3,11),(3,11),(4,10),(4,10),(6,8),(4,10),(4,10)]
 @test rv[1][1].mu_vec.mu_tips == [0,0,1,1,0,1,0][o]
 @test rv[1][2].mu_vec.mu_tips == [1,3,0,3,1,2,1][o]
-@test rv[7][1].mu_vec.mu_tips == [0,1,1,2,1,1,0][o]
-@test rv[7][2].mu_vec.mu_tips == [1,2,0,2,0,2,1][o]
+@test rv[5][1].mu_vec.mu_tips == [0,1,1,2,1,1,0][o]
+@test rv[5][2].mu_vec.mu_tips == [1,2,0,2,0,2,1][o]
 di = μ1.muvec_incident
 dv = μ1.muvec_directed
 @test length(di) == 10 # 4 external
