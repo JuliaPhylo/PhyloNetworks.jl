@@ -147,13 +147,23 @@ netab = readnewick("(a,b);")
 μab = PN.edge_murepresentation(netab)
 @test PN.mudistance(μ1r,μab,true,true,false) == 3 # edges above cherry
 
-# impact of itag and μ0
+# impact of ignoring :i tag
 net1 = readnewick("(c,b,a);")
 net2 = readnewick("((b,a)#H1,#H1,c);")
 μ1 = PN.edge_murepresentation(net1)
 μ2 = PN.edge_murepresentation(net2)
 @test PN.mudistance(μ1,μ2,true,true,false) == 8 # none of the edges match
 @test PN.mudistance(μ1,μ2,true,false,false) == 2 # external edges match
+
+# impact of ignoring μ0 to hybrids: degree-2 'g'host
+nethi = readnewick("(#H2,#H1,((((d)#H2)g)#H1,c));")
+netlo = readnewick("(#H2,#H1,((((d)g)#H2)#H1,c));")
+@test mudistance_rooted(nethi, netlo) == 2
+@test mudistance_rooted(nethi, netlo, useμ0=false) == 0
+@test mudistance_semidirected(nethi, netlo) == 2
+@test mudistance_semidirected(nethi, netlo, useμ0=false) == 0
+@test mudistance_semidirected(nethi, netlo, useitag=false) == 2
+@test mudistance_semidirected(nethi, netlo, useμ0=false, useitag=false) == 0
 
 # non-orchard network, with all tag types
 nwkstr1 = "((b1:1,((a1:1)#H12:3,#H1:0)r1:2):1,((x1:.5,((#H21:1,#H3:.5)w1:1)#H1:1):1,((((c:1)#H3:.5,#H12:1)w2:1)#H2:1,x2:.5):1):1,((#H2:0,(a2:1)#H21:3)r2:2,b2:1):1);"
