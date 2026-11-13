@@ -333,6 +333,9 @@ To get the μ-representations themselves, see
 [`PhyloNetworks.node_murepresentation`](@ref) and
 [`PhyloNetworks.edge_murepresentation`](@ref).
 
+fixit todo: document options
+then start PR: extended options for μ-distance; compat CSV v1
+
 ## Displayed trees and subnetworks
 
 We can extract all trees displayed in a network.
