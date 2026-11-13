@@ -83,6 +83,9 @@ function Base.show(io::IO, obj::TagMuVector)
     print(io, "tag=$(obj.mu_tag) ")
     show(io, obj.mu_vec)
 end
+function Base.show(io::IO, obj::Tuple{TagMuVector,TagMuVector})
+    print(io, "$(obj[1]); $(obj[2])")
+end
 function ==(m1::TagMuVector, m2::TagMuVector)
     return m1.mu_tag == m2.mu_tag && m1.mu_vec == m2.mu_vec
 end
@@ -137,12 +140,19 @@ struct NodeMuRepresentation <: MuRepresentation
     "sorted vector of μ-vectors"
     mu_vec::Vector{MuVector}
 end
+# deterministic show of the μ-dictionary
+# reverse ordering of node IDs: typically close to postorder
+function show_mumap(io::IO, mdict::Dict{Int, T}) where T
+    for k in sort!(collect(keys(mdict)), rev=true)
+        print(io, "\n  $k => $(mdict[k])")
+    end
+end
 function Base.show(io::IO, obj::NodeMuRepresentation)
     labs = tiplabels(obj)
     disp = "$(typeof(obj))\n$(length(labs)) taxa in μ-vectors: $labs\n"
     disp *= "$(length(obj.mu_map)) nodes, map node number => μ0 to hybrids and μ-vector to taxa:"
-    for (k,v) in obj.mu_map disp *= "\n  $k => $v"; end
     print(io, disp)
+    show_mumap(io, obj.mu_map)
 end
 
 # constructor: builds sorted vector from map, re-using memory for each μ-vector
@@ -286,18 +296,12 @@ function Base.show(io::IO, obj::EdgeMuRepresentation)
     s *= "root μ-vector: $(obj.mu_root)\n"
     s *= "map edge number => μ-entry:"
     s *= "\n$(length(obj.mumap_rootcomp)) edges in the root component"
-    for (k,v) in obj.mumap_rootcomp
-        s *= "\n  $k => $(v[1]); $(v[2])"
-    end
-    s *= "\n$(length(obj.mumap_incident)) edges incident to the root component"
-    for (k,v) in obj.mumap_incident
-        s *= "\n  $k => $(v[1]); $(v[2])"
-    end
-    s *= "\n$(length(obj.mumap_directed)) directed edges that may not contain the root"
-    for (k,v) in obj.mumap_directed
-        s *= "\n  $k => $v"
-    end
     print(io, s)
+    show_mumap(io, obj.mumap_rootcomp)
+    print(io, "\n$(length(obj.mumap_incident)) edges incident to the root component")
+    show_mumap(io, obj.mumap_incident)
+    print(io, "\n$(length(obj.mumap_directed)) directed edges that may not contain the root")
+    show_mumap(io, obj.mumap_directed)
 end
 
 # constructor: builds sorted vectors from dictionaries
@@ -421,11 +425,11 @@ julia> PhyloNetworks.node_murepresentation(net) # internal nodes only
 PhyloNetworks.NodeMuRepresentation
 4 taxa in μ-vectors: ["A", "C", "E", "O"]
 5 nodes, map node number => μ0 to hybrids and μ-vector to taxa:
-  -3 => μ0=2 μ=[2, 1, 1, 0]
-  -6 => μ0=1 μ=[1, 0, 1, 0]
-  -4 => μ0=1 μ=[1, 1, 0, 0]
-  -2 => μ0=2 μ=[2, 1, 1, 1]
   3 => μ0=1 μ=[1, 0, 0, 0]
+  -2 => μ0=2 μ=[2, 1, 1, 1]
+  -3 => μ0=2 μ=[2, 1, 1, 0]
+  -4 => μ0=1 μ=[1, 1, 0, 0]
+  -6 => μ0=1 μ=[1, 0, 1, 0]
 ```
 """
 function node_murepresentation(
@@ -551,12 +555,12 @@ PhyloNetworks.EdgeMuRepresentation
 root μ-vector: μ0=2 μ=[2, 1, 1, 1]
 map edge number => μ-entry:
 2 edges in the root component
-  4 => tag=:t μ0=1 μ=[1, 1, 0, 0]; tag=:t μ0=1 μ=[1, 0, 1, 1]
   7 => tag=:t μ0=1 μ=[1, 0, 1, 0]; tag=:t μ0=1 μ=[1, 1, 0, 1]
+  4 => tag=:t μ0=1 μ=[1, 1, 0, 0]; tag=:t μ0=1 μ=[1, 0, 1, 1]
 5 edges incident to the root component
-  5 => tag=:h μ0=1 μ=[1, 0, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]
-  6 => tag=:t μ0=0 μ=[0, 0, 1, 0]; tag=:i μ0=2 μ=[2, 1, 0, 1]
   9 => tag=:t μ0=0 μ=[0, 0, 0, 1]; tag=:i μ0=2 μ=[2, 1, 1, 0]
+  6 => tag=:t μ0=0 μ=[0, 0, 1, 0]; tag=:i μ0=2 μ=[2, 1, 0, 1]
+  5 => tag=:h μ0=1 μ=[1, 0, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]
   3 => tag=:h μ0=1 μ=[1, 0, 0, 0]; tag=:i μ0=1 μ=[1, 1, 1, 1]
   1 => tag=:t μ0=0 μ=[0, 1, 0, 0]; tag=:i μ0=2 μ=[2, 0, 1, 1]
 1 directed edges that may not contain the root
@@ -744,7 +748,7 @@ ending at a specific leaf, or ending at a hybrid node (any hybrid node).
 With `useμ0=false`, the number of paths to hybrids is ignored in the comparison.
 
 See [Cardona, Rossello & Valiente (2009)](https://doi.org/10.1109/TCBB.2007.70270)
-for the original μ-distance (correspondint to `useμ0=false`) and
+for the original μ-distance (corresponding to `useμ0=false`) and
 [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390) for the
 extension using paths ending at hybrids.
 

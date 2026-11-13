@@ -276,11 +276,13 @@ See [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390),
 [Maxfield, Xu & Ané (2025)](https://doi.org/10.1109/TCBBIO.2025.3534780) and
 [Ribas, Pons & Ané (2026)](https://arxiv.org/abs/2605.06243).
 
-Each μ-representation lists a number of counts: counting the number of paths
-from each node / edge to each leaf (and to some/any hybrid node).
+Each μ-representation either has one μ-entry for each node (rooted case),
+or one μ-entry for each edge (semidirected case).
+Each μ-entry lists a number of counts: counting the number of paths
+from the node / edge to each leaf; and to some/any hybrid node.
 From these path numbers, we can get the hardwired cluster associated to
 node or leaf: the tips that can be reached via 1 or more paths.  
-So then the μ-distance is more discriminant (larger) than the hardwired-cluster
+So the μ-distance is more discriminant (larger) than the hardwired-cluster
 distance.
 
 For semidirected networks, the calculation of the μ-distance is much faster
@@ -288,9 +290,15 @@ than the calculation of the hardwired-cluster distance, because it requires a
 single traversal of the network.
 
 !!! info "distance versus dissimilarity"
-    Again, the μ-distances are only dissimilarities generally. They are known
-    to provided a distance, with d(N,N') = 0 exactly when N and N' share the
-    same topology, when N and N' are tree-child rooted or semidirected networks.
+    The μ-distances are only dissimilarities generally. They provided a distance
+    if d(N,N') = 0 exactly when N and N' share the same topology.
+    With the most permissive choice of options for the μ-distance, this property
+    holds when N and N' are tree-child rooted or semidirected networks.
+    With the default choice, this property holds for more networks; e.g. when
+    N and N' are orchard networks (weakly orchard for semidirected networks).
+
+If we know that a network is correctly rooted, then we can use
+[`mudistance_rooted`](@ref).
 
 ```@repl dist_reroot
 mudistance_rooted(net1, truenet)
@@ -298,18 +306,23 @@ mudistance_rooted(net1, truenet)
 
 Here both networks have an edge leading to the cluster ABCDE (the stem of
 the clade), but these edges have different number of paths to B: only 1 path
-in `net1` versus 2 paths in `truenet`. So these edges did not count towards
-the hardwired-cluster distance, but do count towards the rooted μ-distance now.
+in `net1` versus 2 paths in `truenet`. These edges did not count towards
+the hardwired-cluster distance, but do count towards the rooted μ-distance.
+
+When the networks are considered as undirected, then we should use
+[`mudistance_semidirected`](@ref):
 
 ```@repl dist_reroot
 mudistance_semidirected(net1, truenet)
 ```
 
-When considered as undirected, the μ-distance is greater here: this is because
-each edge is considered in each direction it can take if its direction may
-change depending on the root. To match edges between 2 networks,
-the edges' number of paths to taxa need to match -- in both directions (unlike
-when the networks are considered rooted).
+The μ-distance is greater when `net1` and `truenet` are considered
+undirected here: this is because
+each edge is considered in each direction it can take if, its direction may
+change depending on the root, including if the root can be placed along the edge
+(subdividing it into 2 segments, going in opposite direction away from the root).
+To match edges between 2 networks, the edges' number of paths to taxa need to
+match in both directions (unlike when the networks are considered rooted).
 Here, each network has 6 internal edges (after suppressing the root) and none
 of them match between the 2 networks.
 
@@ -333,8 +346,21 @@ To get the μ-representations themselves, see
 [`PhyloNetworks.node_murepresentation`](@ref) and
 [`PhyloNetworks.edge_murepresentation`](@ref).
 
-fixit todo: document options
-then start PR: extended options for μ-distance; compat CSV v1
+Both [`mudistance_rooted`](@ref) and [`mudistance_semidirected`](@ref)
+have options, to ignore some attributes of a network's μ-representation.
+Ignoring some attributes may decrease the dissimilarity.
+- The option `useμ0=true` by default, includes the comparison, for each node
+  or edge, the number of paths to some (any) hybrid node.
+  In the rooted case, this corresponds to the "extended" μ-distance
+  by [Cardona et al. (2024)](https://doi.org/10.1109/TCBB.2024.3361390).
+  Use `useμ0=false` to get the original μ-distance by
+  [Cardona, Rossello & Valiente (2009)](https://doi.org/10.1109/TCBB.2007.70270).
+- The options `useitag` and `userootμ` are also available for the semidirected
+  case. Setting `useitag=false` and `useμ0=false` corresponds to the original
+  semidirected μ-distance by
+  [Maxfield, Xu & Ané 2025](https://doi.org/10.1109/TCBBIO.2025.3534780)
+  and setting them all to `true` corresponds to the extension in
+  [Ribas, Pons & Ané 2026](https://arxiv.org/abs/2605.06243).
 
 ## Displayed trees and subnetworks
 

@@ -126,7 +126,7 @@ end
 net1r = deepcopy(net1); rootatnode!(net1r, 4);
 μ1r = PN.edge_murepresentation(net1r, labs)
 @test string(μ1r.mumap_rootcomp[6]) ==
-  "(tag=:t μ0=0 μ=[0, 0, 1, 1], tag=:t μ0=2 μ=[2, 2, 0, 0])"
+  "tag=:t μ0=0 μ=[0, 0, 1, 1]; tag=:t μ0=2 μ=[2, 2, 0, 0]"
 @test mudistance_semidirected([net1, net1r]; userootμ=true) == [0 0; 0 0]
 
 # networks with different leaf sets
