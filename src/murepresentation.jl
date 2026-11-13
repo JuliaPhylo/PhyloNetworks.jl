@@ -96,7 +96,12 @@ function Base.isless(m1::TagMuVector, m2::TagMuVector)
     end
     return isless(m1.mu_tag, m2.mu_tag)
 end
-isless_μtips(m1::TagMuVector, m2::TagMuVector) = isless_μtips(m1.mu_vec, m2.mu_vec)
+function isless_μtips(m1::TagMuVector, m2::TagMuVector)
+    if m1.mu_tag == m2.mu_tag
+        return isless_μtips(m1.mu_vec, m2.mu_vec)
+    end
+    return isless(m1.mu_tag, m2.mu_tag)
+end
 # below: used when both m1,m2 in a root component
 # assumes that: μ-vector[1] ≤ μ-vector[2] for each tuple μ-entry
 function isless_μtips(
