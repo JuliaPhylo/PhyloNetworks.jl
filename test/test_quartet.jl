@@ -84,7 +84,7 @@ BenchmarkTools.Trial:
 =#
 mappingfile = joinpath(dir, "strain2bin_map.csv")
 
-taxonmap = DataFrame(CSV.File(mappingfile); copycols=false) # 110×3 DataFrames.DataFrame
+taxonmap = CSV.read(mappingfile, DataFrame) # 110×3 DataFrames.DataFrame
 taxonmap = Dict(taxonmap[i,:allele] => taxonmap[i,:species] for i in 1:110)
 @time df1 = tablequartetCF(countquartetsintrees(tree, taxonmap; weight_byallele=true)...)
 # 0.119289 seconds (698.57 k allocations: 43.305 MiB, 17.40% gc time). 5×8 DataFrames.DataFrame
