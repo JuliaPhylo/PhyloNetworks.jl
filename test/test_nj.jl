@@ -45,6 +45,15 @@ end
     njtob = PhyloNetworks.nj_treeofblobs!(copy(oD), tiplabels(onet))
     otob = treeofblobs(onet)
     @test hardwiredclusterdistance(otob, njtob, false) == 0
+    njtobmin = PhyloNetworks.nj_treeofblobs!(copy(oD), tiplabels(onet), branchlengthtype=:min)
+    @test hardwiredclusterdistance(otob, njtobmin, false) == 0  
+    # same topology, but different branch lengths (for neighbors of hybrid)
+    @test otob.edge[2].length < njtobmin.edge[2].length # b neighbor of h
+    @test otob.edge[4].length < njtobmin.edge[4].length # c neighbor of h
+    # branch lengths are correct for non neighbors and for hybrid
+    @test otob.edge[3].length == njtobmin.edge[3].length # h
+    @test otob.edge[1].length == njtobmin.edge[1].length # a
+    # internal branch length is also correct
 
     # true blob vs no blob
     @test PN.cutblobpvalue(oD, BitVector([1,1,1,1,0,0,0,0]), 1) == 1
@@ -111,6 +120,9 @@ end
     @test PN.isEqual(njtob2,njtob4)
 
     njtob5 = PhyloNetworks.nj_treeofblobs!(copy(D), copy(Qf2); cutTest=:chi2ind, lrtType=:diag)
+
+    njtobmin = PhyloNetworks.nj_treeofblobs!(copy(D), nloci = 100000, branchlengthtype=:min)
+    @test hardwiredclusterdistance(njtob, njtobmin, false) == 0   
 
     # test lrt computations
     # solving the dual problem with V is the same as the primal with Vinv

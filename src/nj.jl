@@ -262,12 +262,14 @@ end
 ## F2 and f4 fonctions - non-diagonal case
 #####################################################
 
+function check_variance_matrix(Qf2::Nothing, n::Int)
+    return nothing
+end
+
 function check_variance_matrix(Qf2::Matrix{<:Real}, n::Int)
-    if size(Qf2, 1) > 0
-        expdim = n * (n-1) ÷ 2
-        if (size(Qf2, 1) != expdim) || (size(Qf2, 2) != expdim)
-            throw(DomainError(Qf2, "Qf2 should be a square matrix of dimension n(n+1)/2 with n the number of nodes"))
-        end
+    expdim = n * (n-1) ÷ 2
+    if (size(Qf2, 1) != expdim) || (size(Qf2, 2) != expdim)
+        throw(DomainError(Qf2, "Qf2 should be a square matrix of dimension n(n+1)/2 with n the number of nodes"))
     end
     return nothing
 end
@@ -510,6 +512,9 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     return lrt, V
 end
 
+function cutblobpvalue(D::Matrix{<:Real}, Q::Nothing, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol)
+    cutblobpvalue(D, clus_ind, nloci)
+end
 
 function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol)
     cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci, lambda, varReg, cutTest, lrtType)
@@ -637,7 +642,17 @@ function clusterize!(clusters::Vector{Int}, c1::Int, c2::Int)
     clusters[clusters .== c2] .= newclust
 end
 
-function nj_findbranchlengths(D::Matrix{<:Real}, clus_ind::BitVector, force_nonnegative_edges::Bool, neglenp::Int)
+function nj_findbranchlengths(D::Matrix{<:Real}, clus_ind::BitVector, force_nonnegative_edges::Bool, neglenp::Int, branchlengthtype::Symbol=:ave)
+    if branchlengthtype==:ave
+        return nj_findbranchlengths_ave(D, clus_ind, force_nonnegative_edges, neglenp)
+    elseif branchlengthtype==:min
+        return nj_findbranchlengths_min(D, clus_ind, force_nonnegative_edges, neglenp)
+    else
+        throw(ArgumentError("Unsupported branch length type $branchlengthtype."))
+    end
+end
+
+function nj_findbranchlengths_ave(D::Matrix{<:Real}, clus_ind::BitVector, force_nonnegative_edges::Bool, neglenp::Int)
 
     not_clus_ind = findall(.!clus_ind)
     clus_ind = findall(clus_ind)
@@ -672,54 +687,56 @@ function nj_findbranchlengths(D::Matrix{<:Real}, clus_ind::BitVector, force_nonn
     return bl, neglenp
 end
 
-# Join all the tips of a blob into a single tip
-# Tips of the blob form a star tree from the new tip
-# Branch lengths are arbitrarily set to 1.0
-# Distance of the new node to all other nodes is the average distance to the nodes of the blob
-function join_blob!(D::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{Node,1}, active_size::Int, clusters::Vector{Int}, clus_ind::BitVector, bl::Vector{<:Real})
-    # create new edges and node, update tree
-    # create a star tree from new node node_k
+function nj_findbranchlengths_min(D::Matrix{<:Real}, clus_ind::BitVector, force_nonnegative_edges::Bool, neglenp::Int)
+
+    not_clus_ind = findall(.!clus_ind)
     clus_ind = findall(clus_ind)
     n_in_clus = size(clus_ind, 1)
-    edgenum = net.numedges
-    newEdges = Vector{Edge}(undef, n_in_clus)
-    for (i,a) in enumerate(clus_ind)
-        eak = Edge(edgenum + i, bl[i])
-        setEdge!(active_nodes[a], eak)
-        newEdges[i] = eak
-    end
-    node_k = Node(net.numnodes+1, false, false, newEdges)
-    for (i,a) in enumerate(clus_ind)
-        setNode!(newEdges[i], Node[active_nodes[a], node_k]) # correct direction, bc ischild1 true by default
-        pushEdge!(net, newEdges[i])
-    end
-    pushNode!(net, node_k)
+    blout = Float64(Inf) .* ones(n_in_clus)
+    blin = Float64(Inf) .* ones(n_in_clus)
 
-    # constant distance
-    Kdist = sum(D[clus_ind, clus_ind]) / 2 / n_in_clus / (n_in_clus - 1)
-    # Update distances to new node k, placed in position i
-    i = clus_ind[1]
-    for l in 1:active_size
-        if !(l in clus_ind)
-            D[l,i] = sum(D[l,clus_ind]) / n_in_clus - Kdist
-            D[i,l] = D[l,i]
+    # Lout(i) = min_{j ∈ C, j≠i} {iA + ij - jA}
+    if (size(not_clus_ind, 1) > 0) # at least one remaining tip outside blob
+        DA = sum(D[clus_ind, not_clus_ind], dims = 2) ./ size(not_clus_ind, 1)
+        for (iu, u) in enumerate(clus_ind)
+            for (iv, v) in enumerate(clus_ind)
+                if iv != iu
+                    bltmp = D[u,v] + DA[iu] - DA[iv]
+                    if (bltmp < blout[iu])
+                        blout[iu] = bltmp
+                    end
+                end
+            end
         end
     end
-    # remove all nodes of the blob from the scope
-    for j in reverse(clus_ind[2:n_in_clus])
-        # swap j with last active position using whole column/row operations
-        if j != active_size
-            D[:, j], D[:, active_size] = D[:, active_size], D[:, j]
-            D[j, :], D[active_size, :] = D[active_size, :], D[j, :]
-            active_nodes[j] = active_nodes[active_size]
-            clusters[j] = clusters[active_size]
+    # Lin(i) = min{j,k ∈ C, j≠k and j,k≠i} {ik + ij - jk}
+    if (size(clus_ind, 1) >= 3) # at least 3 in the cluster
+        for (iu, u) in enumerate(clus_ind)
+            for (iv, v) in enumerate(clus_ind)
+                for (iw, w) in enumerate(clus_ind)
+                    if (iv != iu) & (iw != iu) & (iw != iv)
+                        bltmp = D[u,v] + D[u,w] - D[v,w]
+                        if (bltmp < blin[iu])
+                            blin[iu] = bltmp
+                        end
+                    end
+                end
+            end
         end
-        active_size -= 1
     end
-    # inactivate last active position: okay bc k replaces i != active_size
-    active_nodes[i] = node_k
+    bl = min.(blin, blout) ./ 2
+    for (iu, u) in enumerate(clus_ind)
+        if bl[iu] < 0.0
+            neglenp += 1
+            if force_nonnegative_edges bl[iu] = 0.0; end
+        end
+    end
 
-    return active_size
+    return bl, neglenp
+end
+
+function update_covar_f2(Qmatrix::Nothing, clus_ind::Vector{Int}, i::Int, l::Int, active_size::Int)
+    ## do nothing
 end
 
 function update_covar_f2(Qmatrix::Matrix{Float64}, clus_ind::Vector{Int}, i::Int, l::Int, active_size::Int)
@@ -742,6 +759,10 @@ function update_covar_f2(Qmatrix::Matrix{Float64}, clus_ind::Vector{Int}, i::Int
     end
 end
 
+function reorder_covar_f2(Qmatrix::Nothing, j::Int, active_size::Int)
+    ## do nothing
+end
+
 function reorder_covar_f2(Qmatrix::Matrix{Float64}, j::Int, active_size::Int)
     for a in 1:active_size
         if (a != j && a != active_size)
@@ -753,7 +774,9 @@ function reorder_covar_f2(Qmatrix::Matrix{Float64}, j::Int, active_size::Int)
     end
 end
 
-function join_blob!(D::Matrix{<:Real}, Qf2::Matrix{<:Real}, net::HybridNetwork, active_nodes::Array{Node,1}, active_size::Int, clusters::Vector{Int}, clus_ind::BitVector)
+function join_blob!(D::Matrix{<:Real}, Qf2::Union{Nothing,Matrix{<:Real}}, net::HybridNetwork, active_nodes::Array{Node,1}, active_size::Int, clusters::Vector{Int}, clus_ind::BitVector, force_nonnegative_edges::Bool, neglenp::Int, branchlengthtype::Symbol=:ave)
+    # branch lengths
+    bl, neglenp = nj_findbranchlengths(D, clus_ind, force_nonnegative_edges, neglenp, branchlengthtype)
     # create new edges and node, update tree
     # create a star tree from new node node_k
     clus_ind = findall(clus_ind)
@@ -761,7 +784,7 @@ function join_blob!(D::Matrix{<:Real}, Qf2::Matrix{<:Real}, net::HybridNetwork, 
     edgenum = net.numedges
     newEdges = Vector{Edge}(undef, n_in_clus)
     for (i,a) in enumerate(clus_ind)
-        eak = Edge(edgenum + i, 1.0)
+        eak = Edge(edgenum + i, bl[i])
         setEdge!(active_nodes[a], eak)
         newEdges[i] = eak
     end
@@ -774,13 +797,37 @@ function join_blob!(D::Matrix{<:Real}, Qf2::Matrix{<:Real}, net::HybridNetwork, 
 
     # Update distances to new node k, placed in position i
     i = clus_ind[1]
-    for l in 1:active_size
-        if !(l in clus_ind)
-            D[l,i] = sum(D[l,clus_ind]) / n_in_clus
-            D[i,l] = D[l,i]
-            update_covar_f2(Qf2, clus_ind, i, l, active_size)
+    if (branchlengthtype == :ave)
+        # constant distance
+        Kdist = sum(D[clus_ind, clus_ind]) / 2 / n_in_clus / (n_in_clus - 1)
+        for l in 1:active_size
+            if !(l in clus_ind)
+                D[l,i] = sum(D[l,clus_ind]) / n_in_clus - Kdist
+                D[i,l] = D[l,i]
+                update_covar_f2(Qf2, clus_ind, i, l, active_size)
+            end
         end
+    elseif branchlengthtype==:min
+        # ca :=  min_{i,j ∈ C, i≠j} (ia + ja - ij)/2
+        for l in 1:active_size
+            if !(l in clus_ind)
+                dupdate = Float64(Inf)
+                for j in clus_ind
+                    clus_ind_not_j = clus_ind[clus_ind .!= j]
+                    dtmp = minimum(D[j,l] .+ D[l,clus_ind_not_j] .- D[j, clus_ind_not_j]) * 0.5
+                    if (dtmp < dupdate)
+                        dupdate = dtmp
+                    end
+                end
+                D[l,i] = dupdate
+                D[i,l] = D[l,i]
+                update_covar_f2(Qf2, clus_ind, i, l, active_size) # TODO: adapt Q update to min formulas
+            end
+        end
+    else
+        throw(ArgumentError("Unsupported branch length type $branchlengthtype."))
     end
+
     # remove all nodes of the blob from the scope
     for j in reverse(clus_ind[2:n_in_clus])
         # swap j with last active position using whole column/row operations
@@ -796,7 +843,7 @@ function join_blob!(D::Matrix{<:Real}, Qf2::Matrix{<:Real}, net::HybridNetwork, 
     # inactivate last active position: okay bc k replaces i != active_size
     active_nodes[i] = node_k
 
-    return active_size
+    return active_size, neglenp
 end
 
 function nj_treeofblobs!(
@@ -805,9 +852,10 @@ function nj_treeofblobs!(
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
     nloci::Int=1000,
-    lambda::Real=1e-10
+    lambda::Real=1e-10,
+    branchlengthtype::Symbol=:ave
 )
-    nj_treeofblobs!(D, zeros(0,0), names; force_nonnegative_edges = force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda)
+    nj_treeofblobs!(D, nothing, names; force_nonnegative_edges = force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda, branchlengthtype = branchlengthtype)
 end
 
 """
@@ -826,7 +874,7 @@ See [`nj`](@ref) for the classical neighbor joining algorithm.
 """
 function nj_treeofblobs!(
     D::Matrix{Float64},
-    Qf2::Matrix{Float64},
+    Qf2::Union{Nothing,Matrix{Float64}},
     names::AbstractVector{<:AbstractString}=String[];
     force_nonnegative_edges::Bool=false,
     threshold::Float64=0.01,
@@ -834,7 +882,8 @@ function nj_treeofblobs!(
     lambda::Real=1e-5,
     varReg::Symbol=:oas,
     cutTest::Symbol=:ftest,
-    lrtType::Symbol=:full
+    lrtType::Symbol=:full,
+    branchlengthtype::Symbol=:ave
 )
     check_distance_matrix(D)
     n = size(D, 1)    # number of species
@@ -866,11 +915,7 @@ function nj_treeofblobs!(
         c2 = uniclust[ic2]
         clus_ind = (clusters[1:active_size] .== c1) .|| (clusters[1:active_size] .== c2)
         if ((active_size - sum(clus_ind)) >= 2)
-            if size(Qf2, 1) == 0
-                blobpval = cutblobpvalue(D, clus_ind, nloci)
-            else
-                blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci, lambda, varReg, cutTest, lrtType)
-            end
+            blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci, lambda, varReg, cutTest, lrtType)
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
             blobpval = 1.0
             # clusters[1:active_size] .= c1
@@ -880,12 +925,7 @@ function nj_treeofblobs!(
         nclust = nclust - 1
         # compute the length of the edges
         if (blobpval >= threshold)
-            if size(Qf2, 1) == 0
-                bl, neglenp = nj_findbranchlengths(D, clus_ind, force_nonnegative_edges, neglenp)
-                active_size = join_blob!(D, net, active_nodes, active_size, clusters, clus_ind, bl)
-            else
-                active_size = join_blob!(D, Qf2, net, active_nodes, active_size, clusters, clus_ind)
-            end
+            active_size, neglenp = join_blob!(D, Qf2, net, active_nodes, active_size, clusters, clus_ind, force_nonnegative_edges, neglenp, branchlengthtype)
         end
     end
 

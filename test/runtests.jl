@@ -3,7 +3,7 @@ using PhyloNetworks
 using CSV # for reading files
 using DataFrames
 using Distributed # for parsimony search, currently broken
-using LinearAlgebra: diag, Diagonal # LinearAlgebra.rotate! not brought into scope
+using LinearAlgebra: diag, Diagonal, inv, cholesky, diagm # LinearAlgebra.rotate! not brought into scope
 using Random
 using StableRNGs
 
