@@ -138,4 +138,27 @@ end
 
 end
 
+# counterexample from Stan Rasschaert, see
+# SSRN preprint: https://dx.doi.org/10.2139/ssrn.7292396
+@testset "counterexample" begin
+    onet = readnewick("(((b:0.0)#H5:0.0::0.5,((((#H5:0.0::0.5,a:0.0)i19:0.0,#H3:0.0::0.5)i15:0.0)#H2:0.0::0.5,#H1:0.0::0.5)i11:0.0)i6:10.0,((((#H2:0.0::0.5,c:0.0)i13:24.0,((((d:0.0)#H4:0.0::0.5)#H3:0.0::0.5,f:0.0)i7:4.0)#H1:0.0::0.5)i8:12.0,e:4.0)i9:2.0,#H4:0.0::0.5)i17:0.0)i10;")
+    M = pairwisetaxondistancematrix(onet)
+    taxa = tiplabels(onet)
+    o = sortperm(taxa) # now taxa[o] = a-f
+    D = M[o,o]
+
+    # TOB should be a star tree
+    otob = treeofblobs(onet)
+    # but NJ tree separates abcd|ef
+    njtob = PhyloNetworks.nj_treeofblobs!(copy(D), taxa[o], nloci = 100000,  branchlengthtype=:min)
+    # in step where (abcd), we have
+    # phi(b,e,d,f) = 0 while it should be > 0
+    # phi(c,e,d,f) = 0 while it should be > 0
+    # but this is *not* detected by the test, that assumes H_0 : >= 0.
+
+    # But, with the min distance, the cut edge gets a zero length, consistent with a star tree
+    @test njtob.edge[5].length == 0.0
+
+end
+
 end
