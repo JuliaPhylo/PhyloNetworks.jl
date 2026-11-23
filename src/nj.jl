@@ -512,21 +512,21 @@ function getlrtQ(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B
     return lrt, V
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Nothing, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol)
+function cutblobpvalue(D::Matrix{<:Real}, Q::Nothing, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol, nmixchi2::Int)
     cutblobpvalue(D, clus_ind, nloci)
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol)
-    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci, lambda, varReg, cutTest, lrtType)
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, clus_ind::BitVector, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol, nmixchi2::Int)
+    cutblobpvalue(D, Q, findall(clus_ind), findall(.!clus_ind), active_size, nloci, lambda, varReg, cutTest, lrtType, nmixchi2)
 end
 
-function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol)
+function cutblobpvalue(D::Matrix{<:Real}, Q::Matrix{<:Real}, ind_A::Vector{Int}, ind_B::Vector{Int}, active_size::Int, nloci::Int, lambda::Real, varReg::Symbol, cutTest::Symbol, lrtType::Symbol, nmixchi2::Int)
     lrt, V = getlrtQ(D, Q, ind_A, ind_B, active_size, nloci, lambda, varReg, lrtType)
     if cutTest==:ftest
         return ccdf(mixtureF(size(V, 1), nloci), lrt / (nloci-1))
     elseif cutTest==:chi2
         regularizeVariance!(V, nloci, lambda, varReg)
-        return ccdf(mixtureChi2(V), lrt)
+        return ccdf(mixtureChi2(V, nmixchi2), lrt)
     elseif cutTest==:chi2ind
         return ccdf(mixtureChi2Diagonal(size(V,1) ÷ 2), lrt)
     else
@@ -853,9 +853,10 @@ function nj_treeofblobs!(
     threshold::Float64=0.01,
     nloci::Int=1000,
     lambda::Real=1e-10,
-    branchlengthtype::Symbol=:ave
+    branchlengthtype::Symbol=:ave,
+    nmixchi2::Int=100000
 )
-    nj_treeofblobs!(D, nothing, names; force_nonnegative_edges = force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda, branchlengthtype = branchlengthtype)
+    nj_treeofblobs!(D, nothing, names; force_nonnegative_edges = force_nonnegative_edges, threshold = threshold, nloci = nloci, lambda = lambda, branchlengthtype = branchlengthtype, nmixchi2 = nmixchi2)
 end
 
 """
@@ -883,7 +884,8 @@ function nj_treeofblobs!(
     varReg::Symbol=:oas,
     cutTest::Symbol=:ftest,
     lrtType::Symbol=:full,
-    branchlengthtype::Symbol=:ave
+    branchlengthtype::Symbol=:ave,
+    nmixchi2::Int=100000
 )
     check_distance_matrix(D)
     n = size(D, 1)    # number of species
@@ -915,7 +917,7 @@ function nj_treeofblobs!(
         c2 = uniclust[ic2]
         clus_ind = (clusters[1:active_size] .== c1) .|| (clusters[1:active_size] .== c2)
         if ((active_size - sum(clus_ind)) >= 2)
-            blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci, lambda, varReg, cutTest, lrtType)
+            blobpval = cutblobpvalue(D, Qf2, clus_ind, active_size, nloci, lambda, varReg, cutTest, lrtType, nmixchi2)
         else # check that there are more than 2 tips left : otherwise, error when finding pairs
             blobpval = 1.0
             # clusters[1:active_size] .= c1
