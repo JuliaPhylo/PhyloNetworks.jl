@@ -538,6 +538,10 @@ end
 # n is the number of blocks in jacknife estimation
 function mixtureF(r::Int, n::Int)
     if r > 1
+        if (n <= r) # case where dimension is higher than number of loci
+            n = r + 1 
+            @warn "For the cut-edge F test, nloci was lower than the number of quadruplets. Setting it to the minimum acceptable value."
+        end
         return MixtureModel([(r - 1) / (n - r + 1) * FDist(r - 1, n - r + 1), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
     else # Dirac
         return MixtureModel([Normal(0.0, 0.0), r / (n - r) * FDist(r, n - r)], [0.5, 0.5])
